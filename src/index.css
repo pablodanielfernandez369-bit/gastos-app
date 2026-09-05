@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
 }
 
 html, body, #root {
@@ -20,4 +20,9 @@ body {
 
 input, select, textarea, button {
   font-family: inherit;
+}
+
+input, select, textarea {
+  background-color: #ffffff;
+  color: #111827;
 }

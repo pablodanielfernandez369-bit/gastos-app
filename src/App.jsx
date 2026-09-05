@@ -8,11 +8,13 @@ import Dashboard from './components/Dashboard';
 import MovimientosTable from './components/MovimientosTable';
 import Reportes from './components/Reportes';
 import Ajustes from './components/Ajustes';
+import Asistente from './components/Asistente';
 
 const TABS = [
   { id: 'dashboard', label: 'Ahorro', icon: '💰' },
   { id: 'movimientos', label: 'Movimientos', icon: '📋' },
   { id: 'reportes', label: 'Reportes', icon: '📊' },
+  { id: 'asistente', label: 'Asistente', icon: '🎙️' },
   { id: 'ajustes', label: 'Ajustes', icon: '⚙️' },
 ];
 
@@ -37,8 +39,10 @@ export default function App() {
     setQuickIncomeOpen(false);
   }
 
+  const showFloatingButtons = tab !== 'asistente';
+
   return (
-    <div className="mx-auto min-h-screen max-w-lg bg-gray-100 pb-40">
+    <div className={`mx-auto min-h-screen max-w-lg bg-gray-100 ${showFloatingButtons ? 'pb-40' : 'pb-20'}`}>
       <header className="px-4 pt-6 pb-2">
         <h1 className="text-xl font-bold text-gray-900">Mis gastos y ahorro</h1>
       </header>
@@ -47,23 +51,26 @@ export default function App() {
         {tab === 'dashboard' && <Dashboard state={state} actions={actions} />}
         {tab === 'movimientos' && <MovimientosTable state={state} actions={actions} />}
         {tab === 'reportes' && <Reportes state={state} />}
+        {tab === 'asistente' && <Asistente state={state} />}
         {tab === 'ajustes' && <Ajustes state={state} actions={actions} />}
       </main>
 
-      <div className="fixed inset-x-0 bottom-16 mx-auto flex max-w-lg gap-3 bg-gradient-to-t from-gray-100 via-gray-100/95 to-transparent p-4 pt-6">
-        <button
-          onClick={() => setShowExpenseForm(true)}
-          className="flex-1 rounded-xl bg-gray-900 py-4 text-base font-semibold text-white shadow-lg"
-        >
-          + Nuevo gasto
-        </button>
-        <button
-          onClick={() => setQuickIncomeOpen(true)}
-          className="flex-1 rounded-xl bg-ok py-4 text-base font-semibold text-white shadow-lg"
-        >
-          + Nuevo ingreso
-        </button>
-      </div>
+      {showFloatingButtons && (
+        <div className="fixed inset-x-0 bottom-16 mx-auto flex max-w-lg gap-3 bg-gradient-to-t from-gray-100 via-gray-100/95 to-transparent p-4 pt-6">
+          <button
+            onClick={() => setShowExpenseForm(true)}
+            className="flex-1 rounded-xl bg-gray-900 py-4 text-base font-semibold text-white shadow-lg"
+          >
+            + Nuevo gasto
+          </button>
+          <button
+            onClick={() => setQuickIncomeOpen(true)}
+            className="flex-1 rounded-xl bg-ok py-4 text-base font-semibold text-white shadow-lg"
+          >
+            + Nuevo ingreso
+          </button>
+        </div>
+      )}
 
       <nav className="fixed inset-x-0 bottom-0 mx-auto flex max-w-lg border-t border-gray-200 bg-white">
         {TABS.map((t) => (
