@@ -79,11 +79,14 @@ function escapeRegex(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-// Matchea por palabra completa (con límites \b), no por substring suelto:
-// evita que "gas" matchee dentro de "gasté", "luz" dentro de otra palabra, etc.
+// Matchea por palabra completa (con límites \b), no por substring suelto
+// (evita que "gas" matchee dentro de "gasté"), y tolera singular/plural
+// simple sacando una "s" final si la tiene: "Peajes" matchea "peaje" o
+// "peajes", "Insumo" matchea "insumo" o "insumos".
 function containsWord(text, phrase) {
   if (!phrase) return false;
-  return new RegExp(`\\b${escapeRegex(phrase)}\\b`).test(text);
+  const base = phrase.endsWith('s') ? phrase.slice(0, -1) : phrase;
+  return new RegExp(`\\b${escapeRegex(base)}s?\\b`).test(text);
 }
 
 // Palabras de la pregunta que no sirven para buscar en las descripciones
