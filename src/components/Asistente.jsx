@@ -1,6 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSpeechRecognition } from '../lib/speech';
-import { answerQuestion } from '../lib/analyzer';
+
+async function fetchAnswer(question, state) {
+  const res = await fetch('/api/ask', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ question, state }),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  return data.answer || 'No pude generar una respuesta.';
+}
 
 const EJEMPLOS = [
   '¿Cómo voy con Insumos comparado al mes pasado?',
@@ -66,10 +76,18 @@ export default function Asistente({ state }) {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' });
   }, [history]);
 
-  function ask(question) {
-    const answer = answerQuestion(question, state);
-    setHistory((h) => [...h, { question, answer }]);
+  async function ask(question) {
     setText('');
+    setHistory((h) => [...h, { question, answer: null }]);
+
+    let answer;
+    try {
+      answer = await fetchAnswer(question, state);
+    } catch (err) {
+      answer = 'No pude conectarme para responder. Revisá tu conexión y probá de nuevo.';
+    }
+
+    setHistory((h) => h.map((item, i) => (i === h.length - 1 ? { ...item, answer } : item)));
     speak(answer);
   }
 
@@ -108,7 +126,15 @@ export default function Asistente({ state }) {
               {h.question}
             </div>
             <div className="mr-8 rounded-xl rounded-bl-sm bg-white px-3 py-2 text-sm text-gray-800 shadow-sm">
-              {h.answer}
+              {h.answer === null ? (
+                <span className="inline-flex gap-1 text-gray-400">
+                  <span className="animate-bounce">·</span>
+                  <span className="animate-bounce [animation-delay:0.15s]">·</span>
+                  <span className="animate-bounce [animation-delay:0.3s]">·</span>
+                </span>
+              ) : (
+                h.answer
+              )}
             </div>
           </div>
         ))}

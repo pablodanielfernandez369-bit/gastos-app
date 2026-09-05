@@ -4,7 +4,7 @@
 // (hoy/semana/mes/año) y si es una comparación mes a mes, y arma la
 // respuesta directamente a partir de los datos guardados en el dispositivo.
 
-import { formatARS, isInRange } from './format';
+import { formatARS, isInRange } from './format.js';
 
 function normalize(text) {
   return text
