@@ -75,7 +75,7 @@ export default function ExpenseFormModal({ open, onClose, draft, state, actions,
   const missingCategory = !groupId;
 
   return (
-    <Modal open={open} onClose={onClose} title={editingId ? 'Editar gasto' : 'Confirmar gasto'}>
+    <Modal open={open} onClose={onClose} title={editingId ? 'Editar gasto' : 'Nuevo gasto'}>
       <div className="space-y-4">
         {draft?.rawText && (
           <p className="rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-500 italic">

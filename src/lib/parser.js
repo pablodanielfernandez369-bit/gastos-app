@@ -1,26 +1,6 @@
-// Parser de lenguaje natural en español rioplatense.
-// Recibe una frase (dictada o tipeada) y trata de extraer monto, moneda,
-// categoría/subcategoría probable, tipo de gasto y una descripción limpia.
-// Nunca es 100% confiable a propósito: lo que no logra inferir queda en
-// null para que la confirmación se lo pida al usuario con un tap.
-
-const FIXED_KEYWORDS = [
-  'alquiler', 'expensas', 'luz', 'gas', 'internet', 'agua', 'cable', 'wifi',
-  'sueldo', 'cuota', 'tarjeta',
-];
-
-const GROUP_KEYWORDS = {
-  vivienda: [
-    'casa', 'vivienda', 'alquiler', 'expensas', 'luz', 'gas', 'internet',
-    'agua', 'cable', 'wifi', 'depto', 'departamento', 'edificio',
-  ],
-  local: [
-    'local', 'negocio', 'empleado', 'empleada', 'sueldo', 'insumo',
-    'insumos', 'publicidad', 'propaganda', 'tarjeta', 'cuota',
-    'equipamiento', 'proveedor', 'mercaderia', 'ventas', 'caja',
-    'panaderia', 'kiosco', 'tienda',
-  ],
-};
+// Parser de lenguaje natural en español rioplatense para el monto y la
+// descripción de un ingreso dictado o tipeado (los gastos se cargan siempre
+// con el formulario manual).
 
 const CURRENCY_WORDS = ['usd', 'u$s', 'dolares', 'dolar', 'verdes'];
 
@@ -62,38 +42,8 @@ export function extractAmount(rawText) {
   return { amount: null, currency, matchedText: null };
 }
 
-// Intenta matchear el nombre de alguna subcategoría existente dentro del
-// texto (sin importar mayúsculas/acentos). Si no encuentra ninguna, cae a
-// una detección más floja por grupo usando palabras clave genéricas.
-export function guessCategory(rawText, subcategories) {
-  const text = normalize(rawText);
-
-  const sorted = [...subcategories].sort((a, b) => b.name.length - a.name.length);
-  for (const sub of sorted) {
-    const name = normalize(sub.name);
-    if (name && name !== 'otro' && text.includes(name)) {
-      return { groupId: sub.groupId, subcategoryId: sub.id };
-    }
-  }
-
-  for (const [groupId, words] of Object.entries(GROUP_KEYWORDS)) {
-    if (words.some((w) => text.includes(w))) {
-      return { groupId, subcategoryId: null };
-    }
-  }
-
-  return { groupId: null, subcategoryId: null };
-}
-
-export function guessType(rawText, subcategoryName) {
-  const text = normalize(rawText + ' ' + (subcategoryName || ''));
-  if (FIXED_KEYWORDS.some((w) => text.includes(w))) return 'fijo';
-  if (text.includes('compra') || text.includes('compre')) return 'puntual';
-  return 'variable';
-}
-
 // Limpia la frase para usarla como descripción: saca el monto detectado y
-// muletillas típicas de inicio ("gaste", "pague", etc).
+// muletillas típicas de inicio ("cobré", "recibí", etc).
 export function cleanDescription(rawText, matchedAmountText) {
   let text = rawText.trim();
   if (matchedAmountText) {
@@ -107,27 +57,6 @@ export function cleanDescription(rawText, matchedAmountText) {
     .trim();
   if (!text) text = rawText.trim();
   return text.charAt(0).toUpperCase() + text.slice(1);
-}
-
-// Parser completo para un gasto: devuelve un "draft" listo para mostrar en
-// la confirmación editable (nunca se guarda directo).
-export function parseExpenseText(rawText, subcategories) {
-  const { amount, currency, matchedText } = extractAmount(rawText);
-  const { groupId, subcategoryId } = guessCategory(rawText, subcategories);
-  const subcategory = subcategories.find((s) => s.id === subcategoryId);
-  const type = guessType(rawText, subcategory?.name);
-  const description = cleanDescription(rawText, matchedText);
-
-  return {
-    amountRaw: amount,
-    currency,
-    groupId,
-    subcategoryId,
-    type,
-    description,
-    rawText,
-    needsReview: amount === null || groupId === null,
-  };
 }
 
 // Parser para ingresos: no hay categoría, solo monto + descripción.

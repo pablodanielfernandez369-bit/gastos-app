@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAppState } from './lib/useAppState';
-import { parseExpenseText, parseIncomeText } from './lib/parser';
+import { parseIncomeText } from './lib/parser';
 import QuickEntrySheet from './components/QuickEntrySheet';
 import ExpenseFormModal from './components/ExpenseFormModal';
 import IncomeFormModal from './components/IncomeFormModal';
@@ -20,33 +20,21 @@ export default function App() {
   const [state, actions] = useAppState();
   const [tab, setTab] = useState('dashboard');
 
-  const [quickMode, setQuickMode] = useState(null); // 'expense' | 'income' | null
-  const [expenseDraft, setExpenseDraft] = useState(null);
+  const [quickIncomeOpen, setQuickIncomeOpen] = useState(false);
   const [showExpenseForm, setShowExpenseForm] = useState(false);
   const [incomeDraft, setIncomeDraft] = useState(null);
   const [showIncomeForm, setShowIncomeForm] = useState(false);
 
-  function handleQuickSubmit(rawText) {
-    if (quickMode === 'expense') {
-      setExpenseDraft(parseExpenseText(rawText, state.subcategories));
-      setQuickMode(null);
-      setShowExpenseForm(true);
-    } else if (quickMode === 'income') {
-      setIncomeDraft(parseIncomeText(rawText));
-      setQuickMode(null);
-      setShowIncomeForm(true);
-    }
+  function handleQuickIncomeSubmit(rawText) {
+    setIncomeDraft(parseIncomeText(rawText));
+    setQuickIncomeOpen(false);
+    setShowIncomeForm(true);
   }
 
-  function openClassicForm() {
-    if (quickMode === 'expense') {
-      setExpenseDraft(null);
-      setShowExpenseForm(true);
-    } else if (quickMode === 'income') {
-      setIncomeDraft(null);
-      setShowIncomeForm(true);
-    }
-    setQuickMode(null);
+  function openClassicIncomeForm() {
+    setIncomeDraft(null);
+    setShowIncomeForm(true);
+    setQuickIncomeOpen(false);
   }
 
   return (
@@ -64,13 +52,13 @@ export default function App() {
 
       <div className="fixed inset-x-0 bottom-16 mx-auto flex max-w-lg gap-3 bg-gradient-to-t from-gray-100 via-gray-100/95 to-transparent p-4 pt-6">
         <button
-          onClick={() => setQuickMode('expense')}
+          onClick={() => setShowExpenseForm(true)}
           className="flex-1 rounded-xl bg-gray-900 py-4 text-base font-semibold text-white shadow-lg"
         >
           + Nuevo gasto
         </button>
         <button
-          onClick={() => setQuickMode('income')}
+          onClick={() => setQuickIncomeOpen(true)}
           className="flex-1 rounded-xl bg-ok py-4 text-base font-semibold text-white shadow-lg"
         >
           + Nuevo ingreso
@@ -92,13 +80,12 @@ export default function App() {
         ))}
       </nav>
 
-      {quickMode !== null && (
+      {quickIncomeOpen && (
         <QuickEntrySheet
           open
-          mode={quickMode}
-          onClose={() => setQuickMode(null)}
-          onSubmitText={handleQuickSubmit}
-          onUseClassicForm={openClassicForm}
+          onClose={() => setQuickIncomeOpen(false)}
+          onSubmitText={handleQuickIncomeSubmit}
+          onUseClassicForm={openClassicIncomeForm}
         />
       )}
 
@@ -106,7 +93,7 @@ export default function App() {
         <ExpenseFormModal
           open
           onClose={() => setShowExpenseForm(false)}
-          draft={expenseDraft}
+          draft={null}
           state={state}
           actions={actions}
         />

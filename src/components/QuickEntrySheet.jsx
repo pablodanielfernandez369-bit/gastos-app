@@ -3,10 +3,10 @@ import Modal from './Modal';
 import { useSpeechRecognition } from '../lib/speech';
 
 // Bottom sheet con un input tipo chat + botón de micrófono, para cargar un
-// gasto o ingreso hablando o tipeando en una sola frase. Al confirmar,
-// entrega el texto crudo al componente padre, que lo parsea y abre el
-// formulario de confirmación editable — acá nunca se guarda nada.
-export default function QuickEntrySheet({ open, onClose, onSubmitText, onUseClassicForm, mode }) {
+// ingreso hablando o tipeando en una sola frase. Al confirmar, entrega el
+// texto crudo al componente padre, que lo parsea y abre el formulario de
+// confirmación editable — acá nunca se guarda nada.
+export default function QuickEntrySheet({ open, onClose, onSubmitText, onUseClassicForm }) {
   const [text, setText] = useState('');
   const { supported, listening, transcript, start, stop, error } = useSpeechRecognition();
 
@@ -33,19 +33,14 @@ export default function QuickEntrySheet({ open, onClose, onSubmitText, onUseClas
     onSubmitText(text.trim());
   }
 
-  const title = mode === 'income' ? 'Nuevo ingreso' : 'Nuevo gasto';
-  const placeholder = mode === 'income'
-    ? 'ej: cobré ventas del local 300 mil'
-    : 'ej: gasté 15 mil en insumos del local';
-
   return (
-    <Modal open={open} onClose={onClose} title={title}>
+    <Modal open={open} onClose={onClose} title="Nuevo ingreso">
       <form onSubmit={handleTextSubmit} className="space-y-4">
         <div className="flex items-center gap-2">
           <input
             autoFocus
             className="flex-1 rounded-lg border border-gray-300 px-3 py-3 text-base"
-            placeholder={placeholder}
+            placeholder="ej: cobré ventas del local 300 mil"
             value={text}
             onChange={(e) => setText(e.target.value)}
           />
