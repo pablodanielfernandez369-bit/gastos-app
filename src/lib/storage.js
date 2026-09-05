@@ -27,6 +27,17 @@ export function exportStateAsJson(state) {
   return JSON.stringify(state, null, 2);
 }
 
+const LAST_BACKUP_KEY = 'gastos_app_v1_last_backup';
+
+export function getLastBackupAt() {
+  const raw = localStorage.getItem(LAST_BACKUP_KEY);
+  return raw ? Number(raw) : null;
+}
+
+export function setLastBackupAt(timestamp) {
+  localStorage.setItem(LAST_BACKUP_KEY, String(timestamp));
+}
+
 export function downloadFile(filename, content, mimeType) {
   const blob = new Blob([content], { type: mimeType });
   const url = URL.createObjectURL(blob);

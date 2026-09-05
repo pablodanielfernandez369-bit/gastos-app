@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { downloadFile, exportStateAsJson } from '../lib/storage';
+import { downloadFile, exportStateAsJson, setLastBackupAt } from '../lib/storage';
 
 export default function BackupRestore({ state, actions }) {
   const fileInputRef = useRef(null);
@@ -7,6 +7,7 @@ export default function BackupRestore({ state, actions }) {
   function handleExport() {
     const json = exportStateAsJson(state);
     downloadFile(`backup_gastos_${new Date().toISOString().slice(0, 10)}.json`, json, 'application/json');
+    setLastBackupAt(Date.now());
   }
 
   function handleImportClick() {
@@ -26,6 +27,7 @@ export default function BackupRestore({ state, actions }) {
         }
         if (!confirm('Esto reemplaza TODOS tus datos actuales por los del backup. ¿Continuar?')) return;
         actions.replaceState(parsed);
+        setLastBackupAt(Date.now());
         alert('Backup restaurado.');
       } catch (err) {
         alert('No se pudo leer el archivo. ¿Es un backup exportado desde acá?');
@@ -39,7 +41,8 @@ export default function BackupRestore({ state, actions }) {
     <div className="rounded-xl bg-white p-4 shadow-sm">
       <h3 className="mb-2 text-sm font-semibold text-gray-700">Backup de tus datos</h3>
       <p className="mb-3 text-sm text-gray-500">
-        Todo se guarda en este dispositivo. Hacé backup de vez en cuando para no perder nada.
+        Todo se guarda en este dispositivo. Además de este botón, cada vez que abrís la app
+        y pasó más de un día desde el último backup, se descarga uno solo a tu carpeta de Descargas.
       </p>
       <div className="flex gap-2">
         <button

@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAppState } from './lib/useAppState';
 import { parseIncomeText } from './lib/parser';
+import { downloadFile, exportStateAsJson, getLastBackupAt, setLastBackupAt } from './lib/storage';
+import { todayISO } from './lib/model';
 import QuickEntrySheet from './components/QuickEntrySheet';
 import ExpenseFormModal from './components/ExpenseFormModal';
 import IncomeFormModal from './components/IncomeFormModal';
@@ -38,6 +40,21 @@ export default function App() {
     setShowIncomeForm(true);
     setQuickIncomeOpen(false);
   }
+
+  // Backup automático silencioso: si pasó más de un día desde el último,
+  // lo descarga solo a Descargas al abrir la app (no depende de un horario
+  // exacto, porque nada corre en segundo plano si la app está cerrada).
+  useEffect(() => {
+    const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+    const last = getLastBackupAt();
+    if (last && Date.now() - last < ONE_DAY_MS) return;
+
+    if (state.expenses.length > 0 || state.incomes.length > 0) {
+      downloadFile(`backup_gastos_${todayISO()}.json`, exportStateAsJson(state), 'application/json');
+    }
+    setLastBackupAt(Date.now());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const showFloatingButtons = tab !== 'asistente';
 
