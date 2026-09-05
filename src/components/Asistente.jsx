@@ -9,11 +9,33 @@ const EJEMPLOS = [
   '¿Subió o bajó la luz?',
 ];
 
+// El sintetizador no sabe que "$" acá es pesos argentinos (algunas voces
+// lo leen como dólares en inglés) — se lo decimos explícito antes de hablar,
+// y le sacamos los emojis que algunas voces intentan "leer".
+function toSpoken(text) {
+  return text
+    .replace(/\$\s?(-?\d{1,3}(?:\.\d{3})*(?:,\d+)?)/g, (_, num) => `${num} pesos`)
+    .replace(/[⚠️✅👍👎▲▼]/gu, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+function pickSpanishVoice() {
+  const voices = window.speechSynthesis.getVoices();
+  return (
+    voices.find((v) => /^es-(AR|419)/i.test(v.lang)) ||
+    voices.find((v) => v.lang?.toLowerCase().startsWith('es')) ||
+    null
+  );
+}
+
 function speak(text) {
   if (!window.speechSynthesis) return;
   window.speechSynthesis.cancel();
-  const utterance = new SpeechSynthesisUtterance(text);
+  const utterance = new SpeechSynthesisUtterance(toSpoken(text));
   utterance.lang = 'es-AR';
+  const voice = pickSpanishVoice();
+  if (voice) utterance.voice = voice;
   window.speechSynthesis.speak(utterance);
 }
 
@@ -22,6 +44,12 @@ export default function Asistente({ state }) {
   const [history, setHistory] = useState([]); // { question, answer }
   const { supported, listening, transcript, start, stop, error } = useSpeechRecognition();
   const listRef = useRef(null);
+
+  useEffect(() => {
+    if (!window.speechSynthesis) return;
+    window.speechSynthesis.getVoices();
+    window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+  }, []);
 
   useEffect(() => {
     if (listening) setText(transcript);

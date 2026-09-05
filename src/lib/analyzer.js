@@ -87,6 +87,40 @@ function containsWord(text, phrase) {
   return new RegExp(`\\b${escapeRegex(phrase)}\\b`).test(text);
 }
 
+// Palabras de la pregunta que no sirven para buscar en las descripciones
+// (conectores, verbos de la propia pregunta, períodos, etc).
+const STOPWORDS = new Set([
+  'cuanto', 'cuanta', 'cuantos', 'cuantas', 'gaste', 'gasto', 'gastos', 'gastado',
+  'gastados', 'gastada', 'llevo', 'llevas', 'llevado', 'llevados', 'en', 'el', 'la',
+  'los', 'las', 'de', 'del', 'al', 'a', 'este', 'esta', 'estos', 'estas', 'ese', 'esa',
+  'pasado', 'pasada', 'mes', 'semana', 'hoy', 'ano', 'anio', 'como', 'voy', 'va', 'vengo',
+  'con', 'y', 'o', 'tengo', 'mi', 'mis', 'tu', 'tus', 'total', 'totales', 'subio', 'baje',
+  'bajo', 'respecto', 'comparado', 'comparada', 'comparacion', 'cambio', 'diferencia',
+  'aumento', 'variacion', 'es', 'son', 'fue', 'un', 'una', 'unos', 'unas', 'que', 'se',
+  'me', 'le', 'por', 'para', 'ahorro', 'ahorre', 'ingreso', 'ingresos', 'cobre', 'gane',
+]);
+
+function extractCandidateWords(text) {
+  return text
+    .split(/[^a-z0-9]+/)
+    .filter((w) => w.length >= 3 && !STOPWORDS.has(w) && !/^\d+$/.test(w));
+}
+
+// Si ninguna categoría matchea, busca alguna palabra suelta de la pregunta
+// dentro de las descripciones de los gastos (ej: preguntar "cuánto llevo
+// gastado en Mel" busca "mel" en las descripciones cargadas).
+function findDescriptionMatch(text, state) {
+  const candidates = extractCandidateWords(text).sort((a, b) => b.length - a.length);
+  for (const word of candidates) {
+    const re = new RegExp(`\\b${escapeRegex(word)}\\b`);
+    const found = state.expenses.some((e) => re.test(normalize(e.description || '')));
+    if (found) {
+      return { type: 'description', keyword: word, name: capitalize(word) };
+    }
+  }
+  return null;
+}
+
 function findTarget(text, state) {
   const subs = [...state.subcategories].sort((a, b) => b.name.length - a.name.length);
   for (const s of subs) {
@@ -105,6 +139,10 @@ function findTarget(text, state) {
     const local = state.groups.find((g) => g.id === 'local');
     if (local) return { type: 'group', id: local.id, name: local.name };
   }
+
+  const descMatch = findDescriptionMatch(text, state);
+  if (descMatch) return descMatch;
+
   if (/\bahorr/.test(text)) return { type: 'savings', name: 'tu ahorro' };
   if (/\bingres|\bgan[eé]\b|\bcobr/.test(text)) return { type: 'income', name: 'tus ingresos' };
   return { type: 'expense', name: 'tus gastos' };
@@ -116,6 +154,9 @@ function sumExpenses(state, from, to, target) {
     .filter((e) => {
       if (target.type === 'subcategory') return e.subcategoryId === target.id;
       if (target.type === 'group') return e.groupId === target.id;
+      if (target.type === 'description') {
+        return new RegExp(`\\b${escapeRegex(target.keyword)}\\b`).test(normalize(e.description || ''));
+      }
       return true; // 'expense' genérico: todos
     })
     .reduce((sum, e) => sum + e.amount, 0);
