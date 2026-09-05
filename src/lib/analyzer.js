@@ -98,23 +98,32 @@ const STOPWORDS = new Set([
   'bajo', 'respecto', 'comparado', 'comparada', 'comparacion', 'cambio', 'diferencia',
   'aumento', 'variacion', 'es', 'son', 'fue', 'un', 'una', 'unos', 'unas', 'que', 'se',
   'me', 'le', 'por', 'para', 'ahorro', 'ahorre', 'ingreso', 'ingresos', 'cobre', 'gane',
+  'compra', 'compras', 'pago', 'pagos', 'vario', 'varios', 'varias', 'efectivo',
 ]);
 
-function extractCandidateWords(text) {
+function extractWords(text) {
   return text
     .split(/[^a-z0-9]+/)
     .filter((w) => w.length >= 3 && !STOPWORDS.has(w) && !/^\d+$/.test(w));
 }
 
-// Si ninguna categoría matchea, busca alguna palabra suelta de la pregunta
-// dentro de las descripciones de los gastos (ej: preguntar "cuánto llevo
-// gastado en Mel" busca "mel" en las descripciones cargadas).
+// En vez de adivinar qué palabra de LA PREGUNTA importa (imposible cubrir
+// todas las formas de preguntar), aprende de TUS DESCRIPCIONES qué palabras
+// usás como etiqueta recurrente (ej: "Mel" al final de varios gastos) y
+// después solo revisa si la pregunta menciona alguna de esas palabras, en
+// cualquier lugar y con cualquier verbo.
 function findDescriptionMatch(text, state) {
-  const candidates = extractCandidateWords(text).sort((a, b) => b.length - a.length);
-  for (const word of candidates) {
-    const re = new RegExp(`\\b${escapeRegex(word)}\\b`);
-    const found = state.expenses.some((e) => re.test(normalize(e.description || '')));
-    if (found) {
+  const freq = new Map();
+  for (const e of state.expenses) {
+    const words = new Set(extractWords(normalize(e.description || '')));
+    for (const w of words) freq.set(w, (freq.get(w) || 0) + 1);
+  }
+
+  const candidates = [...freq.entries()].sort(
+    (a, b) => b[1] - a[1] || b[0].length - a[0].length
+  );
+  for (const [word] of candidates) {
+    if (containsWord(text, word)) {
       return { type: 'description', keyword: word, name: capitalize(word) };
     }
   }
