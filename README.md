@@ -1,16 +1,42 @@
-# React + Vite
+# Mis gastos y ahorro
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+App personal para controlar gastos (Vivienda / Local·Negocio) e ingresos, con
+carga por voz o texto en español, dashboard de capacidad de ahorro, avisos de
+subas/bajas de precio mes a mes, reportes con gráficos y export a CSV. Todo
+se guarda en el propio dispositivo (localStorage), sin backend ni login.
 
-Currently, two official plugins are available:
+Es una PWA: se puede instalar como acceso directo en la pantalla de inicio
+del celular.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Probarla en la computadora
 
-## React Compiler
+```
+npm install
+npm run dev
+```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Abrí la URL que te muestra la terminal (por defecto `http://localhost:5173`).
 
-## Expanding the Oxlint configuration
+## Subirla a internet (Render, gratis) para usarla desde el celular
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+1. Andá a **render.com** y entrá con tu cuenta (la misma que usaste para Moldea).
+2. **New +** → **Static Site**.
+3. Conectá el repo de GitHub **gastos-app**.
+4. Configuración del sitio:
+   - **Build Command:** `npm install && npm run build`
+   - **Publish directory:** `dist`
+5. Creá el sitio. Render te da una URL propia, algo como
+   `https://gastos-app.onrender.com` (a diferencia de Moldea, al ser un sitio
+   estático no se "duerme": abre siempre al toque).
+
+## Agregarla a la pantalla de inicio del celular
+
+1. Abrí la URL de Render en Chrome del celular.
+2. Tocá el menú (⋮) → **Agregar a la pantalla de inicio** (o puede aparecer
+   solo un cartel abajo ofreciéndolo).
+3. Confirmá. Va a quedar un ícono como cualquier app; al abrirlo no se ve la
+   barra del navegador.
+
+Los datos se guardan en el navegador de ese celular. Si algún día cambiás de
+celular o borrás los datos del navegador, usá **Ajustes → Backup** para
+exportar/restaurar antes de perder algo.
