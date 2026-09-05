@@ -67,6 +67,7 @@ export function newExpense(partial) {
     groupId: null,
     subcategoryId: null,
     description: '',
+    personName: null, // etiqueta opcional (ej: "Mel") para poder preguntarle al asistente por nombre
     date: todayISO(),
     type: 'puntual',
     inputMethod: 'formulario',

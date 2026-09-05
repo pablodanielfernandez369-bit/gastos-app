@@ -122,7 +122,14 @@ export default function MovimientosTable({ state, actions }) {
                     </>
                   )}
                 </td>
-                <td className="px-3 py-2 text-gray-700">{m.description}</td>
+                <td className="px-3 py-2 text-gray-700">
+                  {m.description}
+                  {m.personName && (
+                    <span className="ml-1.5 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
+                      {m.personName}
+                    </span>
+                  )}
+                </td>
                 <td className={`whitespace-nowrap px-3 py-2 text-right font-medium ${m.kind === 'ingreso' ? 'text-ok' : 'text-gray-900'}`}>
                   {m.kind === 'ingreso' ? '+' : '-'}{formatARS(m.amount)}
                 </td>
@@ -170,6 +177,7 @@ function toExpenseDraft(e) {
     groupId: e.groupId,
     subcategoryId: e.subcategoryId,
     description: e.description,
+    personName: e.personName,
     date: e.date,
     type: e.type,
     fxRate: e.fxRate,

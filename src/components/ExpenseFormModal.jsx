@@ -14,6 +14,7 @@ export default function ExpenseFormModal({ open, onClose, draft, state, actions,
   const [currency, setCurrency] = useState(draft?.currency ?? 'ARS');
   const [fxRate, setFxRate] = useState(draft?.fxRate ?? state.config.fxRate ?? '');
   const [description, setDescription] = useState(draft?.description ?? '');
+  const [personName, setPersonName] = useState(draft?.personName ?? '');
   const [date, setDate] = useState(draft?.date ?? todayISO());
   const [type, setType] = useState(draft?.type ?? 'variable');
   const [newSubName, setNewSubName] = useState('');
@@ -58,6 +59,7 @@ export default function ExpenseFormModal({ open, onClose, draft, state, actions,
       groupId,
       subcategoryId,
       description: description.trim() || '(sin descripción)',
+      personName: personName.trim() || null,
       date,
       type,
       inputMethod: draft ? (draft.rawText ? 'voz/texto' : 'formulario') : 'formulario',
@@ -203,6 +205,16 @@ export default function ExpenseFormModal({ open, onClose, draft, state, actions,
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="ej: compra de insumos panadería"
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-gray-500 mb-1">Nombre (opcional)</label>
+          <input
+            className="w-full rounded-lg border border-gray-300 px-3 py-2"
+            value={personName}
+            onChange={(e) => setPersonName(e.target.value)}
+            placeholder="ej: Mel — para poder preguntarle al asistente por este nombre"
           />
         </div>
 

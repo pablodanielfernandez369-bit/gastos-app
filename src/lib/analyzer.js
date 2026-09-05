@@ -130,6 +130,22 @@ function findDescriptionMatch(text, state) {
   return null;
 }
 
+// Campo "Nombre" dedicado del formulario de gastos (más confiable que
+// buscar en la descripción libre, porque es explícito).
+function findPersonMatch(text, state) {
+  const names = new Set();
+  for (const e of state.expenses) {
+    if (e.personName) names.add(normalize(e.personName));
+  }
+  const sorted = [...names].sort((a, b) => b.length - a.length);
+  for (const name of sorted) {
+    if (name && containsWord(text, name)) {
+      return { type: 'person', keyword: name, name: capitalize(name) };
+    }
+  }
+  return null;
+}
+
 function findTarget(text, state) {
   const subs = [...state.subcategories].sort((a, b) => b.name.length - a.name.length);
   for (const s of subs) {
@@ -149,6 +165,9 @@ function findTarget(text, state) {
     if (local) return { type: 'group', id: local.id, name: local.name };
   }
 
+  const personMatch = findPersonMatch(text, state);
+  if (personMatch) return personMatch;
+
   const descMatch = findDescriptionMatch(text, state);
   if (descMatch) return descMatch;
 
@@ -163,8 +182,11 @@ function sumExpenses(state, from, to, target) {
     .filter((e) => {
       if (target.type === 'subcategory') return e.subcategoryId === target.id;
       if (target.type === 'group') return e.groupId === target.id;
+      if (target.type === 'person') {
+        return containsWord(normalize(e.personName || ''), target.keyword);
+      }
       if (target.type === 'description') {
-        return new RegExp(`\\b${escapeRegex(target.keyword)}\\b`).test(normalize(e.description || ''));
+        return containsWord(normalize(e.description || ''), target.keyword);
       }
       return true; // 'expense' genérico: todos
     })
