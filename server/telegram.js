@@ -121,7 +121,9 @@ const confirmKeyboard = (id) => ({
 
 async function commitExpense(p) {
   const { data: state } = await getState();
-  if (!state) throw new Error('No hay estado en la base');
+  if (!state || !state.groups) throw new Error('No hay estado en la base');
+  state.expenses = state.expenses || [];
+  state.subcategories = state.subcategories || [];
 
   let groupId = p.groupId;
   if (p.newGroupName && !groupId) {
@@ -192,7 +194,9 @@ async function handleMessage(msg) {
   let parsed;
   try {
     const { data: state } = await getState();
-    if (!state) return send('Todavía no hay datos. Abrí la app una vez y volvé a intentar.');
+    if (!state || !state.groups?.length) {
+      return send('Abrí la app una vez (gastos-app-396i.onrender.com) para que se sincronicen tus categorías y después escribime el gasto.');
+    }
     parsed = await parseExpense(text, state);
     if (!parsed.confident || !parsed.amount) {
       return send('No pude sacar el monto o no entendí bien. Probá algo como "gasté 5000 en nafta".');
@@ -303,7 +307,7 @@ async function handleCallback(cb) {
 // Resumen rápido del mes (se puede pedir con /resumen o mandarlo por cron)
 export async function sendResumen() {
   const { data: state } = await getState();
-  if (!state) return;
+  if (!state || !state.groups) return send('Todavía no hay datos cargados.');
   const mk = new Date().toISOString().slice(0, 7);
   const inMonth = (d) => (d || '').slice(0, 7) === mk;
   const gastos = state.expenses.filter((e) => inMonth(e.date));
