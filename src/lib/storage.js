@@ -38,6 +38,32 @@ export function setLastBackupAt(timestamp) {
   localStorage.setItem(LAST_BACKUP_KEY, String(timestamp));
 }
 
+const LAST_TG_BACKUP_KEY = 'gastos_app_v1_last_tg_backup';
+
+export function getLastTelegramBackupAt() {
+  const raw = localStorage.getItem(LAST_TG_BACKUP_KEY);
+  return raw ? Number(raw) : null;
+}
+
+export function setLastTelegramBackupAt(timestamp) {
+  localStorage.setItem(LAST_TG_BACKUP_KEY, String(timestamp));
+}
+
+// Manda el estado al backend, que lo reenvía como archivo .json al chat de
+// Telegram. Lanza si el backend no lo pudo enviar (o no está configurado).
+export async function sendTelegramBackup(state) {
+  const res = await fetch('/api/backup', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ state }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || `El backup falló (${res.status})`);
+  }
+  return true;
+}
+
 export function downloadFile(filename, content, mimeType) {
   const blob = new Blob([content], { type: mimeType });
   const url = URL.createObjectURL(blob);

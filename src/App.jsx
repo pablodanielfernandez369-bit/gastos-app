@@ -1,7 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useAppState } from './lib/useAppState';
 import { parseIncomeText } from './lib/parser';
-import { downloadFile, exportStateAsJson, getLastBackupAt, setLastBackupAt } from './lib/storage';
+import {
+  downloadFile,
+  exportStateAsJson,
+  getLastBackupAt,
+  setLastBackupAt,
+  getLastTelegramBackupAt,
+  setLastTelegramBackupAt,
+  sendTelegramBackup,
+} from './lib/storage';
 import { todayISO } from './lib/model';
 import QuickEntrySheet from './components/QuickEntrySheet';
 import ExpenseFormModal from './components/ExpenseFormModal';
@@ -53,6 +61,21 @@ export default function App() {
       downloadFile(`backup_gastos_${todayISO()}.json`, exportStateAsJson(state), 'application/json');
     }
     setLastBackupAt(Date.now());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Backup automático al chat de Telegram: una vez por día al abrir la app.
+  // Si el server todavía no tiene el bot configurado, falla en silencio y
+  // se reintenta la próxima vez.
+  useEffect(() => {
+    const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+    const last = getLastTelegramBackupAt();
+    if (last && Date.now() - last < ONE_DAY_MS) return;
+    if (state.expenses.length === 0 && state.incomes.length === 0) return;
+
+    sendTelegramBackup(state)
+      .then(() => setLastTelegramBackupAt(Date.now()))
+      .catch((e) => console.warn('Backup a Telegram no enviado:', e.message));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

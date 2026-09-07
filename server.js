@@ -10,6 +10,9 @@ app.use(express.json({ limit: '5mb' }));
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const MODEL = 'claude-haiku-4-5-20251001';
 
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+
 app.post('/api/ask', async (req, res) => {
   const { question, state } = req.body || {};
   if (!question || !state) {
@@ -26,6 +29,45 @@ app.post('/api/ask', async (req, res) => {
   } catch (err) {
     console.error('Error consultando a Claude, usando analizador local de respaldo:', err.message);
     res.json({ answer: answerQuestionLocal(question, state), source: 'local-fallback' });
+  }
+});
+
+// Recibe el estado completo del navegador y lo reenvía como archivo .json al
+// chat de Telegram configurado. Los datos viven en el localStorage del
+// dispositivo, así que este backup solo se puede disparar desde el cliente
+// (cuando la app está abierta).
+app.post('/api/backup', async (req, res) => {
+  const { state } = req.body || {};
+  if (!state || !state.groups || !state.expenses || !state.incomes) {
+    return res.status(400).json({ error: 'El estado no parece válido' });
+  }
+  if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
+    return res.status(503).json({ error: 'Backup por Telegram no configurado' });
+  }
+
+  try {
+    const fecha = new Date().toISOString().slice(0, 10);
+    const json = JSON.stringify(state, null, 2);
+    const form = new FormData();
+    form.append('chat_id', TELEGRAM_CHAT_ID);
+    form.append('caption', `Backup gastos ${fecha}`);
+    form.append(
+      'document',
+      new Blob([json], { type: 'application/json' }),
+      `backup_gastos_${fecha}.json`
+    );
+
+    const tg = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument`, {
+      method: 'POST',
+      body: form,
+    });
+    const data = await tg.json();
+    if (!data.ok) throw new Error(data.description || `Telegram respondió ${tg.status}`);
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Error enviando backup a Telegram:', err.message);
+    res.status(502).json({ error: 'No se pudo enviar el backup a Telegram' });
   }
 });
 
