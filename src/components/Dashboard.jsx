@@ -5,6 +5,7 @@ import { formatARS, rangeForPeriod } from '../lib/format';
 import { todayISO } from '../lib/model';
 import RecurringReminders from './RecurringReminders';
 import PriceAlerts from './PriceAlerts';
+import BudgetGoals from './BudgetGoals';
 
 export default function Dashboard({ state, actions }) {
   const [period, setPeriod] = useState('mes');
@@ -22,6 +23,7 @@ export default function Dashboard({ state, actions }) {
 
   return (
     <div className="space-y-4">
+      <BudgetGoals state={state} />
       <RecurringReminders state={state} actions={actions} />
       <PriceAlerts state={state} limit={3} compact />
 

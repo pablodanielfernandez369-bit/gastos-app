@@ -19,11 +19,11 @@ export const EXPENSE_TYPES = [
 
 export function defaultState() {
   const viviendaId = 'vivienda';
-  const localId = 'local';
+  const salidasId = 'salidas';
 
   const groups = [
     { id: viviendaId, name: 'Vivienda', color: '#2563eb' },
-    { id: localId, name: 'Local/Negocio', color: '#d97706' },
+    { id: salidasId, name: 'Salidas/Ocio', color: '#7c3aed' },
   ];
 
   const subcategories = [
@@ -35,13 +35,11 @@ export function defaultState() {
     { id: uuid(), groupId: viviendaId, name: 'Agua' },
     { id: uuid(), groupId: viviendaId, name: 'Otro' },
 
-    { id: uuid(), groupId: localId, name: 'Alquiler local' },
-    { id: uuid(), groupId: localId, name: 'Empleados' },
-    { id: uuid(), groupId: localId, name: 'Insumos' },
-    { id: uuid(), groupId: localId, name: 'Publicidad' },
-    { id: uuid(), groupId: localId, name: 'Cuotas de equipamiento' },
-    { id: uuid(), groupId: localId, name: 'Tarjeta' },
-    { id: uuid(), groupId: localId, name: 'Otro' },
+    { id: uuid(), groupId: salidasId, name: 'Comidas afuera' },
+    { id: uuid(), groupId: salidasId, name: 'Delivery' },
+    { id: uuid(), groupId: salidasId, name: 'Entretenimiento' },
+    { id: uuid(), groupId: salidasId, name: 'Regalos' },
+    { id: uuid(), groupId: salidasId, name: 'Otro' },
   ];
 
   return {
@@ -53,6 +51,9 @@ export function defaultState() {
     recurring: [], // gastos fijos recurrentes: { id, groupId, subcategoryId, description, amount, dayOfMonth }
     config: {
       fxRate: null, // cotización USD->ARS definida manualmente por el usuario
+      savingsGoal: null, // meta de ahorro mensual en ARS
+      extrasBudget: null, // presupuesto mensual para gastos extras/salidas en ARS
+      extrasGroupId: salidasId, // qué grupo cuenta como "extras" para el presupuesto
     },
   };
 }

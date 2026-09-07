@@ -1,4 +1,5 @@
 import { isInRange, monthKey, formatMonthLabel } from './format';
+import { pendingRecurring } from './recurring';
 
 export function expensesInRange(state, from, to) {
   return state.expenses.filter((e) => isInRange(e.date, from, to));
@@ -108,4 +109,113 @@ export function subcategoryMonthComparison(state) {
 
 function monthKeyOf(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+}
+
+// Estado de las metas del mes calendario en curso: cuánto se lleva gastado en
+// "extras" vs el presupuesto, proyección a fin de mes según el ritmo actual,
+// cuánto queda por día, y cómo viene la meta de ahorro.
+export function computeMonthBudget(state, now = new Date()) {
+  const cfg = state.config || {};
+  const currKey = monthKeyOf(now);
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const dayOfMonth = now.getDate();
+  const daysLeft = Math.max(0, daysInMonth - dayOfMonth);
+  const monthProgress = dayOfMonth / daysInMonth; // 0..1
+  const project = (v) => (monthProgress > 0 ? v / monthProgress : v);
+  // Los primeros días del mes la proyección lineal es muy inestable: no la
+  // usamos para disparar avisos hasta que haya algo de recorrido.
+  const projReliable = dayOfMonth >= 4;
+
+  const inMonth = (iso) => monthKey(iso) === currKey;
+  const monthExpenses = state.expenses.filter((e) => inMonth(e.date));
+  const monthIncomes = state.incomes.filter((i) => inMonth(i.date));
+
+  const incomeTotal = monthIncomes.reduce((sum, i) => sum + i.amount, 0);
+  const expenseTotal = monthExpenses.reduce((sum, e) => sum + e.amount, 0);
+
+  const extrasGroupId = cfg.extrasGroupId || null;
+  const extrasSpent = monthExpenses
+    .filter((e) => e.groupId === extrasGroupId)
+    .reduce((sum, e) => sum + e.amount, 0);
+
+  // Los gastos fijos (alquiler, expensas...) se pagan una vez al mes: no tiene
+  // sentido proyectarlos a fin de mes. Solo se proyecta lo variable/puntual.
+  // A los fijos ya cargados les sumamos los recurrentes que todavía faltan.
+  const sumBy = (pred) => monthExpenses.filter(pred).reduce((s, e) => s + e.amount, 0);
+  const fixedTotal = sumBy((e) => e.type === 'fijo');
+  const pendingFixed = pendingRecurring(state).reduce((s, r) => s + (r.amount || 0), 0);
+  const projectExpense = (variable) => fixedTotal + pendingFixed + project(variable);
+
+  // --- Presupuesto de extras ---
+  const extrasBudget = cfg.extrasBudget || null;
+  let extras = null;
+  if (extrasBudget) {
+    const remaining = extrasBudget - extrasSpent;
+    const projected = project(extrasSpent);
+    extras = {
+      budget: extrasBudget,
+      spent: extrasSpent,
+      remaining,
+      pct: extrasSpent / extrasBudget,
+      projected,
+      projectedPct: projected / extrasBudget,
+      perDayLeft: daysLeft > 0 ? Math.max(0, remaining) / daysLeft : Math.max(0, remaining),
+      daysLeft,
+      status: statusFor(extrasSpent / extrasBudget, projReliable ? projected / extrasBudget : 0),
+    };
+  }
+
+  // --- Meta de ahorro ---
+  const savingsGoal = cfg.savingsGoal || null;
+  let savings = null;
+  if (savingsGoal) {
+    const current = incomeTotal - expenseTotal;
+    const projectedExpense = projectExpense(expenseTotal - fixedTotal);
+    const projected = incomeTotal - projectedExpense; // asume ingreso ya cargado
+    savings = {
+      goal: savingsGoal,
+      current,
+      projected,
+      pct: current / savingsGoal,
+      projectedPct: projected / savingsGoal,
+      onTrack: !projReliable || projected >= savingsGoal,
+    };
+  }
+
+  // --- Coherencia: ¿el ingreso alcanza para la meta + lo no-extra + el tope de extras? ---
+  let coherence = null;
+  if (savingsGoal && extrasBudget && incomeTotal > 0) {
+    const nonExtrasFixed = sumBy((e) => e.type === 'fijo' && e.groupId !== extrasGroupId);
+    const nonExtrasVariable = expenseTotal - extrasSpent - nonExtrasFixed;
+    const nonExtrasProjected = nonExtrasFixed + pendingFixed + project(nonExtrasVariable);
+    const needed = savingsGoal + nonExtrasProjected + extrasBudget;
+    coherence = {
+      fits: needed <= incomeTotal,
+      gap: needed - incomeTotal,
+      freeForExtras: incomeTotal - savingsGoal - nonExtrasProjected,
+    };
+  }
+
+  return {
+    monthKey: currKey,
+    dayOfMonth,
+    daysInMonth,
+    daysLeft,
+    monthProgress,
+    projReliable,
+    incomeTotal,
+    expenseTotal,
+    extras,
+    savings,
+    coherence,
+    hasAnyGoal: Boolean(extrasBudget || savingsGoal),
+  };
+}
+
+// verde si va y proyecta bien; rojo si ya pasó el 90% o proyecta pasarse;
+// amarillo en el medio.
+function statusFor(pct, projectedPct) {
+  if (pct >= 0.9 || projectedPct >= 1) return 'rojo';
+  if (pct >= 0.7 || projectedPct >= 0.85) return 'amarillo';
+  return 'verde';
 }

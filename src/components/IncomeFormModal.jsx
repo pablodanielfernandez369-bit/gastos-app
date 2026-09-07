@@ -54,7 +54,7 @@ export default function IncomeFormModal({ open, onClose, draft, actions, editing
             className="w-full rounded-lg border border-gray-300 px-3 py-2"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="ej: cobré ventas del local"
+            placeholder="ej: cobré el sueldo"
           />
         </div>
 

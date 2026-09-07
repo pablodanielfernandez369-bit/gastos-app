@@ -1,10 +1,15 @@
 import CategoryManager from './CategoryManager';
 import RecurringManager from './RecurringManager';
 import BackupRestore from './BackupRestore';
+import GoalsManager from './GoalsManager';
 
 export default function Ajustes({ state, actions }) {
   return (
     <div className="space-y-6">
+      <div>
+        <h2 className="mb-2 text-sm font-semibold text-gray-500">Metas del mes</h2>
+        <GoalsManager state={state} actions={actions} />
+      </div>
       <div>
         <h2 className="mb-2 text-sm font-semibold text-gray-500">Categorías</h2>
         <CategoryManager state={state} actions={actions} />

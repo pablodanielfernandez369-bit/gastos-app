@@ -1,11 +1,12 @@
 # Mis gastos y ahorro
 
-App personal para controlar gastos (Vivienda / Local·Negocio) e ingresos, con
-carga por formulario (o voz/texto para ingresos), dashboard de capacidad de
-ahorro, avisos de subas/bajas de precio mes a mes, reportes con gráficos,
-export a CSV, y un asistente conversacional (por voz o texto) que responde
-cualquier pregunta sobre tus gastos usando la API de Claude. Los datos se
-guardan en el propio dispositivo (localStorage), sin login.
+App personal para controlar gastos e ingresos, con carga por formulario (o
+voz/texto para ingresos), dashboard de capacidad de ahorro, metas del mes
+(cuánto querés ahorrar y cuánto podés gastar en salidas, con semáforo y
+proyección a fin de mes), avisos de subas/bajas de precio mes a mes, reportes
+con gráficos, export a CSV, y un asistente conversacional (por voz o texto)
+que responde cualquier pregunta sobre tus gastos usando la API de Claude. Los
+datos se guardan en el propio dispositivo (localStorage), sin login.
 
 Es una PWA: se puede instalar como acceso directo en la pantalla de inicio
 del celular.

@@ -40,7 +40,7 @@ export default function QuickEntrySheet({ open, onClose, onSubmitText, onUseClas
           <input
             autoFocus
             className="flex-1 rounded-lg border border-gray-300 px-3 py-3 text-base"
-            placeholder="ej: cobré ventas del local 300 mil"
+            placeholder="ej: cobré 300 mil de sueldo"
             value={text}
             onChange={(e) => setText(e.target.value)}
           />

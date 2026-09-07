@@ -8,6 +8,7 @@ export default {
         local: '#d97706',
         ok: '#16a34a',
         warn: '#dc2626',
+        caution: '#d97706',
       },
     },
   },

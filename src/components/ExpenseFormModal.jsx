@@ -35,6 +35,20 @@ export default function ExpenseFormModal({ open, onClose, draft, state, actions,
     return n;
   }, [amountRaw, currency, fxRate]);
 
+  // Aviso no bloqueante: si este gasto va en la categoría de "extras" y con él
+  // el mes se pasa del presupuesto, se lo mostramos antes de guardar.
+  const extrasWarning = useMemo(() => {
+    const cfg = state.config || {};
+    if (!cfg.extrasBudget || !groupId || groupId !== cfg.extrasGroupId || amountFinal <= 0) return null;
+    const mk = (date || todayISO()).slice(0, 7);
+    const spent = state.expenses
+      .filter((e) => e.id !== editingId && e.groupId === cfg.extrasGroupId && e.date.slice(0, 7) === mk)
+      .reduce((sum, e) => sum + e.amount, 0);
+    const after = spent + amountFinal;
+    if (after <= cfg.extrasBudget) return null;
+    return { after, budget: cfg.extrasBudget };
+  }, [state.expenses, state.config, groupId, date, amountFinal, editingId]);
+
   function handleAddSubcategory() {
     if (!newSubName.trim() || !groupId) return;
     const id = actions.addSubcategory(groupId, newSubName.trim());
@@ -151,6 +165,12 @@ export default function ExpenseFormModal({ open, onClose, draft, state, actions,
           </div>
           {missingCategory && (
             <p className="mt-1 text-sm text-warn">No pude identificar la categoría, elegí una ↑</p>
+          )}
+          {extrasWarning && (
+            <p className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-warn">
+              ⚠️ Con este gasto el mes queda en {formatPreviewARS(extrasWarning.after)} de salidas,
+              arriba de tu presupuesto de {formatPreviewARS(extrasWarning.budget)}.
+            </p>
           )}
         </div>
 
