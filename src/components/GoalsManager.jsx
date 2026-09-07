@@ -1,11 +1,13 @@
 import { useMemo } from 'react';
 import { formatARS } from '../lib/format';
 import { computeMonthBudget } from '../lib/selectors';
+import { useDolar } from '../lib/useDolar';
 
 // Metas del mes: cuánto querés ahorrar y cuánto podés gastar en salidas.
 export default function GoalsManager({ state, actions }) {
   const cfg = state.config || {};
   const b = useMemo(() => computeMonthBudget(state), [state]);
+  const dolar = useDolar();
 
   return (
     <div className="space-y-4 rounded-xl bg-white p-4 shadow-sm">
@@ -37,6 +39,33 @@ export default function GoalsManager({ state, actions }) {
         </select>
         <p className="mt-1 text-xs text-gray-400">
           Todo lo que cargues en esta categoría cuenta contra el presupuesto de extras.
+        </p>
+      </div>
+
+      <div>
+        <label className="mb-1 block text-xs font-medium text-gray-500">
+          Cotización del dólar (para ver tus ahorros en USD)
+        </label>
+        <div className="flex items-center gap-2 rounded-lg border border-gray-300 px-3">
+          <span className="text-gray-400">$</span>
+          <input
+            type="number"
+            inputMode="numeric"
+            className="w-full border-0 py-2 focus:outline-none focus:ring-0"
+            value={cfg.fxRateManual ?? ''}
+            onChange={(e) => {
+              const n = parseFloat(e.target.value);
+              actions.setFxRateManual(Number.isFinite(n) && n > 0 ? n : null);
+            }}
+            placeholder={dolar?.venta ? `blue hoy: ${dolar.venta}` : 'ej: 1450'}
+          />
+        </div>
+        <p className="mt-1 text-xs text-gray-400">
+          {cfg.fxRateManual
+            ? 'Usando la cotización que fijaste. Borrá el número para volver al blue automático.'
+            : dolar?.venta
+              ? `Automático: dólar blue $${dolar.venta} (venta).`
+              : 'Se toma el dólar blue automáticamente cuando haya conexión.'}
         </p>
       </div>
 

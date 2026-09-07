@@ -27,6 +27,25 @@ export function exportStateAsJson(state) {
   return JSON.stringify(state, null, 2);
 }
 
+// --- Sincronización con el servidor (Supabase es la fuente de verdad;
+// localStorage queda como caché para andar rápido y offline) ---
+
+export async function fetchServerState() {
+  const res = await fetch('/api/state');
+  if (!res.ok) throw new Error(`GET /api/state ${res.status}`);
+  return res.json(); // { data, updatedAt }
+}
+
+export async function pushServerState(state) {
+  const res = await fetch('/api/state', {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ state }),
+  });
+  if (!res.ok) throw new Error(`PUT /api/state ${res.status}`);
+  return res.json(); // { ok, updatedAt }
+}
+
 const LAST_BACKUP_KEY = 'gastos_app_v1_last_backup';
 
 export function getLastBackupAt() {

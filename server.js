@@ -2,6 +2,9 @@ import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { answerQuestion as answerQuestionLocal } from './src/lib/analyzer.js';
+import { supabaseConfigured, getState, putState } from './server/supabase.js';
+import { getDolarBlue } from './server/dolar.js';
+import { telegramConfigured, handleUpdate, verifyWebhook } from './server/telegram.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -12,6 +15,53 @@ const MODEL = 'claude-haiku-4-5-20251001';
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+
+// ---- Estado del usuario en Supabase (fuente de verdad; el navegador tiene
+// una copia en localStorage como caché offline) ----
+
+app.get('/api/state', async (req, res) => {
+  if (!supabaseConfigured) return res.status(503).json({ error: 'Base no configurada' });
+  try {
+    const { data, updatedAt } = await getState();
+    res.json({ data, updatedAt });
+  } catch (err) {
+    console.error('GET /api/state:', err.message);
+    res.status(502).json({ error: 'No se pudo leer el estado' });
+  }
+});
+
+app.put('/api/state', async (req, res) => {
+  if (!supabaseConfigured) return res.status(503).json({ error: 'Base no configurada' });
+  const { state } = req.body || {};
+  if (!state || !state.groups || !state.expenses || !state.incomes) {
+    return res.status(400).json({ error: 'Estado inválido' });
+  }
+  try {
+    const { updatedAt } = await putState(state);
+    res.json({ ok: true, updatedAt });
+  } catch (err) {
+    console.error('PUT /api/state:', err.message);
+    res.status(502).json({ error: 'No se pudo guardar el estado' });
+  }
+});
+
+// ---- Cotización del dólar blue ----
+
+app.get('/api/dolar', async (req, res) => {
+  const blue = await getDolarBlue();
+  if (!blue) return res.status(502).json({ error: 'No disponible' });
+  res.json(blue);
+});
+
+// ---- Webhook del bot de Telegram (cargar gastos por mensaje) ----
+
+app.post('/api/telegram/webhook', (req, res) => {
+  if (!telegramConfigured || !verifyWebhook(req)) return res.sendStatus(403);
+  res.sendStatus(200); // respondemos ya; procesamos en segundo plano
+  handleUpdate(req.body).catch((e) => console.error('webhook:', e.message));
+});
+
+// ---- Asistente con IA ----
 
 app.post('/api/ask', async (req, res) => {
   const { question, state } = req.body || {};
@@ -32,10 +82,8 @@ app.post('/api/ask', async (req, res) => {
   }
 });
 
-// Recibe el estado completo del navegador y lo reenvía como archivo .json al
-// chat de Telegram configurado. Los datos viven en el localStorage del
-// dispositivo, así que este backup solo se puede disparar desde el cliente
-// (cuando la app está abierta).
+// ---- Backup del estado como archivo .json al chat de Telegram ----
+
 app.post('/api/backup', async (req, res) => {
   const { state } = req.body || {};
   if (!state || !state.groups || !state.expenses || !state.incomes) {
@@ -137,5 +185,7 @@ app.get('/{*splat}', (req, res) => {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Gastos app corriendo en puerto ${PORT}`);
-  console.log(`Asistente con IA: ${ANTHROPIC_API_KEY ? 'activado' : 'desactivado (falta ANTHROPIC_API_KEY, usando analizador local)'}`);
+  console.log(`  Asistente IA: ${ANTHROPIC_API_KEY ? 'ok' : 'off (falta ANTHROPIC_API_KEY)'}`);
+  console.log(`  Supabase: ${supabaseConfigured ? 'ok' : 'off'}`);
+  console.log(`  Bot Telegram: ${telegramConfigured ? 'ok' : 'off'}`);
 });

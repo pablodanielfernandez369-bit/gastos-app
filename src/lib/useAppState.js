@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { v4 as uuid } from 'uuid';
-import { loadState, persistState } from './storage';
+import { loadState, persistState, fetchServerState, pushServerState } from './storage';
 import { defaultState } from './model';
 
 // Migra estados guardados de versiones anteriores para que tengan las claves
@@ -39,14 +39,82 @@ function migrateState(saved) {
   return s;
 }
 
-// Hook central: carga el estado guardado (o crea uno default), lo persiste
-// en cada cambio, y expone las operaciones CRUD que usa toda la app.
+// Hook central: arranca del caché local (render instantáneo), sincroniza con
+// el servidor, persiste cada cambio en local + servidor, y expone el CRUD.
 export function useAppState() {
   const [state, setState] = useState(() => migrateState(loadState()));
+  const bootedRef = useRef(false); // ya terminó la sincronización inicial
+  const pushPendingRef = useRef(false); // hay un cambio local sin subir
+  const syncedAtRef = useRef(null); // updated_at del servidor que ya vimos
 
+  function adoptServer(data, updatedAt) {
+    const migrated = migrateState(data);
+    syncedAtRef.current = updatedAt;
+    setState(migrated);
+    persistState(migrated);
+  }
+
+  // Sincronización inicial: si el servidor tiene datos, los adoptamos; si está
+  // vacío, subimos lo que haya en local (primera migración a la base).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data, updatedAt } = await fetchServerState();
+        if (cancelled) return;
+        const serverHasData =
+          data && data.groups && (data.expenses?.length || data.incomes?.length || data.groups?.length > 2);
+        if (serverHasData) {
+          adoptServer(data, updatedAt);
+        } else {
+          const local = migrateState(loadState());
+          const { updatedAt: newAt } = await pushServerState(local);
+          syncedAtRef.current = newAt;
+        }
+      } catch (e) {
+        console.warn('Sincronización inicial falló, sigo con el caché local:', e.message);
+      } finally {
+        bootedRef.current = true;
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Cada cambio: guardar en local ya, y subir al servidor con un pequeño debounce.
   useEffect(() => {
     persistState(state);
+    if (!bootedRef.current) return;
+    pushPendingRef.current = true;
+    const t = setTimeout(async () => {
+      try {
+        const { updatedAt } = await pushServerState(state);
+        syncedAtRef.current = updatedAt;
+      } catch (e) {
+        console.warn('No se pudo subir el estado al servidor:', e.message);
+      } finally {
+        pushPendingRef.current = false;
+      }
+    }, 1000);
+    return () => clearTimeout(t);
   }, [state]);
+
+  // Traer cambios del servidor al volver a la app o cada 20s (útil cuando
+  // cargás un gasto por Telegram, o desde otro dispositivo).
+  useEffect(() => {
+    async function refresh() {
+      if (!bootedRef.current || pushPendingRef.current) return;
+      if (typeof document !== 'undefined' && document.hidden) return;
+      try {
+        const { data, updatedAt } = await fetchServerState();
+        if (data && updatedAt && updatedAt !== syncedAtRef.current) {
+          adoptServer(data, updatedAt);
+        }
+      } catch { /* offline: ignorar */ }
+    }
+    const iv = setInterval(refresh, 20000);
+    window.addEventListener('focus', refresh);
+    return () => { clearInterval(iv); window.removeEventListener('focus', refresh); };
+  }, []);
 
   const actions = useMemo(() => ({
     addExpense(expense) {
@@ -112,6 +180,9 @@ export function useAppState() {
 
     setSavingsGoal(amount) {
       setState((s) => ({ ...s, config: { ...s.config, savingsGoal: amount } }));
+    },
+    setFxRateManual(rate) {
+      setState((s) => ({ ...s, config: { ...s.config, fxRateManual: rate } }));
     },
     setExtrasBudget(amount) {
       setState((s) => ({ ...s, config: { ...s.config, extrasBudget: amount } }));

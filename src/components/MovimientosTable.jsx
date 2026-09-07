@@ -12,6 +12,8 @@ export default function MovimientosTable({ state, actions }) {
   const [customTo, setCustomTo] = useState(todayISO());
   const [groupFilter, setGroupFilter] = useState('todos');
   const [search, setSearch] = useState('');
+  const [minAmount, setMinAmount] = useState('');
+  const [maxAmount, setMaxAmount] = useState('');
   const [sort, setSort] = useState({ field: 'date', dir: 'desc' });
   const [editing, setEditing] = useState(null); // { kind, id } | null
 
@@ -36,16 +38,32 @@ export default function MovimientosTable({ state, actions }) {
         list.push({ kind: 'ingreso', ...i });
       }
     }
-    const filtered = search.trim()
-      ? list.filter((m) => m.description.toLowerCase().includes(search.trim().toLowerCase()))
-      : list;
+    const q = search.trim().toLowerCase();
+    const min = parseFloat(minAmount);
+    const max = parseFloat(maxAmount);
+    const filtered = list.filter((m) => {
+      if (Number.isFinite(min) && m.amount < min) return false;
+      if (Number.isFinite(max) && m.amount > max) return false;
+      if (!q) return true;
+      const haystack = [
+        m.description,
+        m.personName,
+        groupName(m.groupId),
+        subName(m.subcategoryId),
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return haystack.includes(q);
+    });
 
     const dir = sort.dir === 'asc' ? 1 : -1;
     return filtered.sort((a, b) => {
       if (sort.field === 'amount') return (a.amount - b.amount) * dir;
       return (a.date < b.date ? -1 : a.date > b.date ? 1 : 0) * dir;
     });
-  }, [state, from, to, groupFilter, search, sort]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state, from, to, groupFilter, search, minAmount, maxAmount, sort]);
 
   function toggleSort(field) {
     setSort((s) => (s.field === field ? { field, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { field, dir: 'desc' }));
@@ -81,7 +99,7 @@ export default function MovimientosTable({ state, actions }) {
         </select>
         <input
           className="flex-1 rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
-          placeholder="Buscar descripción…"
+          placeholder="Buscar (descripción, categoría, nombre)…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
@@ -91,6 +109,27 @@ export default function MovimientosTable({ state, actions }) {
         >
           ⬇ CSV
         </button>
+      </div>
+
+      <div className="flex items-center gap-2 text-sm">
+        <span className="text-gray-400">Monto</span>
+        <input
+          type="number"
+          inputMode="numeric"
+          className="w-full rounded-lg border border-gray-300 px-2 py-1.5"
+          placeholder="mín"
+          value={minAmount}
+          onChange={(e) => setMinAmount(e.target.value)}
+        />
+        <span className="text-gray-400">–</span>
+        <input
+          type="number"
+          inputMode="numeric"
+          className="w-full rounded-lg border border-gray-300 px-2 py-1.5"
+          placeholder="máx"
+          value={maxAmount}
+          onChange={(e) => setMaxAmount(e.target.value)}
+        />
       </div>
 
       <div className="overflow-x-auto rounded-xl bg-white shadow-sm">

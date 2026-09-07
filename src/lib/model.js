@@ -50,7 +50,8 @@ export function defaultState() {
     incomes: [],
     recurring: [], // gastos fijos recurrentes: { id, groupId, subcategoryId, description, amount, dayOfMonth }
     config: {
-      fxRate: null, // cotización USD->ARS definida manualmente por el usuario
+      fxRate: null, // última cotización USD->ARS usada al cargar un gasto en USD
+      fxRateManual: null, // cotización que el usuario fija a mano (pisa al blue)
       savingsGoal: null, // meta de ahorro mensual en ARS
       extrasBudget: null, // presupuesto mensual para gastos extras/salidas en ARS
       extrasGroupId: salidasId, // qué grupo cuenta como "extras" para el presupuesto
