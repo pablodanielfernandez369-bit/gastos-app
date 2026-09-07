@@ -79,7 +79,7 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const showFloatingButtons = tab !== 'asistente';
+  const showFloatingButtons = tab !== 'asistente' && tab !== 'ajustes';
 
   return (
     <div className={`mx-auto min-h-screen max-w-lg bg-gray-100 ${showFloatingButtons ? 'pb-40' : 'pb-20'}`}>

@@ -37,7 +37,7 @@ export default function BudgetGoals({ state }) {
     alerts.push(`A este ritmo vas a ahorrar ${formatARS(Math.max(0, b.savings.projected))}, por debajo de tu meta de ${formatARS(b.savings.goal)}.`);
   }
   if (b.coherence && !b.coherence.fits) {
-    alerts.push(`Los números no cierran: para cumplir la meta y el presupuesto te faltan ${formatARS(b.coherence.gap)} de ingreso este mes.`);
+    alerts.push(`Tu meta de ahorro + gastos fijos + presupuesto de salidas suman ${formatARS(b.coherence.gap)} más que tu ingreso de este mes. Bajá alguno de los tres.`);
   }
 
   const anyRed = (b.extras && b.extras.status === 'rojo') || (b.coherence && !b.coherence.fits) || (b.savings && !b.savings.onTrack && b.projReliable && b.savings.projected < 0);
@@ -55,7 +55,7 @@ export default function BudgetGoals({ state }) {
       )}
 
       {b.savings && <SavingsCard s={b.savings} reliable={b.projReliable} />}
-      {b.extras && <ExtrasCard e={b.extras} />}
+      {b.extras && <ExtrasCard e={b.extras} reliable={b.projReliable} />}
     </div>
   );
 }
@@ -89,7 +89,7 @@ function SavingsCard({ s, reliable }) {
   );
 }
 
-function ExtrasCard({ e }) {
+function ExtrasCard({ e, reliable }) {
   const st = STATUS[e.status];
   return (
     <div className={`rounded-xl border p-4 shadow-sm ${st.box}`}>
@@ -114,9 +114,11 @@ function ExtrasCard({ e }) {
           <>Te pasaste <strong className="text-warn">{formatARS(-e.remaining)}</strong></>
         )}
       </p>
-      <p className="mt-1 text-xs text-gray-500">
-        A este ritmo terminás en <strong className={st.text}>{formatARS(e.projected)}</strong> ({toPct(e.projectedPct)})
-      </p>
+      {reliable && (
+        <p className="mt-1 text-xs text-gray-500">
+          A este ritmo terminás en <strong className={st.text}>{formatARS(e.projected)}</strong> ({toPct(e.projectedPct)})
+        </p>
+      )}
     </div>
   );
 }

@@ -122,9 +122,10 @@ export function computeMonthBudget(state, now = new Date()) {
   const daysLeft = Math.max(0, daysInMonth - dayOfMonth);
   const monthProgress = dayOfMonth / daysInMonth; // 0..1
   const project = (v) => (monthProgress > 0 ? v / monthProgress : v);
-  // Los primeros días del mes la proyección lineal es muy inestable: no la
-  // usamos para disparar avisos hasta que haya algo de recorrido.
-  const projReliable = dayOfMonth >= 4;
+  // Los primeros días del mes la proyección lineal es muy inestable (multiplica
+  // lo poco gastado por un número grande): no la usamos para nada hasta que
+  // haya pasado un tercio del mes.
+  const projReliable = dayOfMonth >= 10;
 
   const inMonth = (iso) => monthKey(iso) === currKey;
   const monthExpenses = state.expenses.filter((e) => inMonth(e.date));
@@ -182,17 +183,18 @@ export function computeMonthBudget(state, now = new Date()) {
     };
   }
 
-  // --- Coherencia: ¿el ingreso alcanza para la meta + lo no-extra + el tope de extras? ---
+  // --- Coherencia del plan: SIN proyectar nada, solo números reales. ---
+  // ¿El ingreso del mes alcanza para: la meta de ahorro + los gastos fijos
+  // (los ya cargados + los recurrentes que faltan) + el tope de extras?
+  // Si esto no cierra, el plan es imposible por diseño, no por el ritmo.
   let coherence = null;
   if (savingsGoal && extrasBudget && incomeTotal > 0) {
-    const nonExtrasFixed = sumBy((e) => e.type === 'fijo' && e.groupId !== extrasGroupId);
-    const nonExtrasVariable = expenseTotal - extrasSpent - nonExtrasFixed;
-    const nonExtrasProjected = nonExtrasFixed + pendingFixed + project(nonExtrasVariable);
-    const needed = savingsGoal + nonExtrasProjected + extrasBudget;
+    const fixedKnown = fixedTotal + pendingFixed;
+    const needed = savingsGoal + fixedKnown + extrasBudget;
     coherence = {
       fits: needed <= incomeTotal,
       gap: needed - incomeTotal,
-      freeForExtras: incomeTotal - savingsGoal - nonExtrasProjected,
+      freeForExtras: incomeTotal - savingsGoal - fixedKnown,
     };
   }
 
