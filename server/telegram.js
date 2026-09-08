@@ -5,6 +5,7 @@
 import { randomUUID } from 'crypto';
 import { getState, putState, savePending, getPending, deletePending } from './supabase.js';
 import { getDolarBlue } from './dolar.js';
+import { sendWeeklyReport } from './report.js';
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const CHAT_ID = process.env.TELEGRAM_CHAT_ID;
@@ -183,10 +184,16 @@ async function handleMessage(msg) {
           '· _gasté 15 mil en el super_\n' +
           '· _pagué 8000 de nafta_\n' +
           '· _120 dólares de una campera_\n\n' +
-          'Te muestro lo que entendí y confirmás con un botón. Si la categoría no existe, la creo.'
+          'Te muestro lo que entendí y confirmás con un botón. Si la categoría no existe, la creo.\n\n' +
+          'Escribí */resumen* cuando quieras para ver cómo venís.'
       );
     } else if (cmd === '/resumen') {
-      await sendResumen();
+      try {
+        await sendWeeklyReport();
+      } catch (e) {
+        console.error('resumen imagen falló, mando texto:', e.message);
+        await sendResumen();
+      }
     } else {
       await send('No conozco ese comando. Escribime un gasto directamente.');
     }

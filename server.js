@@ -5,6 +5,7 @@ import { answerQuestion as answerQuestionLocal } from './src/lib/analyzer.js';
 import { supabaseConfigured, getState, putState } from './server/supabase.js';
 import { getDolarBlue } from './server/dolar.js';
 import { telegramConfigured, handleUpdate, verifyWebhook } from './server/telegram.js';
+import { sendWeeklyReport } from './server/report.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -15,6 +16,7 @@ const MODEL = 'claude-haiku-4-5-20251001';
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+const TELEGRAM_WEBHOOK_SECRET = process.env.TELEGRAM_WEBHOOK_SECRET;
 
 // ---- Estado del usuario en Supabase (fuente de verdad; el navegador tiene
 // una copia en localStorage como caché offline) ----
@@ -48,6 +50,19 @@ app.put('/api/state', async (req, res) => {
 // ---- Health check (lo usa el keep-alive para que Render no se duerma) ----
 
 app.get('/healthz', (req, res) => res.type('text').send('ok'));
+
+// ---- Resumen semanal como imagen (lo dispara cron-job.org los domingos) ----
+
+app.post('/api/weekly-report', async (req, res) => {
+  if (req.query.key !== TELEGRAM_WEBHOOK_SECRET) return res.sendStatus(403);
+  try {
+    await sendWeeklyReport();
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('weekly-report:', err.message);
+    res.status(502).json({ error: 'No se pudo generar el resumen' });
+  }
+});
 
 // ---- Cotización del dólar blue ----
 
