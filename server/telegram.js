@@ -45,7 +45,8 @@ async function parseExpense(text, state) {
     'devolvés SOLO un JSON válido, sin texto alrededor, con esta forma exacta:\n' +
     '{"amount": number, "currency": "ARS"|"USD", "groupId": string|null, ' +
     '"newGroupName": string|null, "subcategoryId": string|null, "newSubcategoryName": string|null, ' +
-    '"description": string, "type": "fijo"|"variable"|"puntual", "confident": boolean}\n\n' +
+    '"description": string, "personName": string|null, "type": "fijo"|"variable"|"puntual", ' +
+    '"confident": boolean}\n\n' +
     'Reglas:\n' +
     '- "amount": el número. "15 lucas"/"15 mil" = 15000, "2 palos"/"2 millones" = 2000000.\n' +
     '- "currency": "USD" solo si menciona dólares/usd/u$s, si no "ARS".\n' +
@@ -59,6 +60,9 @@ async function parseExpense(text, state) {
     '- "type": gastos recurrentes del hogar (alquiler, expensas, servicios) = "fijo"; ' +
     'compras del día a día = "variable"; una compra grande y puntual = "puntual".\n' +
     '- "description": 1 a 3 palabras, lo más parecido posible a lo que escribió el usuario.\n' +
+    '- "personName": si el gasto está asociado a una persona ("de Mel", "para Juan", ' +
+    '"el psicólogo de Mel", "regalo de mamá"), poné ese nombre acá. Si no hay ninguna ' +
+    'persona mencionada, null. No inventes.\n' +
     '- "confident": false si no pudiste sacar un monto o el mensaje es ambiguo.\n\n' +
     `Hoy es ${today}.\nGRUPOS: ${JSON.stringify(grupos)}\nSUBCATEGORIAS: ${JSON.stringify(subs)}`;
 
@@ -98,7 +102,8 @@ function describePending(state, p) {
     const s = state.subcategories.find((x) => x.id === p.subcategoryId);
     if (s) sub = ` › ${s.name}`;
   }
-  return `📝 *${money}* — ${p.description}\nCategoría: *${g}${sub}*\nTipo: ${p.type}`;
+  const persona = p.personName ? `\nNombre: *${p.personName}*` : '';
+  return `📝 *${money}* — ${p.description}\nCategoría: *${g}${sub}*${persona}\nTipo: ${p.type}`;
 }
 
 function fmt(n) {
@@ -155,7 +160,7 @@ async function commitExpense(p) {
     groupId: groupId || null,
     subcategoryId: subcategoryId || null,
     description: p.description || '(sin descripción)',
-    personName: null,
+    personName: p.personName?.trim() || null,
     date: new Date().toISOString().slice(0, 10),
     type: p.type || 'variable',
     inputMethod: 'telegram',
