@@ -139,13 +139,12 @@ export function computeMonthBudget(state, now = new Date()) {
     .filter((e) => e.groupId === extrasGroupId)
     .reduce((sum, e) => sum + e.amount, 0);
 
-  // Los gastos fijos (alquiler, expensas...) se pagan una vez al mes: no tiene
-  // sentido proyectarlos a fin de mes. Solo se proyecta lo variable/puntual.
-  // A los fijos ya cargados les sumamos los recurrentes que todavía faltan.
-  const sumBy = (pred) => monthExpenses.filter(pred).reduce((s, e) => s + e.amount, 0);
-  const fixedTotal = sumBy((e) => e.type === 'fijo');
-  const pendingFixed = pendingRecurring(state).reduce((s, r) => s + (r.amount || 0), 0);
-  const projectExpense = (variable) => fixedTotal + pendingFixed + project(variable);
+  // Para la proyección solo extrapolamos el gasto de "salidas/ocio" (lo que
+  // realmente se acumula día a día). El resto — alquiler, super, servicios —
+  // se toma como ya gastado del mes: no se multiplica. Se suman los
+  // recurrentes que todavía falten cargar.
+  const nonExtrasSpent = expenseTotal - extrasSpent;
+  const pendingRecurringTotal = pendingRecurring(state).reduce((s, r) => s + (r.amount || 0), 0);
 
   // --- Presupuesto de extras ---
   const extrasBudget = cfg.extrasBudget || null;
@@ -171,7 +170,7 @@ export function computeMonthBudget(state, now = new Date()) {
   let savings = null;
   if (savingsGoal) {
     const current = incomeTotal - expenseTotal;
-    const projectedExpense = projectExpense(expenseTotal - fixedTotal);
+    const projectedExpense = nonExtrasSpent + pendingRecurringTotal + project(extrasSpent);
     const projected = incomeTotal - projectedExpense; // asume ingreso ya cargado
     savings = {
       goal: savingsGoal,
@@ -183,18 +182,16 @@ export function computeMonthBudget(state, now = new Date()) {
     };
   }
 
-  // --- Coherencia del plan: SIN proyectar nada, solo números reales. ---
-  // ¿El ingreso del mes alcanza para: la meta de ahorro + los gastos fijos
-  // (los ya cargados + los recurrentes que faltan) + el tope de extras?
-  // Si esto no cierra, el plan es imposible por diseño, no por el ritmo.
+  // --- Coherencia del plan: solo a partir de mitad de mes, cuando ya está
+  // cargado casi todo el gasto no-discrecional del mes. ¿El ingreso alcanza
+  // para lo ya gastado (sin salidas) + la meta de ahorro + el tope de salidas? ---
   let coherence = null;
-  if (savingsGoal && extrasBudget && incomeTotal > 0) {
-    const fixedKnown = fixedTotal + pendingFixed;
-    const needed = savingsGoal + fixedKnown + extrasBudget;
+  if (savingsGoal && extrasBudget && incomeTotal > 0 && dayOfMonth >= 15) {
+    const needed = savingsGoal + nonExtrasSpent + pendingRecurringTotal + extrasBudget;
     coherence = {
       fits: needed <= incomeTotal,
       gap: needed - incomeTotal,
-      freeForExtras: incomeTotal - savingsGoal - fixedKnown,
+      freeForExtras: incomeTotal - savingsGoal - nonExtrasSpent - pendingRecurringTotal,
     };
   }
 

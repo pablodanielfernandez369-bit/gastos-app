@@ -26,7 +26,7 @@ export default function RecurringManager({ state, actions }) {
 
   return (
     <div className="rounded-xl bg-white p-4 shadow-sm">
-      <h3 className="mb-1 text-sm font-semibold text-gray-700">Gastos fijos recurrentes</h3>
+      <h3 className="mb-1 text-sm font-semibold text-gray-700">Gastos recurrentes</h3>
       <p className="mb-3 text-sm text-gray-500">
         Te los recordamos en el dashboard a partir del día que elijas, hasta que los cargues ese mes.
       </p>

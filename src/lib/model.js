@@ -6,16 +6,10 @@ import { v4 as uuid } from 'uuid';
 // Gasto: {
 //   id, amount (siempre en ARS), currency ('ARS'|'USD'), amountOriginal,
 //   fxRate, groupId, subcategoryId, description, date (YYYY-MM-DD),
-//   type ('fijo'|'variable'|'puntual'), inputMethod ('texto'|'voz'|'formulario'),
-//   createdAt
+//   type (siempre 'variable' — el campo queda por compatibilidad),
+//   inputMethod ('texto'|'voz'|'formulario'|'telegram'), createdAt
 // }
 // Ingreso: { id, amount, description, date, inputMethod, createdAt }
-
-export const EXPENSE_TYPES = [
-  { id: 'fijo', label: 'Gasto fijo' },
-  { id: 'variable', label: 'Gasto variable' },
-  { id: 'puntual', label: 'Compra puntual' },
-];
 
 export function defaultState() {
   const viviendaId = 'vivienda';
@@ -71,7 +65,7 @@ export function newExpense(partial) {
     description: '',
     personName: null, // etiqueta opcional (ej: "Mel") para poder preguntarle al asistente por nombre
     date: todayISO(),
-    type: 'puntual',
+    type: 'variable',
     inputMethod: 'formulario',
     recurringId: null,
     createdAt: Date.now(),

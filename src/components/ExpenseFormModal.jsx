@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import Modal from './Modal';
-import { EXPENSE_TYPES, newExpense, todayISO } from '../lib/model';
+import { newExpense, todayISO } from '../lib/model';
 
 // Un solo componente para dos usos:
 // - Confirmación editable después de parsear texto/voz (draft precargado)
@@ -16,7 +16,6 @@ export default function ExpenseFormModal({ open, onClose, draft, state, actions,
   const [description, setDescription] = useState(draft?.description ?? '');
   const [personName, setPersonName] = useState(draft?.personName ?? '');
   const [date, setDate] = useState(draft?.date ?? todayISO());
-  const [type, setType] = useState(draft?.type ?? 'variable');
   const [newSubName, setNewSubName] = useState('');
   const [showNewSub, setShowNewSub] = useState(false);
 
@@ -75,7 +74,7 @@ export default function ExpenseFormModal({ open, onClose, draft, state, actions,
       description: description.trim() || '(sin descripción)',
       personName: personName.trim() || null,
       date,
-      type,
+      type: 'variable',
       inputMethod: draft ? (draft.rawText ? 'voz/texto' : 'formulario') : 'formulario',
       recurringId: draft?.recurringId ?? null,
     };
@@ -238,28 +237,14 @@ export default function ExpenseFormModal({ open, onClose, draft, state, actions,
           />
         </div>
 
-        <div className="flex gap-2">
-          <div className="flex-1">
-            <label className="block text-xs font-medium text-gray-500 mb-1">Fecha</label>
-            <input
-              type="date"
-              className="w-full rounded-lg border border-gray-300 px-3 py-2"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-            />
-          </div>
-          <div className="flex-1">
-            <label className="block text-xs font-medium text-gray-500 mb-1">Tipo</label>
-            <select
-              className="w-full rounded-lg border border-gray-300 px-3 py-2"
-              value={type}
-              onChange={(e) => setType(e.target.value)}
-            >
-              {EXPENSE_TYPES.map((t) => (
-                <option key={t.id} value={t.id}>{t.label}</option>
-              ))}
-            </select>
-          </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-500 mb-1">Fecha</label>
+          <input
+            type="date"
+            className="w-full rounded-lg border border-gray-300 px-3 py-2"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+          />
         </div>
 
         <div className="flex gap-2 pt-2">

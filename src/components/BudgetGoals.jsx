@@ -37,7 +37,7 @@ export default function BudgetGoals({ state }) {
     alerts.push(`A este ritmo vas a ahorrar ${formatARS(Math.max(0, b.savings.projected))}, por debajo de tu meta de ${formatARS(b.savings.goal)}.`);
   }
   if (b.coherence && !b.coherence.fits) {
-    alerts.push(`Tu meta de ahorro + gastos fijos + presupuesto de salidas suman ${formatARS(b.coherence.gap)} más que tu ingreso de este mes. Bajá alguno de los tres.`);
+    alerts.push(`Lo gastado este mes + tu meta de ahorro + el presupuesto de salidas suman ${formatARS(b.coherence.gap)} más que tu ingreso. Bajá la meta o el presupuesto.`);
   }
 
   const anyRed = (b.extras && b.extras.status === 'rojo') || (b.coherence && !b.coherence.fits) || (b.savings && !b.savings.onTrack && b.projReliable && b.savings.projected < 0);

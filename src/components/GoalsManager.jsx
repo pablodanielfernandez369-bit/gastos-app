@@ -78,8 +78,8 @@ export default function GoalsManager({ state, actions }) {
       )}
       {b.coherence && !b.coherence.fits && (
         <p className="text-xs text-warn">
-          Ojo: meta de ahorro + gastos fijos + presupuesto de extras suman {formatARS(b.coherence.gap)}{' '}
-          más que tu ingreso del mes.
+          Ojo: lo que ya gastaste este mes + tu meta de ahorro + el presupuesto de salidas
+          suman {formatARS(b.coherence.gap)} más que tu ingreso.
         </p>
       )}
     </div>

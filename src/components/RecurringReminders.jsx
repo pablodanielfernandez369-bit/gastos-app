@@ -13,7 +13,7 @@ export default function RecurringReminders({ state, actions }) {
   return (
     <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
       <p className="mb-2 text-sm font-semibold text-amber-800">
-        Gastos fijos pendientes de este mes
+        Gastos recurrentes pendientes de este mes
       </p>
       <ul className="space-y-2">
         {pending.map((r) => (
@@ -42,7 +42,7 @@ export default function RecurringReminders({ state, actions }) {
             subcategoryId: loading.subcategoryId,
             description: loading.description,
             date: todayISO(),
-            type: 'fijo',
+            type: 'variable',
             recurringId: loading.id,
             rawText: null,
           }}
