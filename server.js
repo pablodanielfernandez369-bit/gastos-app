@@ -45,6 +45,10 @@ app.put('/api/state', async (req, res) => {
   }
 });
 
+// ---- Health check (lo usa el keep-alive para que Render no se duerma) ----
+
+app.get('/healthz', (req, res) => res.type('text').send('ok'));
+
 // ---- Cotización del dólar blue ----
 
 app.get('/api/dolar', async (req, res) => {
