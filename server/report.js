@@ -71,7 +71,7 @@ export function buildWeekData(state, dolar, now = new Date()) {
   const daysLeft = daysInMonth - now.getDate();
   const savingsNow = monthInc.reduce((s, i) => s + i.amount, 0) - monthExp.reduce((s, e) => s + e.amount, 0);
 
-  const rate = cfg.fxRateManual || dolar?.venta || cfg.fxRate || null;
+  const rate = cfg.fxRateManual || dolar?.promedio || dolar?.venta || cfg.fxRate || null;
 
   return {
     from: mon, to: sun, now,

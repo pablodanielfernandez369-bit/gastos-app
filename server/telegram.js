@@ -144,7 +144,7 @@ async function commitExpense(p) {
   let fxRate = null;
   if (p.currency === 'USD') {
     const blue = await getDolarBlue();
-    fxRate = blue?.venta || state.config?.fxRate || null;
+    fxRate = blue?.promedio || blue?.venta || state.config?.fxRate || null;
     amountOriginal = p.amount;
     amount = fxRate ? p.amount * fxRate : p.amount;
   }

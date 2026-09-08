@@ -29,6 +29,7 @@ export default function Dashboard({ state, actions }) {
 
   return (
     <div className="space-y-4">
+      <DolarStrip dolar={dolar} manual={state.config?.fxRateManual} />
       <BudgetGoals state={state} />
       <RecurringReminders state={state} actions={actions} />
       <PriceAlerts state={state} limit={3} compact />
@@ -72,7 +73,7 @@ export default function Dashboard({ state, actions }) {
             {rate && (
               <span className="text-xs text-ink-faint">
                 {' '}· dólar {formatNum(rate)}
-                {state.config?.fxRateManual ? ' (fijado)' : ' blue'}
+                {state.config?.fxRateManual ? ' (fijado)' : ' blue prom.'}
               </span>
             )}
           </p>
@@ -114,4 +115,26 @@ export default function Dashboard({ state, actions }) {
 
 function formatNum(n) {
   return new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 }).format(n || 0);
+}
+
+function DolarStrip({ dolar, manual }) {
+  if (!dolar && !manual) return null;
+  const value = manual || dolar?.promedio || dolar?.venta;
+  if (!value) return null;
+  return (
+    <div className="flex items-baseline justify-between rounded-2xl border border-hair bg-surface-2 px-4 py-3">
+      <span className="text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-ink-faint">
+        Dólar blue hoy
+      </span>
+      <span className="text-right">
+        <span className="font-display text-lg font-medium text-ink num">${formatNum(value)}</span>
+        {!manual && dolar?.compra && dolar?.venta && (
+          <span className="ml-2 text-xs text-ink-faint num">
+            {formatNum(dolar.compra)} / {formatNum(dolar.venta)}
+          </span>
+        )}
+        {manual && <span className="ml-2 text-xs text-ink-faint">fijado</span>}
+      </span>
+    </div>
+  );
 }

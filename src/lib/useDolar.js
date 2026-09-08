@@ -39,7 +39,8 @@ export function useDolar() {
 }
 
 // Cotización a usar para convertir a USD: la que el usuario fijó a mano, si no
-// la venta del blue, si no la última que se usó al cargar un gasto en USD.
+// el valor del día del blue (punto medio compra/venta), si no la última que se
+// usó al cargar un gasto en USD.
 export function usdRate(config, dolar) {
-  return config?.fxRateManual || dolar?.venta || config?.fxRate || null;
+  return config?.fxRateManual || dolar?.promedio || dolar?.venta || config?.fxRate || null;
 }

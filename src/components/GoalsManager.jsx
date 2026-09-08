@@ -57,14 +57,14 @@ export default function GoalsManager({ state, actions }) {
               const n = parseFloat(e.target.value);
               actions.setFxRateManual(Number.isFinite(n) && n > 0 ? n : null);
             }}
-            placeholder={dolar?.venta ? `blue hoy: ${dolar.venta}` : 'ej: 1450'}
+            placeholder={dolar?.promedio ? `blue hoy: ${dolar.promedio}` : 'ej: 1450'}
           />
         </div>
         <p className="mt-1 text-xs text-ink-faint">
           {cfg.fxRateManual
             ? 'Usando la cotización que fijaste. Borrá el número para volver al blue automático.'
-            : dolar?.venta
-              ? `Automático: dólar blue $${dolar.venta} (venta).`
+            : dolar?.promedio
+              ? `Automático: dólar blue $${dolar.promedio} (promedio compra/venta, ${dolar.fuente || 'dolarhoy'}).`
               : 'Se toma el dólar blue automáticamente cuando haya conexión.'}
         </p>
       </div>
