@@ -10,7 +10,7 @@ export default function GoalsManager({ state, actions }) {
   const dolar = useDolar();
 
   return (
-    <div className="space-y-4 rounded-xl bg-white p-4 shadow-sm">
+    <div className="space-y-4 rounded-2xl border border-hair bg-surface p-4">
       <MoneyField
         label="Meta de ahorro mensual"
         value={cfg.savingsGoal}
@@ -25,11 +25,11 @@ export default function GoalsManager({ state, actions }) {
       />
 
       <div>
-        <label className="mb-1 block text-xs font-medium text-gray-500">
+        <label className="mb-1 block text-xs font-medium text-ink-soft">
           Qué categoría cuenta como “extras”
         </label>
         <select
-          className="w-full rounded-lg border border-gray-300 px-3 py-2"
+          className="w-full rounded-lg border border-hair px-3 py-2"
           value={cfg.extrasGroupId ?? ''}
           onChange={(e) => actions.setExtrasGroupId(e.target.value || null)}
         >
@@ -37,17 +37,17 @@ export default function GoalsManager({ state, actions }) {
             <option key={g.id} value={g.id}>{g.name}</option>
           ))}
         </select>
-        <p className="mt-1 text-xs text-gray-400">
+        <p className="mt-1 text-xs text-ink-faint">
           Todo lo que cargues en esta categoría cuenta contra el presupuesto de extras.
         </p>
       </div>
 
       <div>
-        <label className="mb-1 block text-xs font-medium text-gray-500">
+        <label className="mb-1 block text-xs font-medium text-ink-soft">
           Cotización del dólar (para ver tus ahorros en USD)
         </label>
-        <div className="flex items-center gap-2 rounded-lg border border-gray-300 px-3">
-          <span className="text-gray-400">$</span>
+        <div className="flex items-center gap-2 rounded-lg border border-hair px-3">
+          <span className="text-ink-faint">$</span>
           <input
             type="number"
             inputMode="numeric"
@@ -60,7 +60,7 @@ export default function GoalsManager({ state, actions }) {
             placeholder={dolar?.venta ? `blue hoy: ${dolar.venta}` : 'ej: 1450'}
           />
         </div>
-        <p className="mt-1 text-xs text-gray-400">
+        <p className="mt-1 text-xs text-ink-faint">
           {cfg.fxRateManual
             ? 'Usando la cotización que fijaste. Borrá el número para volver al blue automático.'
             : dolar?.venta
@@ -70,10 +70,10 @@ export default function GoalsManager({ state, actions }) {
       </div>
 
       {b.incomeTotal > 0 && cfg.savingsGoal != null && (
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-ink-soft">
           Con {formatARS(b.incomeTotal)} de ingreso este mes, después de ahorrar{' '}
           {formatARS(cfg.savingsGoal)} te quedan{' '}
-          <strong className="text-gray-700">{formatARS(b.incomeTotal - cfg.savingsGoal)}</strong> para gastos.
+          <strong className="text-ink">{formatARS(b.incomeTotal - cfg.savingsGoal)}</strong> para gastos.
         </p>
       )}
       {b.coherence && !b.coherence.fits && (
@@ -89,9 +89,9 @@ export default function GoalsManager({ state, actions }) {
 function MoneyField({ label, value, onChange, placeholder }) {
   return (
     <div>
-      <label className="mb-1 block text-xs font-medium text-gray-500">{label}</label>
-      <div className="flex items-center gap-2 rounded-lg border border-gray-300 px-3">
-        <span className="text-gray-400">$</span>
+      <label className="mb-1 block text-xs font-medium text-ink-soft">{label}</label>
+      <div className="flex items-center gap-2 rounded-lg border border-hair px-3">
+        <span className="text-ink-faint">$</span>
         <input
           type="number"
           inputMode="numeric"

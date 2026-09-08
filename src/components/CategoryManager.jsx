@@ -30,7 +30,7 @@ export default function CategoryManager({ state, actions }) {
   return (
     <div className="space-y-4">
       {state.groups.map((g) => (
-        <div key={g.id} className="rounded-xl bg-white p-4 shadow-sm">
+        <div key={g.id} className="rounded-2xl border border-hair bg-surface p-4">
           <h3 className="mb-2 text-sm font-semibold" style={{ color: g.color }}>{g.name}</h3>
           <ul className="space-y-1">
             {state.subcategories.filter((s) => s.groupId === g.id).map((sub) => (
@@ -43,9 +43,9 @@ export default function CategoryManager({ state, actions }) {
                   />
                 ) : (
                   <>
-                    <span className="flex-1 text-sm text-gray-700">{sub.name}</span>
-                    <button onClick={() => setRenaming(sub.id)} className="text-gray-400">✏️</button>
-                    <button onClick={() => handleDeleteSub(sub)} className="text-gray-400">🗑️</button>
+                    <span className="flex-1 text-sm text-ink">{sub.name}</span>
+                    <button onClick={() => setRenaming(sub.id)} className="text-ink-faint">✏️</button>
+                    <button onClick={() => handleDeleteSub(sub)} className="text-ink-faint">🗑️</button>
                   </>
                 )}
               </li>
@@ -53,7 +53,7 @@ export default function CategoryManager({ state, actions }) {
           </ul>
           <div className="mt-2 flex gap-2">
             <input
-              className="flex-1 rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
+              className="flex-1 rounded-lg border border-hair px-2 py-1.5 text-sm"
               placeholder="Nueva subcategoría"
               value={newSubByGroup[g.id] || ''}
               onChange={(e) => setNewSubByGroup((s) => ({ ...s, [g.id]: e.target.value }))}
@@ -61,7 +61,7 @@ export default function CategoryManager({ state, actions }) {
             />
             <button
               onClick={() => handleAddSub(g.id)}
-              className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600"
+              className="rounded-lg border border-hair px-3 py-1.5 text-sm text-ink-soft"
             >
               + agregar
             </button>
@@ -69,11 +69,11 @@ export default function CategoryManager({ state, actions }) {
         </div>
       ))}
 
-      <div className="rounded-xl bg-white p-4 shadow-sm">
-        <h3 className="mb-2 text-sm font-semibold text-gray-700">Nueva categoría principal</h3>
+      <div className="rounded-2xl border border-hair bg-surface p-4">
+        <h3 className="mb-2 text-sm font-semibold text-ink">Nueva categoría principal</h3>
         <div className="flex gap-2">
           <input
-            className="flex-1 rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
+            className="flex-1 rounded-lg border border-hair px-2 py-1.5 text-sm"
             placeholder="ej: Vehículo"
             value={newGroupName}
             onChange={(e) => setNewGroupName(e.target.value)}
@@ -81,7 +81,7 @@ export default function CategoryManager({ state, actions }) {
           />
           <button
             onClick={handleAddGroup}
-            className="rounded-lg bg-gray-900 px-3 py-1.5 text-sm text-white"
+            className="rounded-lg bg-accent px-3 py-1.5 text-sm text-paper"
           >
             Crear
           </button>
@@ -97,13 +97,13 @@ function RenameInput({ initial, onSave, onCancel }) {
     <div className="flex flex-1 gap-2">
       <input
         autoFocus
-        className="flex-1 rounded-lg border border-gray-300 px-2 py-1 text-sm"
+        className="flex-1 rounded-lg border border-hair px-2 py-1 text-sm"
         value={value}
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={(e) => e.key === 'Enter' && value.trim() && onSave(value.trim())}
       />
       <button onClick={() => value.trim() && onSave(value.trim())} className="text-ok">✓</button>
-      <button onClick={onCancel} className="text-gray-400">✕</button>
+      <button onClick={onCancel} className="text-ink-faint">✕</button>
     </div>
   );
 }

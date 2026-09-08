@@ -93,28 +93,28 @@ export default function ExpenseFormModal({ open, onClose, draft, state, actions,
     <Modal open={open} onClose={onClose} title={editingId ? 'Editar gasto' : 'Nuevo gasto'}>
       <div className="space-y-4">
         {draft?.rawText && (
-          <p className="rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-500 italic">
+          <p className="rounded-lg bg-surface-2 px-3 py-2 text-sm text-ink-soft italic">
             “{draft.rawText}”
           </p>
         )}
 
         <div className="flex gap-2">
           <div className="flex-1">
-            <label className="block text-xs font-medium text-gray-500 mb-1">Monto</label>
+            <label className="block text-xs font-medium text-ink-soft mb-1">Monto</label>
             <input
               type="number"
               inputMode="decimal"
               autoFocus
-              className="w-full rounded-lg border border-gray-300 px-3 py-3 text-lg"
+              className="w-full rounded-lg border border-hair px-3 py-3 text-lg"
               value={amountRaw}
               onChange={(e) => setAmountRaw(e.target.value)}
               placeholder="0"
             />
           </div>
           <div className="w-24">
-            <label className="block text-xs font-medium text-gray-500 mb-1">Moneda</label>
+            <label className="block text-xs font-medium text-ink-soft mb-1">Moneda</label>
             <select
-              className="w-full rounded-lg border border-gray-300 px-2 py-3"
+              className="w-full rounded-lg border border-hair px-2 py-3"
               value={currency}
               onChange={(e) => setCurrency(e.target.value)}
             >
@@ -126,25 +126,25 @@ export default function ExpenseFormModal({ open, onClose, draft, state, actions,
 
         {currency === 'USD' && (
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">
+            <label className="block text-xs font-medium text-ink-soft mb-1">
               Cotización del día (1 USD = ? ARS)
             </label>
             <input
               type="number"
               inputMode="decimal"
-              className="w-full rounded-lg border border-gray-300 px-3 py-2"
+              className="w-full rounded-lg border border-hair px-3 py-2"
               value={fxRate}
               onChange={(e) => setFxRate(e.target.value)}
               placeholder="ej: 1450"
             />
-            <p className="mt-1 text-sm text-gray-500">
+            <p className="mt-1 text-sm text-ink-soft">
               Total: <strong>{formatPreviewARS(amountFinal)}</strong>
             </p>
           </div>
         )}
 
         <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1">Categoría</label>
+          <label className="block text-xs font-medium text-ink-soft mb-1">Categoría</label>
           <div className="flex gap-2">
             {groups.map((g) => (
               <button
@@ -153,8 +153,8 @@ export default function ExpenseFormModal({ open, onClose, draft, state, actions,
                 onClick={() => { setGroupId(g.id); setSubcategoryId(null); }}
                 className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium ${
                   groupId === g.id
-                    ? 'text-white'
-                    : 'border-gray-300 bg-white text-gray-600'
+                    ? 'text-paper'
+                    : 'border-hair bg-surface text-ink-soft'
                 }`}
                 style={groupId === g.id ? { backgroundColor: g.color, borderColor: g.color } : {}}
               >
@@ -166,8 +166,8 @@ export default function ExpenseFormModal({ open, onClose, draft, state, actions,
             <p className="mt-1 text-sm text-warn">No pude identificar la categoría, elegí una ↑</p>
           )}
           {extrasWarning && (
-            <p className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-warn">
-              ⚠️ Con este gasto el mes queda en {formatPreviewARS(extrasWarning.after)} de salidas,
+            <p className="mt-2 rounded-lg border border-warn/25 bg-warn/5 px-3 py-2 text-sm text-warn num">
+              Con este gasto el mes queda en {formatPreviewARS(extrasWarning.after)} de salidas,
               arriba de tu presupuesto de {formatPreviewARS(extrasWarning.budget)}.
             </p>
           )}
@@ -175,11 +175,11 @@ export default function ExpenseFormModal({ open, onClose, draft, state, actions,
 
         {groupId && (
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Subcategoría</label>
+            <label className="block text-xs font-medium text-ink-soft mb-1">Subcategoría</label>
             {!showNewSub ? (
               <div className="flex gap-2">
                 <select
-                  className="flex-1 rounded-lg border border-gray-300 px-3 py-2"
+                  className="flex-1 rounded-lg border border-hair px-3 py-2"
                   value={subcategoryId ?? ''}
                   onChange={(e) => setSubcategoryId(e.target.value || null)}
                 >
@@ -191,7 +191,7 @@ export default function ExpenseFormModal({ open, onClose, draft, state, actions,
                 <button
                   type="button"
                   onClick={() => setShowNewSub(true)}
-                  className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-600"
+                  className="rounded-lg border border-hair px-3 py-2 text-sm text-ink-soft"
                 >
                   + nueva
                 </button>
@@ -199,7 +199,7 @@ export default function ExpenseFormModal({ open, onClose, draft, state, actions,
             ) : (
               <div className="flex gap-2">
                 <input
-                  className="flex-1 rounded-lg border border-gray-300 px-3 py-2"
+                  className="flex-1 rounded-lg border border-hair px-3 py-2"
                   value={newSubName}
                   onChange={(e) => setNewSubName(e.target.value)}
                   placeholder="Nombre de la subcategoría"
@@ -208,7 +208,7 @@ export default function ExpenseFormModal({ open, onClose, draft, state, actions,
                 <button
                   type="button"
                   onClick={handleAddSubcategory}
-                  className="rounded-lg bg-gray-800 px-3 py-2 text-sm text-white"
+                  className="rounded-lg bg-accent px-3 py-2 text-sm text-paper"
                 >
                   Crear
                 </button>
@@ -218,9 +218,9 @@ export default function ExpenseFormModal({ open, onClose, draft, state, actions,
         )}
 
         <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1">Descripción</label>
+          <label className="block text-xs font-medium text-ink-soft mb-1">Descripción</label>
           <input
-            className="w-full rounded-lg border border-gray-300 px-3 py-2"
+            className="w-full rounded-lg border border-hair px-3 py-2"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="ej: compra de insumos panadería"
@@ -228,9 +228,9 @@ export default function ExpenseFormModal({ open, onClose, draft, state, actions,
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1">Nombre (opcional)</label>
+          <label className="block text-xs font-medium text-ink-soft mb-1">Nombre (opcional)</label>
           <input
-            className="w-full rounded-lg border border-gray-300 px-3 py-2"
+            className="w-full rounded-lg border border-hair px-3 py-2"
             value={personName}
             onChange={(e) => setPersonName(e.target.value)}
             placeholder="ej: Mel — para poder preguntarle al asistente por este nombre"
@@ -238,10 +238,10 @@ export default function ExpenseFormModal({ open, onClose, draft, state, actions,
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1">Fecha</label>
+          <label className="block text-xs font-medium text-ink-soft mb-1">Fecha</label>
           <input
             type="date"
-            className="w-full rounded-lg border border-gray-300 px-3 py-2"
+            className="w-full rounded-lg border border-hair px-3 py-2"
             value={date}
             onChange={(e) => setDate(e.target.value)}
           />
@@ -250,13 +250,13 @@ export default function ExpenseFormModal({ open, onClose, draft, state, actions,
         <div className="flex gap-2 pt-2">
           <button
             onClick={onClose}
-            className="flex-1 rounded-lg border border-gray-300 py-3 font-medium text-gray-600"
+            className="flex-1 rounded-lg border border-hair py-3 font-medium text-ink-soft"
           >
             Cancelar
           </button>
           <button
             onClick={handleSave}
-            className="flex-1 rounded-lg bg-gray-900 py-3 font-medium text-white"
+            className="flex-1 rounded-lg bg-accent py-3 font-medium text-paper"
           >
             Guardar gasto
           </button>

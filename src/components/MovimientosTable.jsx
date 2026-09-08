@@ -88,7 +88,7 @@ export default function MovimientosTable({ state, actions }) {
 
       <div className="flex gap-2">
         <select
-          className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
+          className="rounded-lg border border-hair px-2 py-1.5 text-sm"
           value={groupFilter}
           onChange={(e) => setGroupFilter(e.target.value)}
         >
@@ -98,45 +98,45 @@ export default function MovimientosTable({ state, actions }) {
           ))}
         </select>
         <input
-          className="flex-1 rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
+          className="flex-1 rounded-lg border border-hair px-2 py-1.5 text-sm"
           placeholder="Buscar (descripción, categoría, nombre)…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
         <button
           onClick={() => exportMovementsCsv(state)}
-          className="shrink-0 rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm text-gray-600"
+          className="shrink-0 rounded-lg border border-hair px-2.5 py-1.5 text-sm text-ink-soft"
         >
           ⬇ CSV
         </button>
       </div>
 
       <div className="flex items-center gap-2 text-sm">
-        <span className="text-gray-400">Monto</span>
+        <span className="text-ink-faint">Monto</span>
         <input
           type="number"
           inputMode="numeric"
-          className="w-full rounded-lg border border-gray-300 px-2 py-1.5"
+          className="w-full rounded-lg border border-hair px-2 py-1.5"
           placeholder="mín"
           value={minAmount}
           onChange={(e) => setMinAmount(e.target.value)}
         />
-        <span className="text-gray-400">–</span>
+        <span className="text-ink-faint">–</span>
         <input
           type="number"
           inputMode="numeric"
-          className="w-full rounded-lg border border-gray-300 px-2 py-1.5"
+          className="w-full rounded-lg border border-hair px-2 py-1.5"
           placeholder="máx"
           value={maxAmount}
           onChange={(e) => setMaxAmount(e.target.value)}
         />
       </div>
 
-      <div className="overflow-x-auto rounded-xl bg-white shadow-sm">
+      <div className="overflow-x-auto rounded-2xl border border-hair bg-surface">
         <table className="w-full min-w-[560px] text-sm">
           <thead>
-            <tr className="border-b border-gray-100 text-left text-xs text-gray-400">
-              <th className="cursor-pointer px-3 py-2" onClick={() => toggleSort('date')}>
+            <tr className="border-b border-hair bg-surface-2 text-left text-[0.7rem] font-semibold uppercase tracking-wide text-ink-faint">
+              <th className="cursor-pointer px-3 py-2.5" onClick={() => toggleSort('date')}>
                 Fecha {sort.field === 'date' && (sort.dir === 'asc' ? '↑' : '↓')}
               </th>
               <th className="px-3 py-2">Categoría</th>
@@ -149,37 +149,37 @@ export default function MovimientosTable({ state, actions }) {
           </thead>
           <tbody>
             {movements.map((m) => (
-              <tr key={m.kind + m.id} className="border-b border-gray-50 last:border-0">
-                <td className="whitespace-nowrap px-3 py-2 text-gray-500">{formatDate(m.date)}</td>
-                <td className="px-3 py-2 text-gray-700">
+              <tr key={m.kind + m.id} className="border-b border-hair last:border-0">
+                <td className="whitespace-nowrap px-3 py-2 text-ink-soft">{formatDate(m.date)}</td>
+                <td className="px-3 py-2 text-ink">
                   {m.kind === 'ingreso' ? (
                     <span className="text-ok">Ingreso</span>
                   ) : (
                     <>
                       {groupName(m.groupId) || <span className="text-warn">Sin categorizar</span>}
-                      {m.subcategoryId && <span className="text-gray-400"> · {subName(m.subcategoryId)}</span>}
+                      {m.subcategoryId && <span className="text-ink-faint"> · {subName(m.subcategoryId)}</span>}
                     </>
                   )}
                 </td>
-                <td className="px-3 py-2 text-gray-700">
+                <td className="px-3 py-2 text-ink">
                   {m.description}
                   {m.personName && (
-                    <span className="ml-1.5 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
+                    <span className="ml-1.5 rounded-full bg-accent/10 px-2 py-0.5 text-xs font-medium text-accent">
                       {m.personName}
                     </span>
                   )}
                 </td>
-                <td className={`whitespace-nowrap px-3 py-2 text-right font-medium ${m.kind === 'ingreso' ? 'text-ok' : 'text-gray-900'}`}>
+                <td className={`whitespace-nowrap px-3 py-2 text-right font-medium num ${m.kind === 'ingreso' ? 'text-ok' : 'text-ink'}`}>
                   {m.kind === 'ingreso' ? '+' : '-'}{formatARS(m.amount)}
                 </td>
-                <td className="whitespace-nowrap px-3 py-2 text-right text-gray-400">
+                <td className="whitespace-nowrap px-3 py-2 text-right text-ink-faint">
                   <button onClick={() => setEditing({ kind: m.kind, id: m.id })} className="px-1">✏️</button>
                   <button onClick={() => handleDelete(m)} className="px-1">🗑️</button>
                 </td>
               </tr>
             ))}
             {movements.length === 0 && (
-              <tr><td colSpan={5} className="px-3 py-6 text-center text-gray-400">Sin movimientos en este período.</td></tr>
+              <tr><td colSpan={5} className="px-3 py-6 text-center text-ink-faint">Sin movimientos en este período.</td></tr>
             )}
           </tbody>
         </table>

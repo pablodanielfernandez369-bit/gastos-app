@@ -82,9 +82,11 @@ export default function App() {
   const showFloatingButtons = tab !== 'asistente' && tab !== 'ajustes';
 
   return (
-    <div className={`mx-auto min-h-screen max-w-lg bg-gray-100 ${showFloatingButtons ? 'pb-40' : 'pb-20'}`}>
-      <header className="px-4 pt-6 pb-2">
-        <h1 className="text-xl font-bold text-gray-900">Mis gastos y ahorro</h1>
+    <div className={`mx-auto min-h-screen max-w-lg bg-paper ${showFloatingButtons ? 'pb-40' : 'pb-20'}`}>
+      <header className="px-4 pt-7 pb-3">
+        <h1 className="font-display text-[1.7rem] font-medium leading-none tracking-tight text-ink">
+          Mis gastos y ahorro
+        </h1>
       </header>
 
       <main className="px-4 pb-4">
@@ -96,32 +98,32 @@ export default function App() {
       </main>
 
       {showFloatingButtons && (
-        <div className="fixed inset-x-0 bottom-16 mx-auto flex max-w-lg gap-3 bg-gradient-to-t from-gray-100 via-gray-100/95 to-transparent p-4 pt-6">
+        <div className="fixed inset-x-0 bottom-14 mx-auto flex max-w-lg gap-2.5 bg-gradient-to-t from-paper via-paper/95 to-transparent px-4 pb-3 pt-8">
           <button
             onClick={() => setShowExpenseForm(true)}
-            className="flex-1 rounded-xl bg-gray-900 py-4 text-base font-semibold text-white shadow-lg"
+            className="flex-1 rounded-2xl bg-accent py-3.5 text-[0.95rem] font-semibold tracking-tight text-paper shadow-[0_8px_20px_-6px_rgba(176,73,31,0.4)]"
           >
             + Nuevo gasto
           </button>
           <button
             onClick={() => setQuickIncomeOpen(true)}
-            className="flex-1 rounded-xl bg-ok py-4 text-base font-semibold text-white shadow-lg"
+            className="flex-1 rounded-2xl border border-ok/25 bg-ok/10 py-3.5 text-[0.95rem] font-semibold tracking-tight text-ok"
           >
             + Nuevo ingreso
           </button>
         </div>
       )}
 
-      <nav className="fixed inset-x-0 bottom-0 mx-auto flex max-w-lg border-t border-gray-200 bg-white">
+      <nav className="fixed inset-x-0 bottom-0 mx-auto flex max-w-lg border-t border-hair bg-surface/95 backdrop-blur">
         {TABS.map((t) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
-            className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-xs font-medium ${
-              tab === t.id ? 'text-gray-900' : 'text-gray-400'
+            className={`flex flex-1 flex-col items-center gap-1 py-2.5 text-[0.68rem] font-medium tracking-wide transition-colors ${
+              tab === t.id ? 'text-accent' : 'text-ink-faint'
             }`}
           >
-            <span className="text-lg leading-none">{t.icon}</span>
+            <span className={`text-base leading-none transition-opacity ${tab === t.id ? 'opacity-100' : 'opacity-55'}`}>{t.icon}</span>
             {t.label}
           </button>
         ))}

@@ -14,7 +14,7 @@ export default function PeriodFilter({ period, setPeriod, customFrom, customTo, 
             key={o.id}
             onClick={() => setPeriod(o.id)}
             className={`shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium ${
-              period === o.id ? 'bg-gray-900 text-white' : 'bg-white text-gray-600 border border-gray-300'
+              period === o.id ? 'bg-accent text-paper' : 'bg-surface text-ink-soft border border-hair'
             }`}
           >
             {o.label}
@@ -25,13 +25,13 @@ export default function PeriodFilter({ period, setPeriod, customFrom, customTo, 
         <div className="flex gap-2">
           <input
             type="date"
-            className="flex-1 rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
+            className="flex-1 rounded-lg border border-hair px-2 py-1.5 text-sm"
             value={customFrom}
             onChange={(e) => setCustomFrom(e.target.value)}
           />
           <input
             type="date"
-            className="flex-1 rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
+            className="flex-1 rounded-lg border border-hair px-2 py-1.5 text-sm"
             value={customTo}
             onChange={(e) => setCustomTo(e.target.value)}
           />

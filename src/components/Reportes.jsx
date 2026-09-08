@@ -9,7 +9,9 @@ import { computeTotals, computeMonthlySeries } from '../lib/selectors';
 import { formatARS, rangeForPeriod } from '../lib/format';
 import { todayISO } from '../lib/model';
 
-const SUB_COLORS = ['#2563eb', '#d97706', '#0891b2', '#7c3aed', '#db2777', '#65a30d', '#ea580c', '#0284c7'];
+const SUB_COLORS = ['#B0491F', '#1F5673', '#6D4B8F', '#5A7D2A', '#C77B2C', '#0F766E', '#A23B2B', '#8A7A5C'];
+const AXIS = '#A39D90';
+const GRID = '#E4DED1';
 
 export default function Reportes({ state }) {
   const [period, setPeriod] = useState('mes');
@@ -28,7 +30,7 @@ export default function Reportes({ state }) {
     .map((g) => ({ name: g.name, value: totals.expenseByGroup[g.id] || 0, color: g.color }))
     .filter((d) => d.value > 0);
   if (totals.expenseByGroup._sinCategoria > 0) {
-    pieData.push({ name: 'Sin categorizar', value: totals.expenseByGroup._sinCategoria, color: '#9ca3af' });
+    pieData.push({ name: 'Sin categorizar', value: totals.expenseByGroup._sinCategoria, color: '#A39D90' });
   }
 
   const subData = Object.entries(totals.expenseBySubcategory)
@@ -50,8 +52,8 @@ export default function Reportes({ state }) {
         setCustomTo={setCustomTo}
       />
 
-      <section className="rounded-xl bg-white p-4 shadow-sm">
-        <h3 className="mb-2 text-sm font-semibold text-gray-700">Gastos por categoría</h3>
+      <section className="rounded-2xl border border-hair bg-surface p-4">
+        <h3 className="mb-3 font-display text-[0.95rem] font-medium text-ink">Gastos por categoría</h3>
         {pieData.length === 0 ? (
           <EmptyState />
         ) : (
@@ -69,17 +71,17 @@ export default function Reportes({ state }) {
         )}
       </section>
 
-      <section className="rounded-xl bg-white p-4 shadow-sm">
-        <h3 className="mb-2 text-sm font-semibold text-gray-700">Gastos por subcategoría</h3>
+      <section className="rounded-2xl border border-hair bg-surface p-4">
+        <h3 className="mb-3 font-display text-[0.95rem] font-medium text-ink">Gastos por subcategoría</h3>
         {subData.length === 0 ? (
           <EmptyState />
         ) : (
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={subData} layout="vertical" margin={{ left: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                <CartesianGrid strokeDasharray="2 4" stroke={GRID} horizontal={false} />
                 <XAxis type="number" hide />
-                <YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 12 }} />
+                <YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 12, fill: AXIS }} />
                 <Tooltip formatter={(v) => formatARS(v)} />
                 <Bar dataKey="value" radius={[0, 6, 6, 0]}>
                   {subData.map((_, idx) => <Cell key={idx} fill={SUB_COLORS[idx % SUB_COLORS.length]} />)}
@@ -90,22 +92,22 @@ export default function Reportes({ state }) {
         )}
       </section>
 
-      <section className="rounded-xl bg-white p-4 shadow-sm">
-        <h3 className="mb-2 text-sm font-semibold text-gray-700">Evolución mensual</h3>
+      <section className="rounded-2xl border border-hair bg-surface p-4">
+        <h3 className="mb-3 font-display text-[0.95rem] font-medium text-ink">Evolución mensual</h3>
         {monthlySeries.length === 0 ? (
           <EmptyState />
         ) : (
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={monthlySeries}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 11 }} width={70} tickFormatter={(v) => formatARS(v)} />
+                <CartesianGrid strokeDasharray="2 4" stroke={GRID} vertical={false} />
+                <XAxis dataKey="label" tick={{ fontSize: 12, fill: AXIS }} />
+                <YAxis tick={{ fontSize: 11, fill: AXIS }} width={70} tickFormatter={(v) => formatARS(v)} />
                 <Tooltip formatter={(v) => formatARS(v)} />
                 <Legend />
-                <Bar dataKey="Ingresos" fill="#16a34a" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="Gastos" fill="#dc2626" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="Ahorro" fill="#2563eb" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="Ingresos" fill="#5A7D2A" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="Gastos" fill="#A23B2B" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="Ahorro" fill="#1F5673" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -132,8 +134,8 @@ function MonthComparison({ series }) {
   ];
 
   return (
-    <section className="rounded-xl bg-white p-4 shadow-sm">
-      <h3 className="mb-2 text-sm font-semibold text-gray-700">
+    <section className="rounded-2xl border border-hair bg-surface p-4">
+      <h3 className="mb-3 font-display text-[0.95rem] font-medium text-ink">
         {prev.label} vs {curr.label}
       </h3>
       <table className="w-full text-sm">
@@ -142,11 +144,11 @@ function MonthComparison({ series }) {
             const pct = delta(r.prev, r.curr);
             const up = pct !== null && pct > 0;
             return (
-              <tr key={r.label} className="border-b border-gray-50 last:border-0">
-                <td className="py-1.5 text-gray-500">{r.label}</td>
-                <td className="py-1.5 text-right text-gray-700">{formatARS(r.prev)}</td>
-                <td className="py-1.5 text-right font-medium text-gray-900">{formatARS(r.curr)}</td>
-                <td className={`py-1.5 pl-2 text-right text-xs ${pct === null ? 'text-gray-400' : up ? 'text-ok' : 'text-warn'}`}>
+              <tr key={r.label} className="border-b border-hair last:border-0">
+                <td className="py-1.5 text-ink-soft">{r.label}</td>
+                <td className="py-1.5 text-right text-ink">{formatARS(r.prev)}</td>
+                <td className="py-1.5 text-right font-medium text-ink">{formatARS(r.curr)}</td>
+                <td className={`py-1.5 pl-2 text-right text-xs ${pct === null ? 'text-ink-faint' : up ? 'text-ok' : 'text-warn'}`}>
                   {pct === null ? '—' : `${up ? '▲' : '▼'} ${Math.abs(pct).toFixed(0)}%`}
                 </td>
               </tr>
@@ -159,5 +161,5 @@ function MonthComparison({ series }) {
 }
 
 function EmptyState() {
-  return <p className="py-8 text-center text-sm text-gray-400">Todavía no hay datos suficientes.</p>;
+  return <p className="py-8 text-center text-sm text-ink-faint">Todavía no hay datos suficientes.</p>;
 }

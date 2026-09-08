@@ -13,8 +13,8 @@ export default defineConfig({
         name: 'Mis Gastos y Ahorro',
         short_name: 'Gastos',
         description: 'Control de gastos personales y del local, con carga por voz y capacidad de ahorro.',
-        theme_color: '#111827',
-        background_color: '#f4f5f7',
+        theme_color: '#F6F3EC',
+        background_color: '#F6F3EC',
         display: 'standalone',
         start_url: '/',
         icons: [

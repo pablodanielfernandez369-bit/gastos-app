@@ -15,7 +15,7 @@ function migrateState(saved) {
   // presupuesto si todavía no hay uno elegido.
   let extras = s.groups?.find((g) => /salida|ocio/i.test(g.name));
   if (!extras) {
-    extras = { id: 'salidas', name: 'Salidas/Ocio', color: '#7c3aed' };
+    extras = { id: 'salidas', name: 'Salidas/Ocio', color: '#6D4B8F' };
     s.groups = [...(s.groups || []), extras];
     const subs = ['Comidas afuera', 'Delivery', 'Entretenimiento', 'Regalos', 'Otro'];
     s.subcategories = [
@@ -26,6 +26,13 @@ function migrateState(saved) {
   if (!s.config.extrasGroupId || !s.groups.some((g) => g.id === s.config.extrasGroupId)) {
     s.config.extrasGroupId = extras.id;
   }
+
+  // Recolorea los grupos al rediseño "papel cálido" si todavía tienen los
+  // colores viejos (azul/violeta tailwind por defecto).
+  const RECOLOR = { '#2563eb': '#1F5673', '#7c3aed': '#6D4B8F', '#d97706': '#B0491F' };
+  s.groups = (s.groups || []).map((g) =>
+    RECOLOR[g.color] ? { ...g, color: RECOLOR[g.color] } : g
+  );
 
   // El grupo "Local/Negocio" ya no se usa: se saca si no tiene gastos cargados
   // (si tuviera, se deja para no perder historial).
@@ -207,6 +214,6 @@ export function useAppState() {
 }
 
 function randomColor() {
-  const palette = ['#0891b2', '#7c3aed', '#db2777', '#65a30d', '#ea580c', '#0284c7'];
+  const palette = ['#0F766E', '#6D4B8F', '#B0491F', '#5A7D2A', '#8A7A5C', '#1F5673'];
   return palette[Math.floor(Math.random() * palette.length)];
 }

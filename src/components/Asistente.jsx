@@ -101,8 +101,8 @@ export default function Asistente({ state }) {
     <div className="flex h-[calc(100vh-190px)] min-h-[360px] flex-col">
       <div ref={listRef} className="flex-1 space-y-3 overflow-y-auto pb-2">
         {history.length === 0 && (
-          <div className="rounded-xl bg-white p-4 shadow-sm">
-            <p className="mb-2 text-sm font-medium text-gray-700">
+          <div className="rounded-2xl border border-hair bg-surface p-4">
+            <p className="mb-2 text-sm font-medium text-ink">
               Preguntame por voz o texto, por ejemplo:
             </p>
             <ul className="space-y-1.5">
@@ -122,12 +122,12 @@ export default function Asistente({ state }) {
 
         {history.map((h, i) => (
           <div key={i} className="space-y-1.5">
-            <div className="ml-8 rounded-xl rounded-br-sm bg-gray-900 px-3 py-2 text-sm text-white">
+            <div className="ml-8 rounded-2xl rounded-br-md bg-accent px-3 py-2 text-sm text-paper">
               {h.question}
             </div>
-            <div className="mr-8 rounded-xl rounded-bl-sm bg-white px-3 py-2 text-sm text-gray-800 shadow-sm">
+            <div className="mr-8 rounded-2xl rounded-bl-md border border-hair bg-surface px-3 py-2 text-sm text-ink">
               {h.answer === null ? (
-                <span className="inline-flex gap-1 text-gray-400">
+                <span className="inline-flex gap-1 text-ink-faint">
                   <span className="animate-bounce">·</span>
                   <span className="animate-bounce [animation-delay:0.15s]">·</span>
                   <span className="animate-bounce [animation-delay:0.3s]">·</span>
@@ -142,7 +142,7 @@ export default function Asistente({ state }) {
 
       <form onSubmit={handleSubmit} className="flex items-center gap-2 pt-2">
         <input
-          className="flex-1 rounded-lg border border-gray-300 px-3 py-3 text-base"
+          className="flex-1 rounded-lg border border-hair px-3 py-3 text-base"
           placeholder="Escribí tu pregunta…"
           value={text}
           onChange={(e) => setText(e.target.value)}
@@ -151,8 +151,8 @@ export default function Asistente({ state }) {
           <button
             type="button"
             onClick={listening ? stop : start}
-            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-xl text-white ${
-              listening ? 'bg-warn animate-pulse' : 'bg-gray-900'
+            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-xl text-paper ${
+              listening ? 'bg-warn animate-pulse' : 'bg-accent'
             }`}
             aria-label={listening ? 'Detener grabación' : 'Preguntar por voz'}
           >
@@ -162,14 +162,14 @@ export default function Asistente({ state }) {
         <button
           type="submit"
           disabled={!text.trim()}
-          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white disabled:opacity-40"
+          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-accent text-paper disabled:opacity-40"
           aria-label="Enviar pregunta"
         >
           ➤
         </button>
       </form>
       {!supported && (
-        <p className="pt-1 text-center text-xs text-gray-400">
+        <p className="pt-1 text-center text-xs text-ink-faint">
           Tu navegador no soporta dictado por voz, pero podés escribir la pregunta.
         </p>
       )}

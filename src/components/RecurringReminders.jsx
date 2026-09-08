@@ -11,17 +11,17 @@ export default function RecurringReminders({ state, actions }) {
   if (pending.length === 0) return null;
 
   return (
-    <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-      <p className="mb-2 text-sm font-semibold text-amber-800">
+    <div className="rounded-2xl border border-caution/40 bg-caution/5 p-4">
+      <p className="mb-2.5 font-display text-[0.9rem] font-medium text-ink">
         Gastos recurrentes pendientes de este mes
       </p>
       <ul className="space-y-2">
         {pending.map((r) => (
-          <li key={r.id} className="flex items-center justify-between text-sm text-amber-900">
+          <li key={r.id} className="flex items-center justify-between text-sm text-ink num">
             <span>{r.description} · {formatARS(r.amount)}</span>
             <button
               onClick={() => setLoading(r)}
-              className="rounded-full bg-amber-600 px-3 py-1 text-xs font-medium text-white"
+              className="rounded-full bg-caution px-3 py-1 text-xs font-semibold text-paper"
             >
               Cargar ahora
             </button>

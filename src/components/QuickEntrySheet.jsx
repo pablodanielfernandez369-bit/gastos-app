@@ -39,7 +39,7 @@ export default function QuickEntrySheet({ open, onClose, onSubmitText, onUseClas
         <div className="flex items-center gap-2">
           <input
             autoFocus
-            className="flex-1 rounded-lg border border-gray-300 px-3 py-3 text-base"
+            className="flex-1 rounded-lg border border-hair px-3 py-3 text-base"
             placeholder="ej: cobré 300 mil de sueldo"
             value={text}
             onChange={(e) => setText(e.target.value)}
@@ -48,8 +48,8 @@ export default function QuickEntrySheet({ open, onClose, onSubmitText, onUseClas
             <button
               type="button"
               onClick={listening ? stop : start}
-              className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-xl text-white ${
-                listening ? 'bg-warn animate-pulse' : 'bg-gray-900'
+              className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-xl text-paper ${
+                listening ? 'bg-warn animate-pulse' : 'bg-accent'
               }`}
               aria-label={listening ? 'Detener grabación' : 'Grabar por voz'}
             >
@@ -59,10 +59,10 @@ export default function QuickEntrySheet({ open, onClose, onSubmitText, onUseClas
         </div>
 
         {listening && (
-          <p className="text-center text-sm text-gray-500">Escuchando… decilo con tus palabras</p>
+          <p className="text-center text-sm text-ink-soft">Escuchando… decilo con tus palabras</p>
         )}
         {!supported && (
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-ink-soft">
             Tu navegador no soporta dictado por voz, pero podés escribirlo igual.
           </p>
         )}
@@ -73,7 +73,7 @@ export default function QuickEntrySheet({ open, onClose, onSubmitText, onUseClas
         <button
           type="submit"
           disabled={!text.trim()}
-          className="w-full rounded-lg bg-gray-900 py-3 font-medium text-white disabled:opacity-40"
+          className="w-full rounded-lg bg-accent py-3 font-medium text-paper disabled:opacity-40"
         >
           Analizar
         </button>
@@ -81,7 +81,7 @@ export default function QuickEntrySheet({ open, onClose, onSubmitText, onUseClas
         <button
           type="button"
           onClick={onUseClassicForm}
-          className="w-full text-center text-sm text-gray-500 underline"
+          className="w-full text-center text-sm text-ink-soft underline"
         >
           Prefiero cargarlo con el formulario clásico
         </button>

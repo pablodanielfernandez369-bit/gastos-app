@@ -14,8 +14,8 @@ export default function PriceAlerts({ state, limit, compact }) {
   if (items.length === 0) return null;
 
   return (
-    <div className={compact ? 'rounded-xl border border-blue-200 bg-blue-50 p-4' : 'rounded-xl bg-white p-4 shadow-sm'}>
-      <p className={compact ? 'mb-2 text-sm font-semibold text-blue-800' : 'mb-2 text-sm font-semibold text-gray-700'}>
+    <div className={compact ? 'rounded-2xl border border-hair bg-surface-2 p-4' : 'rounded-2xl border border-hair bg-surface p-4'}>
+      <p className="mb-2 font-display text-[0.9rem] font-medium text-ink">
         Cambios respecto al mes pasado
       </p>
       <ul className="space-y-1.5">
@@ -23,10 +23,10 @@ export default function PriceAlerts({ state, limit, compact }) {
           const up = c.deltaPct > 0;
           return (
             <li key={c.subcategoryId} className="flex items-center justify-between text-sm">
-              <span className={compact ? 'text-blue-900' : 'text-gray-700'}>{c.name}</span>
-              <span className={`flex items-center gap-1 font-medium ${up ? 'text-warn' : 'text-ok'}`}>
+              <span className="text-ink">{c.name}</span>
+              <span className={`flex items-center gap-1 font-medium num ${up ? 'text-warn' : 'text-ok'}`}>
                 {up ? '▲' : '▼'} {Math.abs(c.deltaPct).toFixed(0)}%
-                <span className="hidden text-xs font-normal text-gray-400 sm:inline">
+                <span className="hidden text-xs font-normal text-ink-faint sm:inline">
                   ({formatARS(c.prev)} → {formatARS(c.curr)})
                 </span>
               </span>
@@ -35,7 +35,7 @@ export default function PriceAlerts({ state, limit, compact }) {
         })}
       </ul>
       {limit && notable.length > limit && (
-        <p className="mt-2 text-xs text-gray-400">+{notable.length - limit} más en Reportes</p>
+        <p className="mt-2 text-xs text-ink-faint">+{notable.length - limit} más en Reportes</p>
       )}
     </div>
   );

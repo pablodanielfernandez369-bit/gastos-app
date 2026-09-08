@@ -6,9 +6,9 @@ import { formatARS } from '../lib/format';
 // ahorro. Siempre usa el mes calendario actual, sin importar el filtro de
 // período del dashboard (las metas son mensuales).
 const STATUS = {
-  verde: { bar: 'bg-ok', text: 'text-ok', box: 'border-gray-200 bg-white' },
-  amarillo: { bar: 'bg-caution', text: 'text-caution', box: 'border-amber-300 bg-amber-50' },
-  rojo: { bar: 'bg-warn', text: 'text-warn', box: 'border-red-300 bg-red-50' },
+  verde: { bar: 'bg-ok', text: 'text-ok', box: 'border-hair bg-surface' },
+  amarillo: { bar: 'bg-caution', text: 'text-caution', box: 'border-caution/40 bg-caution/5' },
+  rojo: { bar: 'bg-warn', text: 'text-warn', box: 'border-warn/40 bg-warn/5' },
 };
 
 export default function BudgetGoals({ state }) {
@@ -16,9 +16,10 @@ export default function BudgetGoals({ state }) {
 
   if (!b.hasAnyGoal) {
     return (
-      <div className="rounded-xl border border-dashed border-gray-300 bg-white p-4 text-sm text-gray-500">
-        Definí tu <strong>meta de ahorro</strong> y tu <strong>presupuesto de salidas</strong> del mes
-        en Ajustes&nbsp;⚙️ para ver acá cómo venís.
+      <div className="rounded-2xl border border-dashed border-hair bg-surface p-4 text-sm text-ink-soft">
+        Definí tu <strong className="text-ink">meta de ahorro</strong> y tu{' '}
+        <strong className="text-ink">presupuesto de salidas</strong> del mes en Ajustes&nbsp;⚙️
+        para ver acá cómo venís.
       </div>
     );
   }
@@ -45,10 +46,10 @@ export default function BudgetGoals({ state }) {
   return (
     <div className="space-y-3">
       {alerts.length > 0 && (
-        <div className={`rounded-xl border p-4 text-sm ${anyRed ? 'border-red-300 bg-red-50 text-warn' : 'border-amber-300 bg-amber-50 text-caution'}`}>
-          <ul className="space-y-1">
+        <div className={`rounded-2xl border p-4 text-sm ${anyRed ? 'border-warn/40 bg-warn/5 text-warn' : 'border-caution/40 bg-caution/5 text-caution'}`}>
+          <ul className="space-y-1.5">
             {alerts.map((a, i) => (
-              <li key={i}>⚠️ {a}</li>
+              <li key={i} className="num">{a}</li>
             ))}
           </ul>
         </div>
@@ -61,28 +62,24 @@ export default function BudgetGoals({ state }) {
 }
 
 function SavingsCard({ s, reliable }) {
-  const bankedOk = s.current >= s.goal; // lo que ya llevás ahorrado este mes
-  const barColor = bankedOk || s.onTrack ? 'bg-ok' : 'bg-warn';
-  const pctColor = bankedOk || s.onTrack ? 'text-ok' : 'text-warn';
+  const good = s.current >= s.goal || s.onTrack;
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+    <div className="rounded-2xl border border-hair bg-surface p-4">
       <div className="flex items-baseline justify-between">
-        <p className="text-sm font-semibold text-gray-700">Meta de ahorro del mes</p>
-        <p className={`text-sm font-medium ${pctColor}`}>{toPct(s.pct)}</p>
+        <p className="font-display text-[0.95rem] font-medium text-ink">Meta de ahorro del mes</p>
+        <p className={`text-sm font-semibold num ${good ? 'text-ok' : 'text-warn'}`}>{toPct(s.pct)}</p>
       </div>
-      <p className="mt-1 text-2xl font-bold text-gray-900">
+      <p className="mt-1.5 font-display text-[1.6rem] font-medium leading-none text-ink num">
         {formatARS(s.current)}{' '}
-        <span className="text-base font-normal text-gray-400">de {formatARS(s.goal)}</span>
+        <span className="text-sm font-normal text-ink-faint">de {formatARS(s.goal)}</span>
       </p>
-      <div className="mt-2 h-2.5 w-full overflow-hidden rounded-full bg-gray-100">
-        <div className={`h-full rounded-full ${barColor}`} style={{ width: `${clampPct(s.pct)}%` }} />
+      <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-surface-2">
+        <div className={`h-full rounded-full ${good ? 'bg-ok' : 'bg-warn'}`} style={{ width: `${clampPct(s.pct)}%` }} />
       </div>
       {reliable && (
-        <p className="mt-2 text-xs text-gray-500">
+        <p className="mt-2.5 text-xs text-ink-soft num">
           Proyección a fin de mes:{' '}
-          <strong className={s.onTrack ? 'text-ok' : 'text-warn'}>
-            {formatARS(Math.max(0, s.projected))}
-          </strong>
+          <strong className={s.onTrack ? 'text-ok' : 'text-warn'}>{formatARS(Math.max(0, s.projected))}</strong>
         </p>
       )}
     </div>
@@ -92,30 +89,30 @@ function SavingsCard({ s, reliable }) {
 function ExtrasCard({ e, reliable }) {
   const st = STATUS[e.status];
   return (
-    <div className={`rounded-xl border p-4 shadow-sm ${st.box}`}>
+    <div className={`rounded-2xl border p-4 ${st.box}`}>
       <div className="flex items-baseline justify-between">
-        <p className="text-sm font-semibold text-gray-700">Salidas / gastos extras</p>
-        <p className={`text-sm font-medium ${st.text}`}>{toPct(e.pct)}</p>
+        <p className="font-display text-[0.95rem] font-medium text-ink">Salidas / gastos extras</p>
+        <p className={`text-sm font-semibold num ${st.text}`}>{toPct(e.pct)}</p>
       </div>
-      <p className="mt-1 text-2xl font-bold text-gray-900">
+      <p className="mt-1.5 font-display text-[1.6rem] font-medium leading-none text-ink num">
         {formatARS(e.spent)}{' '}
-        <span className="text-base font-normal text-gray-400">de {formatARS(e.budget)}</span>
+        <span className="text-sm font-normal text-ink-faint">de {formatARS(e.budget)}</span>
       </p>
-      <div className="mt-2 h-2.5 w-full overflow-hidden rounded-full bg-gray-100">
+      <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-surface-2">
         <div className={`h-full rounded-full ${st.bar}`} style={{ width: `${clampPct(e.pct)}%` }} />
       </div>
-      <p className="mt-2 text-xs text-gray-500">
+      <p className="mt-2.5 text-xs text-ink-soft num">
         {e.remaining >= 0 ? (
           <>
-            Te quedan <strong className="text-gray-700">{formatARS(e.remaining)}</strong> ·{' '}
-            <strong className="text-gray-700">{formatARS(e.perDayLeft)}/día</strong> por {e.daysLeft} días
+            Te quedan <strong className="text-ink">{formatARS(e.remaining)}</strong> ·{' '}
+            <strong className="text-ink">{formatARS(e.perDayLeft)}/día</strong> por {e.daysLeft} días
           </>
         ) : (
           <>Te pasaste <strong className="text-warn">{formatARS(-e.remaining)}</strong></>
         )}
       </p>
       {reliable && (
-        <p className="mt-1 text-xs text-gray-500">
+        <p className="mt-1 text-xs text-ink-soft num">
           A este ritmo terminás en <strong className={st.text}>{formatARS(e.projected)}</strong> ({toPct(e.projectedPct)})
         </p>
       )}

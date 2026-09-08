@@ -16,8 +16,8 @@ export function defaultState() {
   const salidasId = 'salidas';
 
   const groups = [
-    { id: viviendaId, name: 'Vivienda', color: '#2563eb' },
-    { id: salidasId, name: 'Salidas/Ocio', color: '#7c3aed' },
+    { id: viviendaId, name: 'Vivienda', color: '#1F5673' },
+    { id: salidasId, name: 'Salidas/Ocio', color: '#6D4B8F' },
   ];
 
   const subcategories = [
