@@ -3,7 +3,7 @@
 // Fuente principal: dolarhoy.com. Respaldo: dolarapi.com.
 
 let cache = { value: null, at: 0 };
-const ONE_HOUR = 60 * 60 * 1000;
+const TTL = 20 * 60 * 1000; // 20 min
 
 // "$1.530,50" / "1530" / "$ 1530,00" -> 1530.5
 function parseMoney(s) {
@@ -14,13 +14,19 @@ function parseMoney(s) {
 }
 
 async function fromDolarHoy() {
-  const res = await fetch('https://dolarhoy.com/cotizaciondolarblue', {
+  // La PORTADA de dolarhoy se actualiza más seguido que la subpágina del blue.
+  // El tile del blue: <a class="titleText" ...>Dólar blue</a> ... <div class="val">$1525</div> ...
+  const res = await fetch('https://dolarhoy.com/', {
     headers: { 'User-Agent': 'Mozilla/5.0' },
     signal: AbortSignal.timeout(7000),
   });
   if (!res.ok) throw new Error(`dolarhoy ${res.status}`);
   const html = await res.text();
-  const vals = [...html.matchAll(/class="value">\s*([^<]+?)\s*</g)].map((m) => parseMoney(m[1]));
+  // El tile del blue enlaza a /cotizaciondolarblue; los dos <div class="val">
+  // que siguen son compra y venta.
+  const anchor = html.indexOf('cotizaciondolarblue">');
+  const slice = anchor >= 0 ? html.slice(anchor, anchor + 900) : html;
+  const vals = [...slice.matchAll(/class="val">\s*\$?\s*([\d.,]+)/g)].map((x) => parseMoney(x[1]));
   const [compra, venta] = vals.filter((v) => v && v > 100);
   if (!compra || !venta) throw new Error('dolarhoy: no se pudieron leer compra/venta');
   return { compra, venta, fuente: 'dolarhoy.com' };
@@ -34,7 +40,7 @@ async function fromDolarApi() {
 }
 
 export async function getDolarBlue() {
-  if (cache.value && Date.now() - cache.at < ONE_HOUR) return cache.value;
+  if (cache.value && Date.now() - cache.at < TTL) return cache.value;
 
   let base = null;
   try {
