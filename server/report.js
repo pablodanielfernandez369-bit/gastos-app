@@ -84,86 +84,92 @@ export function buildWeekData(state, dolar, now = new Date()) {
   };
 }
 
-function bar(x, y, w, h, pct, color, track = '#1e293b') {
+function bar(x, y, w, h, pct, color, track = '#E4DED1') {
   const fill = Math.max(0, Math.min(1, pct)) * w;
   return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${h / 2}" fill="${track}"/>` +
     (fill > 0 ? `<rect x="${x}" y="${y}" width="${fill}" height="${h}" rx="${h / 2}" fill="${color}"/>` : '');
 }
 
+// Paleta editorial "papel cálido" (misma que la app)
+const C = {
+  paper: '#F6F3EC', surface: '#FCFAF5', ink: '#211E1A', soft: '#6F6A60',
+  faint: '#A39D90', hair: '#E4DED1', accent: '#B0491F', ok: '#5A7D2A',
+  caution: '#C77B2C', warn: '#A23B2B',
+};
+
 export function renderReportSvg(d) {
   const W = 1080, H = 1240;
   const rango = `${d.from.getDate()} – ${d.to.getDate()} de ${MESES[d.to.getMonth()]}`;
   const T = (x, y, s, txt, opts = {}) =>
-    `<text x="${x}" y="${y}" font-family="Inter" font-size="${s}" font-weight="${opts.w || 400}" fill="${opts.fill || '#e2e8f0'}" ${opts.anchor ? `text-anchor="${opts.anchor}"` : ''}>${esc(txt)}</text>`;
+    `<text x="${x}" y="${y}" font-family="Inter" font-size="${s}" font-weight="${opts.w || 400}" letter-spacing="${opts.ls || 0}" fill="${opts.fill || C.ink}" ${opts.anchor ? `text-anchor="${opts.anchor}"` : ''}>${esc(txt)}</text>`;
+  const label = (x, y, txt) => T(x, y, 22, txt.toUpperCase(), { w: 600, fill: C.faint, ls: 2.6 });
 
-  let y = 130;
+  let y = 128;
   const parts = [
-    `<rect width="${W}" height="${H}" fill="#0b1220"/>`,
-    `<rect x="0" y="0" width="${W}" height="8" fill="#7c3aed"/>`,
-    T(80, y, 34, 'RESUMEN SEMANAL', { w: 700, fill: '#7c3aed' }),
-    T(80, y + 44, 26, rango, { fill: '#94a3b8' }),
+    `<rect width="${W}" height="${H}" fill="${C.paper}"/>`,
+    `<rect x="0" y="0" width="${W}" height="10" fill="${C.accent}"/>`,
+    label(80, y, 'Resumen semanal'),
+    T(80, y + 44, 30, rango, { fill: C.soft }),
   ];
 
-  y = 250;
-  parts.push(T(80, y, 26, 'Gastaste esta semana', { fill: '#94a3b8' }));
-  parts.push(T(80, y + 78, 84, ars(d.total), { w: 700, fill: '#f8fafc' }));
-  y += 130;
+  y = 244;
+  parts.push(label(80, y, 'Gastaste esta semana'));
+  parts.push(T(80, y + 82, 88, ars(d.total), { w: 600, fill: C.ink }));
+  y += 132;
   let sub = d.usdTotal ? usd(d.usdTotal) : '';
   if (d.deltaPct != null) {
     const up = d.deltaPct > 0;
     const abs = Math.abs(d.deltaPct);
     const pct = abs > 200 ? '+200%' : `${abs.toFixed(0)}%`;
-    sub += (sub ? '   ' : '') + `${up ? '▲' : '▼'} ${pct} vs semana pasada`;
-    parts.push(T(80, y, 28, sub, { fill: up ? '#f87171' : '#4ade80' }));
+    sub += (sub ? '   ·   ' : '') + `${up ? '▲' : '▼'} ${pct} vs semana pasada`;
+    parts.push(T(80, y, 28, sub, { fill: up ? C.warn : C.ok, w: 500 }));
   } else if (sub) {
-    parts.push(T(80, y, 28, sub, { fill: '#94a3b8' }));
+    parts.push(T(80, y, 28, sub, { fill: C.soft }));
   }
 
   // En qué
-  y = 470;
-  parts.push(T(80, y, 24, 'EN QUÉ', { w: 700, fill: '#64748b' }));
-  y += 46;
+  y = 466;
+  parts.push(label(80, y, 'En qué'));
+  y += 50;
   const max = Math.max(1, ...d.groups.map((g) => g.amount));
   for (const g of d.groups) {
-    parts.push(T(80, y, 30, g.name, { fill: '#e2e8f0' }));
-    parts.push(T(W - 80, y, 30, ars(g.amount), { w: 600, fill: '#f8fafc', anchor: 'end' }));
-    parts.push(bar(80, y + 16, W - 160, 14, g.amount / max, g.color));
+    parts.push(T(80, y, 30, g.name, { fill: C.ink }));
+    parts.push(T(W - 80, y, 30, ars(g.amount), { w: 600, fill: C.ink, anchor: 'end' }));
+    parts.push(bar(80, y + 18, W - 160, 12, g.amount / max, g.color || C.faint));
     y += 76;
   }
 
+  const semColor = (pct) => (pct >= 0.9 ? C.warn : pct >= 0.7 ? C.caution : C.ok);
+
   // Presupuesto de salidas
   if (d.extras) {
-    y += 30;
-    parts.push(T(80, y, 24, 'PRESUPUESTO DE SALIDAS (MES)', { w: 700, fill: '#64748b' }));
-    y += 50;
-    parts.push(T(80, y, 34, `${ars(d.extras.spent)} de ${ars(d.extras.budget)}`, { w: 600, fill: '#f8fafc' }));
-    parts.push(T(W - 80, y, 34, `${Math.round(d.extras.pct * 100)}%`, {
-      w: 700, anchor: 'end', fill: d.extras.pct >= 0.9 ? '#f87171' : d.extras.pct >= 0.7 ? '#fbbf24' : '#4ade80',
-    }));
+    y += 34;
+    parts.push(label(80, y, 'Presupuesto de salidas · mes'));
+    y += 52;
+    parts.push(T(80, y, 36, `${ars(d.extras.spent)} de ${ars(d.extras.budget)}`, { w: 500, fill: C.ink }));
+    parts.push(T(W - 80, y, 36, `${Math.round(d.extras.pct * 100)}%`, { w: 600, anchor: 'end', fill: semColor(d.extras.pct) }));
     y += 26;
-    parts.push(bar(80, y, W - 160, 20, d.extras.pct, d.extras.pct >= 0.9 ? '#ef4444' : d.extras.pct >= 0.7 ? '#f59e0b' : '#22c55e'));
-    y += 50;
+    parts.push(bar(80, y, W - 160, 18, d.extras.pct, semColor(d.extras.pct), C.hair));
+    y += 52;
     const leftTxt = d.extras.left >= 0
       ? `Quedan ${ars(d.extras.left)} para ${d.extras.daysLeft} días`
       : `Te pasaste ${ars(-d.extras.left)}`;
-    parts.push(T(80, y, 26, leftTxt, { fill: '#94a3b8' }));
+    parts.push(T(80, y, 26, leftTxt, { fill: C.soft }));
   }
 
   // Ahorro del mes
   if (d.savings) {
-    y += 90;
-    parts.push(T(80, y, 24, 'AHORRO DEL MES', { w: 700, fill: '#64748b' }));
-    y += 50;
+    y += 92;
+    parts.push(label(80, y, 'Ahorro del mes'));
+    y += 52;
     const ok = d.savings.now >= d.savings.goal;
-    parts.push(T(80, y, 34, `${ars(d.savings.now)} de ${ars(d.savings.goal)}`, { w: 600, fill: '#f8fafc' }));
-    parts.push(T(W - 80, y, 34, `${ok ? '✓ ' : ''}${Math.round(d.savings.pct * 100)}%`, {
-      w: 700, anchor: 'end', fill: ok ? '#4ade80' : '#fbbf24',
-    }));
+    parts.push(T(80, y, 36, `${ars(d.savings.now)} de ${ars(d.savings.goal)}`, { w: 500, fill: C.ink }));
+    parts.push(T(W - 80, y, 36, `${ok ? '✓ ' : ''}${Math.round(d.savings.pct * 100)}%`, { w: 600, anchor: 'end', fill: ok ? C.ok : C.caution }));
     y += 26;
-    parts.push(bar(80, y, W - 160, 20, d.savings.pct, ok ? '#22c55e' : '#f59e0b'));
+    parts.push(bar(80, y, W - 160, 18, d.savings.pct, ok ? C.ok : C.caution, C.hair));
   }
 
-  parts.push(T(80, H - 60, 24, 'mis gastos y ahorro', { fill: '#475569' }));
+  parts.push(T(80, H - 58, 24, 'mis gastos y ahorro', { fill: C.faint }));
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${parts.join('')}</svg>`;
 }
