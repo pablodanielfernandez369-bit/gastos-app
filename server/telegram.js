@@ -6,6 +6,7 @@ import { randomUUID } from 'crypto';
 import { getState, putState, savePending, getPending, deletePending } from './supabase.js';
 import { getDolarBlue } from './dolar.js';
 import { sendWeeklyReport } from './report.js';
+import { todayAR } from './time.js';
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const CHAT_ID = process.env.TELEGRAM_CHAT_ID;
@@ -39,7 +40,7 @@ const editText = (messageId, text, extra = {}) =>
 async function parseExpense(text, state) {
   const grupos = state.groups.map((g) => ({ id: g.id, nombre: g.name }));
   const subs = state.subcategories.map((s) => ({ id: s.id, grupoId: s.groupId, nombre: s.name }));
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayAR();
 
   const system =
     'Interpretás un gasto que un usuario argentino escribió en lenguaje natural y ' +
@@ -159,7 +160,7 @@ async function commitExpense(p) {
     subcategoryId: subcategoryId || null,
     description: p.description || '(sin descripción)',
     personName: p.personName?.trim() || null,
-    date: new Date().toISOString().slice(0, 10),
+    date: todayAR(),
     type: 'variable',
     inputMethod: 'telegram',
     recurringId: null,
@@ -317,7 +318,7 @@ async function handleCallback(cb) {
 export async function sendResumen() {
   const { data: state } = await getState();
   if (!state || !state.groups) return send('Todavía no hay datos cargados.');
-  const mk = new Date().toISOString().slice(0, 7);
+  const mk = todayAR().slice(0, 7);
   const inMonth = (d) => (d || '').slice(0, 7) === mk;
   const gastos = state.expenses.filter((e) => inMonth(e.date));
   const ingresos = state.incomes.filter((i) => inMonth(i.date));

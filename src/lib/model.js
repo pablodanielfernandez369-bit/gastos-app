@@ -97,8 +97,8 @@ export function newIncome(partial) {
   };
 }
 
+// "Hoy" siempre en hora de Argentina, no importa la zona del dispositivo:
+// así un gasto cargado a la noche no salta al día siguiente.
 export function todayISO() {
-  const d = new Date();
-  const tz = d.getTimezoneOffset() * 60000;
-  return new Date(d - tz).toISOString().slice(0, 10);
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' });
 }

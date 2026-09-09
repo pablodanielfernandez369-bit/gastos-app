@@ -8,6 +8,7 @@ import { dirname, join } from 'path';
 import { Resvg } from '@resvg/resvg-js';
 import { getState } from './supabase.js';
 import { getDolarBlue } from './dolar.js';
+import { nowAR, isoAR } from './time.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const FONT = readFileSync(join(__dirname, 'assets', 'Inter.ttf'));
@@ -35,9 +36,9 @@ function mondayOf(d) {
   x.setHours(0, 0, 0, 0);
   return x;
 }
-const iso = (d) => new Date(d).toISOString().slice(0, 10);
+const iso = isoAR; // YYYY-MM-DD según los componentes locales del Date
 
-export function buildWeekData(state, dolar, now = new Date()) {
+export function buildWeekData(state, dolar, now = nowAR()) {
   const mon = mondayOf(now);
   const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
   const prevMon = new Date(mon); prevMon.setDate(mon.getDate() - 7);
