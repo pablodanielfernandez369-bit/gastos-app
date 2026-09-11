@@ -6,6 +6,7 @@ import { supabaseConfigured, getState, putState } from './server/supabase.js';
 import { getDolarBlue } from './server/dolar.js';
 import { telegramConfigured, handleUpdate, verifyWebhook } from './server/telegram.js';
 import { sendWeeklyReport } from './server/report.js';
+import { todayAR } from './server/time.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -139,6 +140,26 @@ app.post('/api/backup', async (req, res) => {
 });
 
 async function askClaude(question, state) {
+  const today = todayAR();
+  const mesActual = today.slice(0, 7);
+
+  // Sumar a mano una lista de gastos es justo donde un modelo rápido se
+  // equivoca (probado: le erró un total de gastos por persona). Le mandamos
+  // los totales ya calculados por persona y por grupo para que los use en
+  // vez de sumar los montos él mismo.
+  const sumBy = (keyFn) => {
+    const map = {};
+    for (const e of state.expenses) {
+      const k = keyFn(e);
+      if (k == null) continue;
+      if (!map[k]) map[k] = { totalMesActual: 0, totalHistorico: 0 };
+      map[k].totalHistorico += e.amount;
+      if (e.date.slice(0, 7) === mesActual) map[k].totalMesActual += e.amount;
+    }
+    return Object.entries(map).map(([k, v]) => ({ nombre: k, ...v }));
+  };
+  const groupName = (id) => state.groups.find((g) => g.id === id)?.name || null;
+
   // Se manda solo lo que hace falta para responder, no metadatos internos.
   const compact = {
     grupos: state.groups.map((g) => ({ id: g.id, nombre: g.name })),
@@ -153,9 +174,11 @@ async function askClaude(question, state) {
       tipo: e.type,
     })),
     ingresos: state.incomes.map((i) => ({ monto: i.amount, descripcion: i.description, fecha: i.date })),
+    totalesPreCalculados: {
+      porPersona: sumBy((e) => e.personName),
+      porCategoria: sumBy((e) => groupName(e.groupId)),
+    },
   };
-
-  const today = new Date().toISOString().slice(0, 10);
 
   const system =
     'Sos un asistente financiero personal argentino. Hablás en español rioplatense, ' +
@@ -165,9 +188,14 @@ async function askClaude(question, state) {
     'Todos los montos están en pesos argentinos: nunca digas "dólares" ni pienses el símbolo $ como USD. ' +
     `Hoy es ${today}. "grupos" son las categorías principales, "subcategorias" cuelgan de un grupo ` +
     'por su grupoId, y "nombre" en un gasto es una etiqueta opcional (persona o proyecto) que el ' +
-    'usuario le puso a mano, puede ser null. Si preguntan por una categoría y un nombre juntos ' +
-    '(ej "peaje de Mel"), filtrá por ambos a la vez. Si piden comparar con el mes pasado u otro ' +
-    'período, calculá vos los totales correspondientes a partir de las fechas. ' +
+    'usuario le puso a mano, puede ser null. ' +
+    '"totalesPreCalculados" ya trae sumado el total del mes actual y el histórico, por persona y por ' +
+    'categoría — SI la pregunta es "cuánto gastó/lleva gastado X" o "cuánto se gastó en tal categoría" ' +
+    '(mes actual o total histórico), USÁ ESE NÚMERO TAL CUAL, no vuelvas a sumar los gastos uno por uno ' +
+    '(ahí es donde te equivocás). Solo sumá manualmente cuando te pidan algo que no está precalculado: ' +
+    'un rango de fechas específico, una subcategoría, o una combinación categoría+nombre a la vez ' +
+    '(ej "peaje de Mel") — en esos casos filtrá los gastos vos y sumá con cuidado, revisando el total dos veces. ' +
+    'Si piden comparar con el mes pasado, calculá el total de ese mes filtrando por fecha. ' +
     'Respondé corto, 1 a 3 oraciones, con el monto final bien claro y formateado (ej: $15.000). ' +
     'No repitas la pregunta ni expliques cómo la calculaste salvo que te lo pidan.\n\n' +
     `DATOS:\n${JSON.stringify(compact)}`;
