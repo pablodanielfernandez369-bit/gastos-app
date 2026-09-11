@@ -5,7 +5,7 @@ import {
 } from 'recharts';
 import PeriodFilter from './PeriodFilter';
 import PriceAlerts from './PriceAlerts';
-import { computeTotals, computeMonthlySeries } from '../lib/selectors';
+import { computeTotals, computeMonthlySeries, personNames, personTotal, computeMonthlySeriesForPerson } from '../lib/selectors';
 import { formatARS, rangeForPeriod } from '../lib/format';
 import { todayISO } from '../lib/model';
 
@@ -116,6 +116,8 @@ export default function Reportes({ state }) {
 
       <MonthComparison series={monthlySeries} />
 
+      <PersonExpenses state={state} from={from} to={to} />
+
       <PriceAlerts state={state} />
     </div>
   );
@@ -156,6 +158,63 @@ function MonthComparison({ series }) {
           })}
         </tbody>
       </table>
+    </section>
+  );
+}
+
+// Gastos etiquetados con un nombre (campo opcional "Nombre" del formulario,
+// ej "Mel"): total del período elegido arriba + evolución mes a mes.
+function PersonExpenses({ state, from, to }) {
+  const names = useMemo(() => personNames(state), [state]);
+  const [person, setPerson] = useState(null);
+  const selected = person && names.includes(person) ? person : names.find((n) => n === 'Mel') || names[0];
+
+  const total = useMemo(
+    () => (selected ? personTotal(state, from, to, selected) : 0),
+    [state, from, to, selected]
+  );
+  const series = useMemo(
+    () => (selected ? computeMonthlySeriesForPerson(state, selected) : []),
+    [state, selected]
+  );
+
+  if (names.length === 0) return null;
+
+  return (
+    <section className="rounded-2xl border border-hair bg-surface p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <h3 className="font-display text-[0.95rem] font-medium text-ink">Gastos por persona</h3>
+        {names.length > 1 && (
+          <select
+            className="rounded-lg border border-hair bg-surface px-2 py-1 text-sm text-ink"
+            value={selected}
+            onChange={(e) => setPerson(e.target.value)}
+          >
+            {names.map((n) => <option key={n} value={n}>{n}</option>)}
+          </select>
+        )}
+      </div>
+
+      <p className="text-xs font-medium uppercase tracking-[0.08em] text-ink-faint">
+        {selected} · período elegido
+      </p>
+      <p className="mt-1 font-display text-2xl font-medium text-ink num">{formatARS(total)}</p>
+
+      {series.length === 0 ? (
+        <EmptyState />
+      ) : (
+        <div className="mt-4 h-48">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={series}>
+              <CartesianGrid strokeDasharray="2 4" stroke={GRID} vertical={false} />
+              <XAxis dataKey="label" tick={{ fontSize: 12, fill: AXIS }} />
+              <YAxis tick={{ fontSize: 11, fill: AXIS }} width={60} tickFormatter={(v) => formatARS(v)} />
+              <Tooltip formatter={(v) => formatARS(v)} />
+              <Bar dataKey="Gastos" fill="#6D4B8F" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
     </section>
   );
 }

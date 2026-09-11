@@ -73,6 +73,32 @@ export function computeMonthlySeries(state, months = 12) {
   });
 }
 
+// Nombres de persona usados en gastos (el campo opcional "Nombre" del
+// formulario, ej "Mel"), para el selector del gráfico de gastos por persona.
+export function personNames(state) {
+  return [...new Set(state.expenses.map((e) => e.personName).filter(Boolean))].sort();
+}
+
+export function personTotal(state, from, to, personName) {
+  return expensesInRange(state, from, to)
+    .filter((e) => e.personName === personName)
+    .reduce((sum, e) => sum + e.amount, 0);
+}
+
+// Serie mensual de gasto de una persona puntual (últimos `months` meses con
+// datos de esa persona).
+export function computeMonthlySeriesForPerson(state, personName, months = 8) {
+  const own = state.expenses.filter((e) => e.personName === personName);
+  const keys = [...new Set(own.map((e) => monthKey(e.date)))].sort().slice(-months);
+
+  return keys.map((key) => {
+    const total = own
+      .filter((e) => monthKey(e.date) === key)
+      .reduce((sum, e) => sum + e.amount, 0);
+    return { month: key, label: formatMonthLabel(key + '-01'), Gastos: total };
+  });
+}
+
 // Compara cada subcategoría entre el mes calendario actual y el anterior,
 // para poder avisar "esto subió/bajó respecto al mes pasado". Solo incluye
 // subcategorías que tenían gasto en el mes anterior (si no, no hay base
