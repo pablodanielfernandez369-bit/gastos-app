@@ -55,8 +55,10 @@ export default function BudgetGoals({ state }) {
         </div>
       )}
 
-      {b.savings && <SavingsCard s={b.savings} reliable={b.projReliable} />}
-      {b.extras && <ExtrasCard e={b.extras} reliable={b.projReliable} />}
+      <div className="grid gap-3 sm:grid-cols-2">
+        {b.savings && <SavingsCard s={b.savings} reliable={b.projReliable} />}
+        {b.extras && <ExtrasCard e={b.extras} reliable={b.projReliable} />}
+      </div>
     </div>
   );
 }

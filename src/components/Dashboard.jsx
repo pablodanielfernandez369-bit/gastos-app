@@ -43,72 +43,78 @@ export default function Dashboard({ state, actions }) {
         setCustomTo={setCustomTo}
       />
 
-      <div className="pt-1">
-        <p className="text-[0.7rem] font-semibold uppercase tracking-[0.13em] text-ink-faint">
-          Capacidad de ahorro
-        </p>
-        <p className="mt-2 font-display text-[2.7rem] font-medium leading-none tracking-tight text-ink num">
-          {formatARS(totals.savings)}
-        </p>
-        <p className="mt-2.5 text-sm text-ink-soft num">
-          {toUsd(totals.savings) && <span>{toUsd(totals.savings)} · </span>}
-          {totals.incomeTotal > 0 ? (
-            <span className={`font-medium ${savingsPositive ? 'text-ok' : 'text-warn'}`}>
-              {totals.savingsPct.toFixed(0)}% de tus ingresos
-            </span>
-          ) : (
-            'Cargá tus ingresos para ver el %'
-          )}
-        </p>
-      </div>
-
-      <div className="rounded-2xl border border-hair bg-surface p-4">
-        <p className="text-[0.7rem] font-semibold uppercase tracking-[0.1em] text-ink-faint">
-          Ahorro acumulado
-        </p>
-        <p className="mt-1 font-display text-2xl font-medium text-ink num">{formatARS(allTime.savings)}</p>
-        {toUsd(allTime.savings) && (
-          <p className="mt-1 text-sm text-ink-soft num">
-            {toUsd(allTime.savings)}
-            {rate && (
-              <span className="text-xs text-ink-faint">
-                {' '}· dólar {formatNum(rate)}
-                {state.config?.fxRateManual ? ' (fijado)' : ' blue prom.'}
-              </span>
-            )}
-          </p>
-        )}
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-2xl border border-hair bg-surface p-4">
-          <p className="text-[0.7rem] font-semibold uppercase tracking-[0.08em] text-ink-faint">Ingresos</p>
-          <p className="mt-1 text-lg font-semibold text-ink num">{formatARS(totals.incomeTotal)}</p>
-        </div>
-        <div className="rounded-2xl border border-hair bg-surface p-4">
-          <p className="text-[0.7rem] font-semibold uppercase tracking-[0.08em] text-ink-faint">Gastos</p>
-          <p className="mt-1 text-lg font-semibold text-ink num">{formatARS(totals.expenseTotal)}</p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        {state.groups.map((g) => (
-          <div key={g.id} className="rounded-2xl border border-hair bg-surface p-4">
-            <p className="text-[0.7rem] font-semibold uppercase tracking-[0.06em]" style={{ color: g.color }}>
-              {g.name}
+      <div className="space-y-4 sm:grid sm:grid-cols-2 sm:items-start sm:gap-4 sm:space-y-0">
+        <div className="space-y-4">
+          <div className="pt-1 sm:pt-0">
+            <p className="text-[0.7rem] font-semibold uppercase tracking-[0.13em] text-ink-faint">
+              Capacidad de ahorro
             </p>
-            <p className="mt-1 text-lg font-semibold text-ink num">
-              {formatARS(totals.expenseByGroup[g.id] || 0)}
+            <p className="mt-2 font-display text-[2.7rem] font-medium leading-none tracking-tight text-ink num">
+              {formatARS(totals.savings)}
+            </p>
+            <p className="mt-2.5 text-sm text-ink-soft num">
+              {toUsd(totals.savings) && <span>{toUsd(totals.savings)} · </span>}
+              {totals.incomeTotal > 0 ? (
+                <span className={`font-medium ${savingsPositive ? 'text-ok' : 'text-warn'}`}>
+                  {totals.savingsPct.toFixed(0)}% de tus ingresos
+                </span>
+              ) : (
+                'Cargá tus ingresos para ver el %'
+              )}
             </p>
           </div>
-        ))}
-      </div>
 
-      {totals.expenseByGroup._sinCategoria > 0 && (
-        <p className="text-sm text-warn num">
-          {formatARS(totals.expenseByGroup._sinCategoria)} sin categorizar — revisalos en Movimientos.
-        </p>
-      )}
+          <div className="rounded-2xl border border-hair bg-surface p-4">
+            <p className="text-[0.7rem] font-semibold uppercase tracking-[0.1em] text-ink-faint">
+              Ahorro acumulado
+            </p>
+            <p className="mt-1 font-display text-2xl font-medium text-ink num">{formatARS(allTime.savings)}</p>
+            {toUsd(allTime.savings) && (
+              <p className="mt-1 text-sm text-ink-soft num">
+                {toUsd(allTime.savings)}
+                {rate && (
+                  <span className="text-xs text-ink-faint">
+                    {' '}· dólar {formatNum(rate)}
+                    {state.config?.fxRateManual ? ' (fijado)' : ' blue prom.'}
+                  </span>
+                )}
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-2xl border border-hair bg-surface p-4">
+              <p className="text-[0.7rem] font-semibold uppercase tracking-[0.08em] text-ink-faint">Ingresos</p>
+              <p className="mt-1 text-lg font-semibold text-ink num">{formatARS(totals.incomeTotal)}</p>
+            </div>
+            <div className="rounded-2xl border border-hair bg-surface p-4">
+              <p className="text-[0.7rem] font-semibold uppercase tracking-[0.08em] text-ink-faint">Gastos</p>
+              <p className="mt-1 text-lg font-semibold text-ink num">{formatARS(totals.expenseTotal)}</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            {state.groups.map((g) => (
+              <div key={g.id} className="rounded-2xl border border-hair bg-surface p-4">
+                <p className="text-[0.7rem] font-semibold uppercase tracking-[0.06em]" style={{ color: g.color }}>
+                  {g.name}
+                </p>
+                <p className="mt-1 text-lg font-semibold text-ink num">
+                  {formatARS(totals.expenseByGroup[g.id] || 0)}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          {totals.expenseByGroup._sinCategoria > 0 && (
+            <p className="text-sm text-warn num">
+              {formatARS(totals.expenseByGroup._sinCategoria)} sin categorizar — revisalos en Movimientos.
+            </p>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
