@@ -87,7 +87,7 @@ export default function App() {
   const WIDTH = 'max-w-lg sm:max-w-2xl lg:max-w-3xl';
 
   return (
-    <div className={`mx-auto min-h-screen ${WIDTH} bg-paper ${showFloatingButtons ? 'pb-40' : 'pb-20'}`}>
+    <div className={`mx-auto min-h-dvh ${WIDTH} bg-paper ${showFloatingButtons ? 'pb-40' : 'pb-20'}`}>
       <header className="px-4 pb-3 pt-[max(1.75rem,env(safe-area-inset-top))]">
         <h1 className="font-display text-[1.7rem] font-medium leading-none tracking-tight text-ink">
           Mis gastos y ahorro
