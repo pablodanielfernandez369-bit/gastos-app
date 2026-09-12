@@ -31,6 +31,7 @@ export function defaultState() {
 
     { id: uuid(), groupId: salidasId, name: 'Comidas afuera' },
     { id: uuid(), groupId: salidasId, name: 'Delivery' },
+    { id: uuid(), groupId: salidasId, name: 'Kiosko' },
     { id: uuid(), groupId: salidasId, name: 'Entretenimiento' },
     { id: uuid(), groupId: salidasId, name: 'Regalos' },
     { id: uuid(), groupId: salidasId, name: 'Otro' },

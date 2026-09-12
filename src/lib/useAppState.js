@@ -17,7 +17,7 @@ function migrateState(saved) {
   if (!extras) {
     extras = { id: 'salidas', name: 'Salidas/Ocio', color: '#6D4B8F' };
     s.groups = [...(s.groups || []), extras];
-    const subs = ['Comidas afuera', 'Delivery', 'Entretenimiento', 'Regalos', 'Otro'];
+    const subs = ['Comidas afuera', 'Delivery', 'Kiosko', 'Entretenimiento', 'Regalos', 'Otro'];
     s.subcategories = [
       ...(s.subcategories || []),
       ...subs.map((name) => ({ id: uuid(), groupId: extras.id, name })),
