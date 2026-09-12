@@ -285,30 +285,6 @@ export function computeStreak(state, now = new Date()) {
   return { streak, dailyAllotment, todaySpent, onTrackToday: todaySpent <= dailyAllotment };
 }
 
-// Gastos "hormiga": subcategorías con varias compras chicas y repetidas en
-// el período (delivery, cafecitos...). minCount filtra ruido — un gasto
-// mensual como el alquiler nunca llega a 3 veces en un mes.
-export function antExpenses(state, from, to, { minCount = 3, limit = 5 } = {}) {
-  const map = {};
-  for (const e of expensesInRange(state, from, to)) {
-    const key = e.subcategoryId || `sin-sub:${e.groupId || 'x'}`;
-    if (!map[key]) map[key] = { subcategoryId: e.subcategoryId, groupId: e.groupId, count: 0, total: 0 };
-    map[key].count += 1;
-    map[key].total += e.amount;
-  }
-  return Object.values(map)
-    .filter((v) => v.count >= minCount)
-    .map((v) => ({
-      ...v,
-      name: v.subcategoryId
-        ? state.subcategories.find((s) => s.id === v.subcategoryId)?.name || 'Sin subcategoría'
-        : 'Sin subcategoría',
-      avg: v.total / v.count,
-    }))
-    .sort((a, b) => b.total - a.total)
-    .slice(0, limit);
-}
-
 // verde si va y proyecta bien; rojo si ya pasó el 90% o proyecta pasarse;
 // amarillo en el medio.
 function statusFor(pct, projectedPct) {

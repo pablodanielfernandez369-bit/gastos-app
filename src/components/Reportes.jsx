@@ -5,7 +5,7 @@ import {
 } from 'recharts';
 import PeriodFilter from './PeriodFilter';
 import PriceAlerts from './PriceAlerts';
-import { computeTotals, computeMonthlySeries, personNames, personTotal, computeMonthlySeriesForPerson, antExpenses } from '../lib/selectors';
+import { computeTotals, computeMonthlySeries, personNames, personTotal, computeMonthlySeriesForPerson } from '../lib/selectors';
 import { formatARS, rangeForPeriod } from '../lib/format';
 import { todayISO } from '../lib/model';
 
@@ -25,7 +25,6 @@ export default function Reportes({ state }) {
 
   const totals = useMemo(() => computeTotals(state, from, to), [state, from, to]);
   const monthlySeries = useMemo(() => computeMonthlySeries(state), [state]);
-  const hormigas = useMemo(() => antExpenses(state, from, to), [state, from, to]);
 
   const pieData = state.groups
     .map((g) => ({ name: g.name, value: totals.expenseByGroup[g.id] || 0, color: g.color }))
@@ -117,8 +116,6 @@ export default function Reportes({ state }) {
 
       <MonthComparison series={monthlySeries} />
 
-      <AntExpenses items={hormigas} />
-
       <PersonExpenses state={state} from={from} to={to} />
 
       <PriceAlerts state={state} />
@@ -161,32 +158,6 @@ function MonthComparison({ series }) {
           })}
         </tbody>
       </table>
-    </section>
-  );
-}
-
-// Subcategorías con varias compras chicas repetidas en el período (delivery,
-// cafecitos...) juntadas en un solo total, para que se note el impacto real
-// de algo que gasto por gasto parece insignificante.
-function AntExpenses({ items }) {
-  if (items.length === 0) return null;
-  return (
-    <section className="rounded-2xl border border-hair bg-surface p-4">
-      <h3 className="font-display text-[0.95rem] font-medium text-ink">Gastos hormiga</h3>
-      <p className="mb-3 text-xs text-ink-faint">Cosas chicas que se repiten y suman más de lo que parece.</p>
-      <ul className="space-y-2.5">
-        {items.map((it) => (
-          <li key={it.subcategoryId || it.groupId || it.name} className="flex items-center justify-between text-sm">
-            <span className="text-ink">
-              {it.name} <span className="text-ink-faint">· {it.count} veces</span>
-            </span>
-            <span className="text-right">
-              <span className="font-medium text-ink num">{formatARS(it.total)}</span>
-              <span className="ml-1.5 text-xs text-ink-faint num">(prom. {formatARS(it.avg)})</span>
-            </span>
-          </li>
-        ))}
-      </ul>
     </section>
   );
 }

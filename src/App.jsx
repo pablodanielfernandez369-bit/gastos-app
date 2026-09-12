@@ -19,13 +19,14 @@ import MovimientosTable from './components/MovimientosTable';
 import Reportes from './components/Reportes';
 import Ajustes from './components/Ajustes';
 import Asistente from './components/Asistente';
+import NavIcon from './components/NavIcons';
 
 const TABS = [
-  { id: 'dashboard', label: 'Ahorro', icon: '💰' },
-  { id: 'movimientos', label: 'Movimientos', icon: '📋' },
-  { id: 'reportes', label: 'Reportes', icon: '📊' },
-  { id: 'asistente', label: 'Asistente', icon: '🎙️' },
-  { id: 'ajustes', label: 'Ajustes', icon: '⚙️' },
+  { id: 'dashboard', label: 'Ahorro' },
+  { id: 'movimientos', label: 'Movimientos' },
+  { id: 'reportes', label: 'Reportes' },
+  { id: 'asistente', label: 'Asistente' },
+  { id: 'ajustes', label: 'Ajustes' },
 ];
 
 export default function App() {
@@ -130,12 +131,14 @@ export default function App() {
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
-            className={`flex flex-1 flex-col items-center gap-1 py-2.5 text-[0.68rem] font-medium tracking-wide transition-colors ${
+            aria-label={t.label}
+            aria-pressed={tab === t.id}
+            className={`flex flex-1 flex-col items-center gap-1.5 py-2.5 transition-colors ${
               tab === t.id ? 'text-accent' : 'text-ink-faint'
             }`}
           >
-            <span className={`text-base leading-none transition-opacity ${tab === t.id ? 'opacity-100' : 'opacity-55'}`}>{t.icon}</span>
-            {t.label}
+            <NavIcon id={t.id} className="h-[25px] w-[25px]" />
+            <span className={`h-1 w-1 rounded-full transition-colors ${tab === t.id ? 'bg-accent' : 'bg-transparent'}`} />
           </button>
         ))}
       </nav>
