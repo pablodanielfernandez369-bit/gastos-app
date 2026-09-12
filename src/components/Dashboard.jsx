@@ -1,17 +1,19 @@
 import { useMemo, useState } from 'react';
 import PeriodFilter from './PeriodFilter';
-import { computeTotals } from '../lib/selectors';
-import { formatARS, rangeForPeriod } from '../lib/format';
+import { computeTotals, expensesInRange, incomesInRange } from '../lib/selectors';
+import { formatARS, formatDate, rangeForPeriod } from '../lib/format';
 import { todayISO } from '../lib/model';
 import { useDolar, usdRate } from '../lib/useDolar';
 import RecurringReminders from './RecurringReminders';
 import PriceAlerts from './PriceAlerts';
 import BudgetGoals from './BudgetGoals';
+import Modal from './Modal';
 
 export default function Dashboard({ state, actions }) {
   const [period, setPeriod] = useState('mes');
   const [customFrom, setCustomFrom] = useState(todayISO());
   const [customTo, setCustomTo] = useState(todayISO());
+  const [detail, setDetail] = useState(null); // { title, kind: 'income'|'expense', groupId? }
 
   const [from, to] = useMemo(
     () => rangeForPeriod(period, customFrom, customTo),
@@ -20,6 +22,34 @@ export default function Dashboard({ state, actions }) {
 
   const totals = useMemo(() => computeTotals(state, from, to), [state, from, to]);
   const allTime = useMemo(() => computeTotals(state, null, null), [state]);
+
+  const detailItems = useMemo(() => {
+    if (!detail) return [];
+    if (detail.kind === 'income') {
+      return incomesInRange(state, from, to)
+        .slice()
+        .sort((a, b) => (a.date < b.date ? 1 : -1))
+        .map((i) => ({ id: i.id, date: i.date, label: i.description || 'Ingreso', amount: i.amount }));
+    }
+    return expensesInRange(state, from, to)
+      .filter((e) => !detail.groupId || e.groupId === detail.groupId)
+      .slice()
+      .sort((a, b) => (a.date < b.date ? 1 : -1))
+      .map((e) => {
+        const sub = state.subcategories.find((s) => s.id === e.subcategoryId)?.name;
+        const grp = state.groups.find((g) => g.id === e.groupId)?.name;
+        const label = [sub, !detail.groupId ? grp : null].filter(Boolean).join(' · ');
+        return {
+          id: e.id,
+          date: e.date,
+          label: e.description || label || 'Gasto',
+          sub: e.description ? label : null,
+          amount: e.amount,
+        };
+      });
+  }, [detail, state, from, to]);
+
+  const detailTotal = detailItems.reduce((sum, it) => sum + it.amount, 0);
 
   const dolar = useDolar();
   const rate = usdRate(state.config, dolar);
@@ -85,26 +115,39 @@ export default function Dashboard({ state, actions }) {
 
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-2xl border border-hair bg-surface p-4">
+            <button
+              type="button"
+              onClick={() => setDetail({ title: 'Ingresos', kind: 'income' })}
+              className="rounded-2xl border border-hair bg-surface p-4 text-left transition active:scale-[0.98] hover:border-ink-faint"
+            >
               <p className="text-[0.7rem] font-semibold uppercase tracking-[0.08em] text-ink-faint">Ingresos</p>
               <p className="mt-1 text-lg font-semibold text-ink num">{formatARS(totals.incomeTotal)}</p>
-            </div>
-            <div className="rounded-2xl border border-hair bg-surface p-4">
+            </button>
+            <button
+              type="button"
+              onClick={() => setDetail({ title: 'Gastos', kind: 'expense' })}
+              className="rounded-2xl border border-hair bg-surface p-4 text-left transition active:scale-[0.98] hover:border-ink-faint"
+            >
               <p className="text-[0.7rem] font-semibold uppercase tracking-[0.08em] text-ink-faint">Gastos</p>
               <p className="mt-1 text-lg font-semibold text-ink num">{formatARS(totals.expenseTotal)}</p>
-            </div>
+            </button>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             {state.groups.map((g) => (
-              <div key={g.id} className="rounded-2xl border border-hair bg-surface p-4">
+              <button
+                type="button"
+                key={g.id}
+                onClick={() => setDetail({ title: g.name, kind: 'expense', groupId: g.id })}
+                className="rounded-2xl border border-hair bg-surface p-4 text-left transition active:scale-[0.98] hover:border-ink-faint"
+              >
                 <p className="text-[0.7rem] font-semibold uppercase tracking-[0.06em]" style={{ color: g.color }}>
                   {g.name}
                 </p>
                 <p className="mt-1 text-lg font-semibold text-ink num">
                   {formatARS(totals.expenseByGroup[g.id] || 0)}
                 </p>
-              </div>
+              </button>
             ))}
           </div>
 
@@ -115,6 +158,30 @@ export default function Dashboard({ state, actions }) {
           )}
         </div>
       </div>
+
+      <Modal open={!!detail} onClose={() => setDetail(null)} title={detail?.title || ''}>
+        <p className="mb-3 text-sm text-ink-soft num">
+          Total del período: <span className="font-semibold text-ink">{formatARS(detailTotal)}</span>
+        </p>
+        {detailItems.length === 0 ? (
+          <p className="py-4 text-center text-sm text-ink-faint">Sin movimientos en este período.</p>
+        ) : (
+          <ul className="divide-y divide-hair">
+            {detailItems.map((it) => (
+              <li key={it.id} className="flex items-start justify-between gap-3 py-2.5">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-ink">{it.label}</p>
+                  <p className="text-xs text-ink-faint">
+                    {formatDate(it.date)}
+                    {it.sub ? ` · ${it.sub}` : ''}
+                  </p>
+                </div>
+                <p className="shrink-0 text-sm font-semibold text-ink num">{formatARS(it.amount)}</p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Modal>
     </div>
   );
 }
