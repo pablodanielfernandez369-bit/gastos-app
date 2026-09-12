@@ -98,7 +98,7 @@ export default function Asistente({ state }) {
   }
 
   return (
-    <div className="flex h-[calc(100dvh-190px)] min-h-[360px] flex-col">
+    <div className="flex h-full min-h-[360px] flex-col">
       <div ref={listRef} className="flex-1 space-y-3 overflow-y-auto pb-2">
         {history.length === 0 && (
           <div className="rounded-2xl border border-hair bg-surface p-4">

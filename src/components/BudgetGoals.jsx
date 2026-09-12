@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { computeMonthBudget } from '../lib/selectors';
+import { computeMonthBudget, computeStreak } from '../lib/selectors';
 import { formatARS } from '../lib/format';
 
 // Semáforo del presupuesto de extras del mes en curso + estado de la meta de
@@ -13,6 +13,7 @@ const STATUS = {
 
 export default function BudgetGoals({ state }) {
   const b = useMemo(() => computeMonthBudget(state), [state]);
+  const streak = useMemo(() => computeStreak(state), [state]);
 
   if (!b.hasAnyGoal) {
     return (
@@ -55,10 +56,36 @@ export default function BudgetGoals({ state }) {
         </div>
       )}
 
+      <DisponibleCard d={b.disponible} />
+
       <div className="grid gap-3 sm:grid-cols-2">
         {b.savings && <SavingsCard s={b.savings} reliable={b.projReliable} />}
-        {b.extras && <ExtrasCard e={b.extras} reliable={b.projReliable} />}
+        {b.extras && <ExtrasCard e={b.extras} reliable={b.projReliable} streak={streak} />}
       </div>
+    </div>
+  );
+}
+
+function DisponibleCard({ d }) {
+  const good = d.value >= 0;
+  return (
+    <div className={`rounded-2xl border p-4 ${good ? 'border-hair bg-surface' : 'border-warn/40 bg-warn/5'}`}>
+      <p className="text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-ink-faint">
+        Disponible para gastar
+      </p>
+      <p className={`mt-1.5 font-display text-[1.9rem] font-medium leading-none num ${good ? 'text-ink' : 'text-warn'}`}>
+        {formatARS(d.value)}
+      </p>
+      <p className="mt-2 text-xs text-ink-soft num">
+        {formatARS(d.incomeTotal)} cobrado − {formatARS(d.expenseTotal)} gastado
+        {d.savingsGoal > 0 && <> − {formatARS(d.savingsGoal)} de meta</>}
+        {d.pendingRecurringTotal > 0 && <> − {formatARS(d.pendingRecurringTotal)} pendiente</>}
+      </p>
+      {!good && (
+        <p className="mt-1 text-xs text-warn">
+          Ya comprometiste más de lo que cobraste este mes. Va a mejorar en cuanto entre más plata.
+        </p>
+      )}
     </div>
   );
 }
@@ -88,7 +115,7 @@ function SavingsCard({ s, reliable }) {
   );
 }
 
-function ExtrasCard({ e, reliable }) {
+function ExtrasCard({ e, reliable, streak }) {
   const st = STATUS[e.status];
   return (
     <div className={`rounded-2xl border p-4 ${st.box}`}>
@@ -96,6 +123,11 @@ function ExtrasCard({ e, reliable }) {
         <p className="font-display text-[0.95rem] font-medium text-ink">Salidas / gastos extras</p>
         <p className={`text-sm font-semibold num ${st.text}`}>{toPct(e.pct)}</p>
       </div>
+      {streak && streak.streak > 0 && (
+        <p className="mt-0.5 text-xs font-medium text-ok">
+          🔥 {streak.streak} {streak.streak === 1 ? 'día' : 'días'} en verde este mes
+        </p>
+      )}
       <p className="mt-1.5 font-display text-[1.6rem] font-medium leading-none text-ink num">
         {formatARS(e.spent)}{' '}
         <span className="text-sm font-normal text-ink-faint">de {formatARS(e.budget)}</span>

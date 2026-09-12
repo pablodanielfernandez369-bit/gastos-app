@@ -221,6 +221,20 @@ export function computeMonthBudget(state, now = new Date()) {
     };
   }
 
+  // --- Disponible para gastar, en vivo ---
+  // Pensado para ingresos irregulares (no un sueldo fijo a principio de
+  // mes): no proyecta nada, solo resta de lo que YA entró lo que ya se
+  // gastó, la meta de ahorro (se aparta entera, no prorrateada) y los
+  // recurrentes que todavía falten pagar este mes. Sube cuando cobrás,
+  // baja cuando cargás un gasto.
+  const disponible = {
+    value: incomeTotal - expenseTotal - (savingsGoal || 0) - pendingRecurringTotal,
+    incomeTotal,
+    expenseTotal,
+    savingsGoal: savingsGoal || 0,
+    pendingRecurringTotal,
+  };
+
   return {
     monthKey: currKey,
     dayOfMonth,
@@ -233,8 +247,66 @@ export function computeMonthBudget(state, now = new Date()) {
     extras,
     savings,
     coherence,
+    disponible,
     hasAnyGoal: Boolean(extrasBudget || savingsGoal),
   };
+}
+
+// Racha de días seguidos (dentro del mes en curso) en los que el gasto de
+// "salidas/ocio" de ese día no pasó la parte que le toca del presupuesto
+// mensual. Se reinicia cada mes (no hay forma confiable de saber si un
+// presupuesto anterior a que Pablo lo configurara habría dado streak).
+// El día de hoy no cuenta todavía (sigue en curso) — se informa aparte.
+export function computeStreak(state, now = new Date()) {
+  const cfg = state.config || {};
+  const extrasBudget = cfg.extrasBudget;
+  const extrasGroupId = cfg.extrasGroupId;
+  if (!extrasBudget || !extrasGroupId) return null;
+
+  const currKey = monthKeyOf(now);
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const dailyAllotment = extrasBudget / daysInMonth;
+
+  const spentByDay = {};
+  for (const e of state.expenses) {
+    if (e.groupId !== extrasGroupId || monthKey(e.date) !== currKey) continue;
+    spentByDay[e.date] = (spentByDay[e.date] || 0) + e.amount;
+  }
+
+  let streak = 0;
+  for (let d = now.getDate() - 1; d >= 1; d--) {
+    const dateStr = `${currKey}-${String(d).padStart(2, '0')}`;
+    if ((spentByDay[dateStr] || 0) <= dailyAllotment) streak++;
+    else break;
+  }
+
+  const todayStr = `${currKey}-${String(now.getDate()).padStart(2, '0')}`;
+  const todaySpent = spentByDay[todayStr] || 0;
+  return { streak, dailyAllotment, todaySpent, onTrackToday: todaySpent <= dailyAllotment };
+}
+
+// Gastos "hormiga": subcategorías con varias compras chicas y repetidas en
+// el período (delivery, cafecitos...). minCount filtra ruido — un gasto
+// mensual como el alquiler nunca llega a 3 veces en un mes.
+export function antExpenses(state, from, to, { minCount = 3, limit = 5 } = {}) {
+  const map = {};
+  for (const e of expensesInRange(state, from, to)) {
+    const key = e.subcategoryId || `sin-sub:${e.groupId || 'x'}`;
+    if (!map[key]) map[key] = { subcategoryId: e.subcategoryId, groupId: e.groupId, count: 0, total: 0 };
+    map[key].count += 1;
+    map[key].total += e.amount;
+  }
+  return Object.values(map)
+    .filter((v) => v.count >= minCount)
+    .map((v) => ({
+      ...v,
+      name: v.subcategoryId
+        ? state.subcategories.find((s) => s.id === v.subcategoryId)?.name || 'Sin subcategoría'
+        : 'Sin subcategoría',
+      avg: v.total / v.count,
+    }))
+    .sort((a, b) => b.total - a.total)
+    .slice(0, limit);
 }
 
 // verde si va y proyecta bien; rojo si ya pasó el 90% o proyecta pasarse;

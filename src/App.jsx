@@ -81,20 +81,26 @@ export default function App() {
 
   const showFloatingButtons = tab !== 'asistente' && tab !== 'ajustes';
 
-  // El contenido y las barras fijas comparten el mismo ancho responsive:
-  // angosto en un celular normal (o el Fold plegado), más ancho al
-  // desplegar un Fold/tablet para aprovechar el espacio horizontal.
+  // El contenido y las barras comparten el mismo ancho responsive: angosto
+  // en un celular normal (o el Fold plegado), más ancho al desplegar un
+  // Fold/tablet para aprovechar el espacio horizontal.
   const WIDTH = 'max-w-lg sm:max-w-2xl lg:max-w-3xl';
 
+  // Header, botones y nav NO son "fixed" (eso depende de cálculos de altura
+  // de viewport que en algunos celulares fallan y hacen que la barra de
+  // abajo quede corrida, pidiendo scroll para verla). En cambio, todo el
+  // shell es una columna flex de altura exacta (h-dvh): header/botones/nav
+  // ocupan su alto natural y quedan siempre visibles, y <main> es la ÚNICA
+  // zona que scrollea, en el espacio que sobra.
   return (
-    <div className={`mx-auto min-h-dvh ${WIDTH} bg-paper ${showFloatingButtons ? 'pb-40' : 'pb-20'}`}>
-      <header className="px-4 pb-3 pt-[max(1.75rem,env(safe-area-inset-top))]">
+    <div className={`mx-auto flex h-dvh flex-col ${WIDTH} bg-paper`}>
+      <header className="shrink-0 px-4 pb-3 pt-[max(1.75rem,env(safe-area-inset-top))]">
         <h1 className="font-display text-[1.7rem] font-medium leading-none tracking-tight text-ink">
           Mis gastos y ahorro
         </h1>
       </header>
 
-      <main className="px-4 pb-4">
+      <main className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
         {tab === 'dashboard' && <Dashboard state={state} actions={actions} />}
         {tab === 'movimientos' && <MovimientosTable state={state} actions={actions} />}
         {tab === 'reportes' && <Reportes state={state} />}
@@ -103,7 +109,7 @@ export default function App() {
       </main>
 
       {showFloatingButtons && (
-        <div className={`fixed inset-x-0 bottom-14 mx-auto flex ${WIDTH} gap-2.5 bg-gradient-to-t from-paper via-paper/95 to-transparent px-4 pb-3 pt-8`}>
+        <div className="flex shrink-0 gap-2.5 px-4 pb-3 pt-2">
           <button
             onClick={() => setShowExpenseForm(true)}
             className="flex-1 rounded-2xl bg-accent py-3.5 text-[0.95rem] font-semibold tracking-tight text-paper shadow-[0_8px_20px_-6px_rgba(176,73,31,0.4)]"
@@ -119,7 +125,7 @@ export default function App() {
         </div>
       )}
 
-      <nav className={`fixed inset-x-0 bottom-0 mx-auto flex ${WIDTH} border-t border-hair bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur`}>
+      <nav className="flex shrink-0 border-t border-hair bg-surface pb-[env(safe-area-inset-bottom)]">
         {TABS.map((t) => (
           <button
             key={t.id}
