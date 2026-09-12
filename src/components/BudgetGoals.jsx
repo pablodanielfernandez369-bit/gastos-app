@@ -1,6 +1,7 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { computeMonthBudget, computeStreak } from '../lib/selectors';
-import { formatARS } from '../lib/format';
+import { formatARS, formatDate, monthKey } from '../lib/format';
+import Modal from './Modal';
 
 // Semáforo del presupuesto de extras del mes en curso + estado de la meta de
 // ahorro. Siempre usa el mes calendario actual, sin importar el filtro de
@@ -60,7 +61,7 @@ export default function BudgetGoals({ state }) {
 
       <div className="grid gap-3 sm:grid-cols-2">
         {b.savings && <SavingsCard s={b.savings} reliable={b.projReliable} />}
-        {b.extras && <ExtrasCard e={b.extras} reliable={b.projReliable} streak={streak} />}
+        {b.extras && <ExtrasCard e={b.extras} reliable={b.projReliable} streak={streak} state={state} />}
       </div>
     </div>
   );
@@ -115,42 +116,93 @@ function SavingsCard({ s, reliable }) {
   );
 }
 
-function ExtrasCard({ e, reliable, streak }) {
+function ExtrasCard({ e, reliable, streak, state }) {
   const st = STATUS[e.status];
+  const [open, setOpen] = useState(false);
+
+  const items = useMemo(() => {
+    if (!open) return [];
+    const currKey = monthKey(new Date().toISOString());
+    const extrasGroupId = state.config?.extrasGroupId;
+    return state.expenses
+      .filter((ex) => monthKey(ex.date) === currKey && ex.groupId === extrasGroupId)
+      .slice()
+      .sort((a, b) => (a.date < b.date ? 1 : -1))
+      .map((ex) => ({
+        id: ex.id,
+        date: ex.date,
+        label: ex.description || state.subcategories.find((s) => s.id === ex.subcategoryId)?.name || 'Salida',
+        sub: ex.description ? state.subcategories.find((s) => s.id === ex.subcategoryId)?.name : null,
+        amount: ex.amount,
+      }));
+  }, [open, state]);
+
   return (
-    <div className={`rounded-2xl border p-4 ${st.box}`}>
-      <div className="flex items-baseline justify-between">
-        <p className="font-display text-[0.95rem] font-medium text-ink">Salidas / gastos extras</p>
-        <p className={`text-sm font-semibold num ${st.text}`}>{toPct(e.pct)}</p>
-      </div>
-      {streak && streak.streak > 0 && (
-        <p className="mt-0.5 text-xs font-medium text-ok">
-          🔥 {streak.streak} {streak.streak === 1 ? 'día' : 'días'} en verde este mes
-        </p>
-      )}
-      <p className="mt-1.5 font-display text-[1.6rem] font-medium leading-none text-ink num">
-        {formatARS(e.spent)}{' '}
-        <span className="text-sm font-normal text-ink-faint">de {formatARS(e.budget)}</span>
-      </p>
-      <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-surface-2">
-        <div className={`h-full rounded-full ${st.bar}`} style={{ width: `${clampPct(e.pct)}%` }} />
-      </div>
-      <p className="mt-2.5 text-xs text-ink-soft num">
-        {e.remaining >= 0 ? (
-          <>
-            Te quedan <strong className="text-ink">{formatARS(e.remaining)}</strong> ·{' '}
-            <strong className="text-ink">{formatARS(e.perDayLeft)}/día</strong> por {e.daysLeft} días
-          </>
-        ) : (
-          <>Te pasaste <strong className="text-warn">{formatARS(-e.remaining)}</strong></>
+    <>
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={() => setOpen(true)}
+        onKeyDown={(ev) => (ev.key === 'Enter' || ev.key === ' ') && setOpen(true)}
+        className={`cursor-pointer rounded-2xl border p-4 text-left transition active:scale-[0.98] hover:border-ink-faint ${st.box}`}
+      >
+        <div className="flex items-baseline justify-between">
+          <p className="font-display text-[0.95rem] font-medium text-ink">Salidas / gastos extras</p>
+          <p className={`text-sm font-semibold num ${st.text}`}>{toPct(e.pct)}</p>
+        </div>
+        {streak && streak.streak > 0 && (
+          <p className="mt-0.5 text-xs font-medium text-ok">
+            🔥 {streak.streak} {streak.streak === 1 ? 'día' : 'días'} en verde este mes
+          </p>
         )}
-      </p>
-      {reliable && (
-        <p className="mt-1 text-xs text-ink-soft num">
-          A este ritmo terminás en <strong className={st.text}>{formatARS(e.projected)}</strong> ({toPct(e.projectedPct)})
+        <p className="mt-1.5 font-display text-[1.6rem] font-medium leading-none text-ink num">
+          {formatARS(e.spent)}{' '}
+          <span className="text-sm font-normal text-ink-faint">de {formatARS(e.budget)}</span>
         </p>
-      )}
-    </div>
+        <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-surface-2">
+          <div className={`h-full rounded-full ${st.bar}`} style={{ width: `${clampPct(e.pct)}%` }} />
+        </div>
+        <p className="mt-2.5 text-xs text-ink-soft num">
+          {e.remaining >= 0 ? (
+            <>
+              Te quedan <strong className="text-ink">{formatARS(e.remaining)}</strong> ·{' '}
+              <strong className="text-ink">{formatARS(e.perDayLeft)}/día</strong> por {e.daysLeft} días
+            </>
+          ) : (
+            <>Te pasaste <strong className="text-warn">{formatARS(-e.remaining)}</strong></>
+          )}
+        </p>
+        {reliable && (
+          <p className="mt-1 text-xs text-ink-soft num">
+            A este ritmo terminás en <strong className={st.text}>{formatARS(e.projected)}</strong> ({toPct(e.projectedPct)})
+          </p>
+        )}
+      </div>
+
+      <Modal open={open} onClose={() => setOpen(false)} title="Salidas / gastos extras">
+        <p className="mb-3 text-sm text-ink-soft num">
+          Total del mes: <span className="font-semibold text-ink">{formatARS(e.spent)}</span>
+        </p>
+        {items.length === 0 ? (
+          <p className="py-4 text-center text-sm text-ink-faint">Sin movimientos este mes.</p>
+        ) : (
+          <ul className="divide-y divide-hair">
+            {items.map((it) => (
+              <li key={it.id} className="flex items-start justify-between gap-3 py-2.5">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-ink">{it.label}</p>
+                  <p className="text-xs text-ink-faint">
+                    {formatDate(it.date)}
+                    {it.sub ? ` · ${it.sub}` : ''}
+                  </p>
+                </div>
+                <p className="shrink-0 text-sm font-semibold text-ink num">{formatARS(it.amount)}</p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Modal>
+    </>
   );
 }
 

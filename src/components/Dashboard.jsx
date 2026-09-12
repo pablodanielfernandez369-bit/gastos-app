@@ -195,7 +195,12 @@ function DolarStrip({ dolar, manual }) {
   const value = manual || dolar?.promedio || dolar?.venta;
   if (!value) return null;
   return (
-    <div className="flex items-baseline justify-between rounded-2xl border border-hair bg-surface-2 px-4 py-3">
+    <a
+      href="https://dolarhoy.com/"
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex items-baseline justify-between rounded-2xl border border-hair bg-surface-2 px-4 py-3 transition active:scale-[0.98] hover:border-ink-faint"
+    >
       <span className="text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-ink-faint">
         Dólar blue hoy
       </span>
@@ -208,6 +213,6 @@ function DolarStrip({ dolar, manual }) {
         )}
         {manual && <span className="ml-2 text-xs text-ink-faint">fijado</span>}
       </span>
-    </div>
+    </a>
   );
 }
