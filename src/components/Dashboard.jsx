@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import PeriodFilter from './PeriodFilter';
-import { computeTotals, expensesInRange, incomesInRange } from '../lib/selectors';
+import { computeTotals, expensesInRange, incomesInRange, monthOverMonthTotals } from '../lib/selectors';
 import { formatARS, formatDate, rangeForPeriod } from '../lib/format';
 import { todayISO } from '../lib/model';
 import { useDolar, usdRate } from '../lib/useDolar';
@@ -22,6 +22,7 @@ export default function Dashboard({ state, actions }) {
 
   const totals = useMemo(() => computeTotals(state, from, to), [state, from, to]);
   const allTime = useMemo(() => computeTotals(state, null, null), [state]);
+  const mom = useMemo(() => monthOverMonthTotals(state), [state]);
 
   const detailItems = useMemo(() => {
     if (!detail) return [];
@@ -122,6 +123,7 @@ export default function Dashboard({ state, actions }) {
             >
               <p className="text-[0.7rem] font-semibold uppercase tracking-[0.08em] text-ink-faint">Ingresos</p>
               <p className="mt-1 text-lg font-semibold text-ink num">{formatARS(totals.incomeTotal)}</p>
+              <DeltaTag delta={mom.income} goodDirection="up" />
             </button>
             <button
               type="button"
@@ -130,6 +132,7 @@ export default function Dashboard({ state, actions }) {
             >
               <p className="text-[0.7rem] font-semibold uppercase tracking-[0.08em] text-ink-faint">Gastos</p>
               <p className="mt-1 text-lg font-semibold text-ink num">{formatARS(totals.expenseTotal)}</p>
+              <DeltaTag delta={mom.expense} goodDirection="down" />
             </button>
           </div>
 
@@ -147,6 +150,7 @@ export default function Dashboard({ state, actions }) {
                 <p className="mt-1 text-lg font-semibold text-ink num">
                   {formatARS(totals.expenseByGroup[g.id] || 0)}
                 </p>
+                <DeltaTag delta={mom.byGroup[g.id]} goodDirection="down" />
               </button>
             ))}
           </div>
@@ -183,6 +187,21 @@ export default function Dashboard({ state, actions }) {
         )}
       </Modal>
     </div>
+  );
+}
+
+function DeltaTag({ delta, goodDirection }) {
+  if (!delta) return null;
+  const pct = delta.deltaPct;
+  if (Math.abs(pct) < 1) {
+    return <p className="mt-1 text-xs text-ink-faint">≈ igual que el mes pasado</p>;
+  }
+  const up = pct > 0;
+  const isGood = goodDirection === 'up' ? up : !up;
+  return (
+    <p className={`mt-1 text-xs num ${isGood ? 'text-ok' : 'text-warn'}`}>
+      {up ? '▲' : '▼'} {Math.abs(pct).toFixed(0)}% vs mes pasado
+    </p>
   );
 }
 

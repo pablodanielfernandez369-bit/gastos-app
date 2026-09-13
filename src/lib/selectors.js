@@ -137,6 +137,41 @@ function monthKeyOf(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 }
 
+// Ingresos/gastos totales y por grupo del mes calendario actual vs el
+// anterior, para el "vs mes pasado" de las tarjetas del dashboard. Devuelve
+// null en cada bucket sin base del mes anterior (no hay % contra cero).
+export function monthOverMonthTotals(state) {
+  const now = new Date();
+  const currKey = monthKeyOf(now);
+  const prevKey = monthKeyOf(new Date(now.getFullYear(), now.getMonth() - 1, 1));
+
+  const bucket = () => ({ curr: 0, prev: 0 });
+  const income = bucket();
+  const expense = bucket();
+  const byGroup = {};
+  for (const g of state.groups) byGroup[g.id] = bucket();
+
+  for (const i of state.incomes) {
+    const mk = monthKey(i.date);
+    if (mk === currKey) income.curr += i.amount;
+    else if (mk === prevKey) income.prev += i.amount;
+  }
+  for (const e of state.expenses) {
+    const mk = monthKey(e.date);
+    if (mk !== currKey && mk !== prevKey) continue;
+    const field = mk === currKey ? 'curr' : 'prev';
+    expense[field] += e.amount;
+    if (e.groupId && byGroup[e.groupId]) byGroup[e.groupId][field] += e.amount;
+  }
+
+  const withDelta = (b) => (b.prev > 0 ? { ...b, deltaPct: ((b.curr - b.prev) / b.prev) * 100 } : null);
+
+  const groupDeltas = {};
+  for (const id of Object.keys(byGroup)) groupDeltas[id] = withDelta(byGroup[id]);
+
+  return { income: withDelta(income), expense: withDelta(expense), byGroup: groupDeltas };
+}
+
 // Estado de las metas del mes calendario en curso: cuánto se lleva gastado en
 // "extras" vs el presupuesto, proyección a fin de mes según el ritmo actual,
 // cuánto queda por día, y cómo viene la meta de ahorro.
