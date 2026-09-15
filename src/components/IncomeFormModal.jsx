@@ -1,21 +1,39 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import Modal from './Modal';
 import { newIncome, todayISO } from '../lib/model';
+import { useDolar, usdRate } from '../lib/useDolar';
 
-export default function IncomeFormModal({ open, onClose, draft, actions, editingId }) {
+// La cotización para convertir un ingreso en USD a su equivalente en ARS
+// (que se usa internamente para la capacidad de ahorro y las metas) se toma
+// sola del dólar blue del día — nunca se le pregunta al usuario.
+export default function IncomeFormModal({ open, onClose, draft, state, actions, editingId }) {
   const [amountRaw, setAmountRaw] = useState(draft?.amountRaw ?? '');
+  const [currency, setCurrency] = useState(draft?.currency ?? 'ARS');
   const [description, setDescription] = useState(draft?.description ?? '');
   const [date, setDate] = useState(draft?.date ?? todayISO());
+
+  const dolar = useDolar();
+  const rate = usdRate(state?.config, dolar) || draft?.fxRate || null;
+
+  const amountFinal = useMemo(() => {
+    const n = parseFloat(amountRaw);
+    if (!Number.isFinite(n)) return 0;
+    if (currency === 'USD') return rate ? n * rate : n;
+    return n;
+  }, [amountRaw, currency, rate]);
 
   function handleSave() {
     const n = parseFloat(amountRaw);
     if (!Number.isFinite(n) || n <= 0) return;
 
     const payload = {
-      amount: n,
+      amount: amountFinal,
+      currency,
+      amountOriginal: currency === 'USD' ? n : null,
+      fxRate: currency === 'USD' ? rate : null,
       description: description.trim() || '(sin descripción)',
       date,
-      inputMethod: draft ? 'voz/texto' : 'formulario',
+      inputMethod: 'formulario',
     };
 
     if (editingId) {
@@ -27,26 +45,44 @@ export default function IncomeFormModal({ open, onClose, draft, actions, editing
   }
 
   return (
-    <Modal open={open} onClose={onClose} title={editingId ? 'Editar ingreso' : 'Confirmar ingreso'}>
+    <Modal open={open} onClose={onClose} title={editingId ? 'Editar ingreso' : 'Nuevo ingreso'}>
       <div className="space-y-4">
-        {draft?.rawText && (
-          <p className="rounded-lg bg-surface-2 px-3 py-2 text-sm text-ink-soft italic">
-            “{draft.rawText}”
+        <div className="flex gap-2">
+          <div className="flex-1">
+            <label className="block text-xs font-medium text-ink-soft mb-1">Monto</label>
+            <input
+              type="number"
+              inputMode="decimal"
+              autoFocus
+              className="w-full rounded-lg border border-hair px-3 py-3 text-lg"
+              value={amountRaw}
+              onChange={(e) => setAmountRaw(e.target.value)}
+              placeholder="0"
+            />
+          </div>
+          <div className="w-24">
+            <label className="block text-xs font-medium text-ink-soft mb-1">Moneda</label>
+            <select
+              className="w-full rounded-lg border border-hair px-2 py-3"
+              value={currency}
+              onChange={(e) => setCurrency(e.target.value)}
+            >
+              <option value="ARS">ARS</option>
+              <option value="USD">USD</option>
+            </select>
+          </div>
+        </div>
+
+        {currency === 'USD' && (
+          <p className="text-sm text-ink-soft">
+            Se guarda en dólares.
+            {rate ? (
+              <> Equivale a <strong>{formatPreviewARS(amountFinal)}</strong> al dólar de hoy ({formatPreviewARS(rate)}).</>
+            ) : (
+              ' No hay cotización disponible ahora, se ajusta sola cuando vuelva a haber conexión.'
+            )}
           </p>
         )}
-
-        <div>
-          <label className="block text-xs font-medium text-ink-soft mb-1">Monto</label>
-          <input
-            type="number"
-            inputMode="decimal"
-            autoFocus
-            className="w-full rounded-lg border border-hair px-3 py-3 text-lg"
-            value={amountRaw}
-            onChange={(e) => setAmountRaw(e.target.value)}
-            placeholder="0"
-          />
-        </div>
 
         <div>
           <label className="block text-xs font-medium text-ink-soft mb-1">Descripción</label>
@@ -85,4 +121,8 @@ export default function IncomeFormModal({ open, onClose, draft, actions, editing
       </div>
     </Modal>
   );
+}
+
+function formatPreviewARS(n) {
+  return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(n || 0);
 }

@@ -1,23 +1,29 @@
 import { useMemo, useState } from 'react';
 import Modal from './Modal';
 import { newExpense, todayISO } from '../lib/model';
+import { useDolar, usdRate } from '../lib/useDolar';
 
 // Un solo componente para dos usos:
 // - Confirmación editable después de parsear texto/voz (draft precargado)
 // - Carga manual clásica (sin draft, todo en blanco)
 // Nunca guarda directo: siempre pasa por este formulario y un botón "Guardar".
+// La cotización para el equivalente en ARS de un gasto en USD (que se usa
+// internamente para el presupuesto/meta de ahorro) se toma sola del dólar
+// blue del día — nunca se le pregunta al usuario.
 export default function ExpenseFormModal({ open, onClose, draft, state, actions, editingId }) {
   const groups = state.groups;
   const [groupId, setGroupId] = useState(draft?.groupId ?? groups[0]?.id ?? null);
   const [subcategoryId, setSubcategoryId] = useState(draft?.subcategoryId ?? null);
   const [amountRaw, setAmountRaw] = useState(draft?.amountRaw ?? '');
   const [currency, setCurrency] = useState(draft?.currency ?? 'ARS');
-  const [fxRate, setFxRate] = useState(draft?.fxRate ?? state.config.fxRate ?? '');
   const [description, setDescription] = useState(draft?.description ?? '');
   const [personName, setPersonName] = useState(draft?.personName ?? '');
   const [date, setDate] = useState(draft?.date ?? todayISO());
   const [newSubName, setNewSubName] = useState('');
   const [showNewSub, setShowNewSub] = useState(false);
+
+  const dolar = useDolar();
+  const rate = usdRate(state.config, dolar) || draft?.fxRate || null;
 
   const subcategories = useMemo(
     () => state.subcategories.filter((s) => s.groupId === groupId),
@@ -27,12 +33,9 @@ export default function ExpenseFormModal({ open, onClose, draft, state, actions,
   const amountFinal = useMemo(() => {
     const n = parseFloat(amountRaw);
     if (!Number.isFinite(n)) return 0;
-    if (currency === 'USD') {
-      const rate = parseFloat(fxRate);
-      return Number.isFinite(rate) ? n * rate : 0;
-    }
+    if (currency === 'USD') return rate ? n * rate : n;
     return n;
-  }, [amountRaw, currency, fxRate]);
+  }, [amountRaw, currency, rate]);
 
   // Aviso no bloqueante: si este gasto va en la categoría de "extras" y con él
   // el mes se pasa del presupuesto, se lo mostramos antes de guardar.
@@ -59,16 +62,13 @@ export default function ExpenseFormModal({ open, onClose, draft, state, actions,
   function handleSave() {
     const n = parseFloat(amountRaw);
     if (!Number.isFinite(n) || n <= 0) return;
-    if (currency === 'USD' && !Number.isFinite(parseFloat(fxRate))) return;
     if (!groupId) return;
-
-    if (currency === 'USD') actions.setFxRate(parseFloat(fxRate));
 
     const payload = {
       amount: amountFinal,
       currency,
       amountOriginal: currency === 'USD' ? n : null,
-      fxRate: currency === 'USD' ? parseFloat(fxRate) : null,
+      fxRate: currency === 'USD' ? rate : null,
       groupId,
       subcategoryId,
       description: description.trim() || '(sin descripción)',
@@ -125,22 +125,14 @@ export default function ExpenseFormModal({ open, onClose, draft, state, actions,
         </div>
 
         {currency === 'USD' && (
-          <div>
-            <label className="block text-xs font-medium text-ink-soft mb-1">
-              Cotización del día (1 USD = ? ARS)
-            </label>
-            <input
-              type="number"
-              inputMode="decimal"
-              className="w-full rounded-lg border border-hair px-3 py-2"
-              value={fxRate}
-              onChange={(e) => setFxRate(e.target.value)}
-              placeholder="ej: 1450"
-            />
-            <p className="mt-1 text-sm text-ink-soft">
-              Total: <strong>{formatPreviewARS(amountFinal)}</strong>
-            </p>
-          </div>
+          <p className="text-sm text-ink-soft">
+            Se guarda en dólares.
+            {rate ? (
+              <> Equivale a <strong>{formatPreviewARS(amountFinal)}</strong> al dólar de hoy ({formatPreviewARS(rate)}).</>
+            ) : (
+              ' No hay cotización disponible ahora, se ajusta sola cuando vuelva a haber conexión.'
+            )}
+          </p>
         )}
 
         <div>

@@ -1,6 +1,12 @@
 import { isInRange, monthKey, formatMonthLabel } from './format';
 import { pendingRecurring } from './recurring';
 
+// Monto en su moneda original (ARS o USD), sin convertir. Se usa en todos
+// lados donde pesos y dólares se cuentan por separado.
+function nativeAmount(item) {
+  return item.currency === 'USD' ? item.amountOriginal || 0 : item.amount;
+}
+
 export function expensesInRange(state, from, to) {
   return state.expenses.filter((e) => isInRange(e.date, from, to));
 }
@@ -9,27 +15,67 @@ export function incomesInRange(state, from, to) {
   return state.incomes.filter((i) => isInRange(i.date, from, to));
 }
 
+// Ingresos en ARS y en USD por separado, sin convertir uno al otro: la
+// "ARS" suma los ingresos cargados en pesos, la "USD" suma el monto
+// original en dólares de los cargados en esa moneda.
+export function incomeTotalsByCurrency(incomes) {
+  let ars = 0;
+  let usd = 0;
+  for (const i of incomes) {
+    if (i.currency === 'USD') usd += i.amountOriginal || 0;
+    else ars += i.amount;
+  }
+  return { ars, usd };
+}
+
+// Mismo criterio para gastos: un gasto en USD descuenta del pool de
+// dólares, uno en ARS descuenta del pool de pesos. Sin conversión.
+export function expenseTotalsByCurrency(expenses) {
+  let ars = 0;
+  let usd = 0;
+  for (const e of expenses) {
+    if (e.currency === 'USD') usd += e.amountOriginal || 0;
+    else ars += e.amount;
+  }
+  return { ars, usd };
+}
+
 export function computeTotals(state, from, to) {
   const expenses = expensesInRange(state, from, to);
   const incomes = incomesInRange(state, from, to);
 
   const incomeTotal = incomes.reduce((sum, i) => sum + i.amount, 0);
+  const incomeByCurrency = incomeTotalsByCurrency(incomes);
   const expenseTotal = expenses.reduce((sum, e) => sum + e.amount, 0);
+  const expenseByCurrency = expenseTotalsByCurrency(expenses);
+  const savingsByCurrency = {
+    ars: incomeByCurrency.ars - expenseByCurrency.ars,
+    usd: incomeByCurrency.usd - expenseByCurrency.usd,
+  };
 
+  // Por grupo, también separado por moneda: un gasto en USD no le suma
+  // pesos al grupo, le suma dólares.
+  const emptyBucket = () => ({ ars: 0, usd: 0 });
+  const addToBucket = (bucket, e) => {
+    if (e.currency === 'USD') bucket.usd += e.amountOriginal || 0;
+    else bucket.ars += e.amount;
+  };
   const expenseByGroup = {};
-  for (const g of state.groups) expenseByGroup[g.id] = 0;
+  for (const g of state.groups) expenseByGroup[g.id] = emptyBucket();
+  expenseByGroup._sinCategoria = emptyBucket();
   for (const e of expenses) {
     if (e.groupId && expenseByGroup[e.groupId] !== undefined) {
-      expenseByGroup[e.groupId] += e.amount;
+      addToBucket(expenseByGroup[e.groupId], e);
     } else {
-      expenseByGroup._sinCategoria = (expenseByGroup._sinCategoria || 0) + e.amount;
+      addToBucket(expenseByGroup._sinCategoria, e);
     }
   }
 
   const expenseBySubcategory = {};
   for (const e of expenses) {
     const key = e.subcategoryId || 'sin-subcategoria';
-    expenseBySubcategory[key] = (expenseBySubcategory[key] || 0) + e.amount;
+    if (!expenseBySubcategory[key]) expenseBySubcategory[key] = emptyBucket();
+    addToBucket(expenseBySubcategory[key], e);
   }
 
   const savings = incomeTotal - expenseTotal;
@@ -37,7 +83,10 @@ export function computeTotals(state, from, to) {
 
   return {
     incomeTotal,
+    incomeByCurrency,
     expenseTotal,
+    expenseByCurrency,
+    savingsByCurrency,
     expenseByGroup,
     expenseBySubcategory,
     savings,
@@ -48,7 +97,8 @@ export function computeTotals(state, from, to) {
 }
 
 // Serie mensual (últimos `months` meses con datos, o desde el primer
-// movimiento) para el gráfico de evolución ingresos/gastos/ahorro.
+// movimiento) para el gráfico de evolución ingresos/gastos/ahorro, separada
+// en pesos y en dólares (sin convertir uno al otro).
 export function computeMonthlySeries(state, months = 12) {
   const keys = new Set();
   for (const e of state.expenses) keys.add(monthKey(e.date));
@@ -56,19 +106,25 @@ export function computeMonthlySeries(state, months = 12) {
 
   const sortedKeys = [...keys].sort().slice(-months);
 
+  const sumNative = (items, currency) =>
+    items.reduce((sum, it) => sum + (it.currency === currency ? nativeAmount(it) : 0), 0);
+
   return sortedKeys.map((key) => {
-    const incomeTotal = state.incomes
-      .filter((i) => monthKey(i.date) === key)
-      .reduce((sum, i) => sum + i.amount, 0);
-    const expenseTotal = state.expenses
-      .filter((e) => monthKey(e.date) === key)
-      .reduce((sum, e) => sum + e.amount, 0);
+    const monthIncomes = state.incomes.filter((i) => monthKey(i.date) === key);
+    const monthExpenses = state.expenses.filter((e) => monthKey(e.date) === key);
+    const incomeArs = sumNative(monthIncomes, 'ARS');
+    const incomeUsd = sumNative(monthIncomes, 'USD');
+    const expenseArs = sumNative(monthExpenses, 'ARS');
+    const expenseUsd = sumNative(monthExpenses, 'USD');
     return {
       month: key,
       label: formatMonthLabel(key + '-01'),
-      Ingresos: incomeTotal,
-      Gastos: expenseTotal,
-      Ahorro: incomeTotal - expenseTotal,
+      Ingresos: incomeArs,
+      Gastos: expenseArs,
+      Ahorro: incomeArs - expenseArs,
+      IngresosUSD: incomeUsd,
+      GastosUSD: expenseUsd,
+      AhorroUSD: incomeUsd - expenseUsd,
     };
   });
 }
@@ -79,23 +135,26 @@ export function personNames(state) {
   return [...new Set(state.expenses.map((e) => e.personName).filter(Boolean))].sort();
 }
 
+// Total en pesos y en dólares por separado.
 export function personTotal(state, from, to, personName) {
-  return expensesInRange(state, from, to)
-    .filter((e) => e.personName === personName)
-    .reduce((sum, e) => sum + e.amount, 0);
+  const own = expensesInRange(state, from, to).filter((e) => e.personName === personName);
+  return {
+    ars: own.filter((e) => e.currency !== 'USD').reduce((sum, e) => sum + e.amount, 0),
+    usd: own.filter((e) => e.currency === 'USD').reduce((sum, e) => sum + (e.amountOriginal || 0), 0),
+  };
 }
 
 // Serie mensual de gasto de una persona puntual (últimos `months` meses con
-// datos de esa persona).
+// datos de esa persona), separada en pesos y en dólares.
 export function computeMonthlySeriesForPerson(state, personName, months = 8) {
   const own = state.expenses.filter((e) => e.personName === personName);
   const keys = [...new Set(own.map((e) => monthKey(e.date)))].sort().slice(-months);
 
   return keys.map((key) => {
-    const total = own
-      .filter((e) => monthKey(e.date) === key)
-      .reduce((sum, e) => sum + e.amount, 0);
-    return { month: key, label: formatMonthLabel(key + '-01'), Gastos: total };
+    const monthOwn = own.filter((e) => monthKey(e.date) === key);
+    const ars = monthOwn.filter((e) => e.currency !== 'USD').reduce((sum, e) => sum + e.amount, 0);
+    const usd = monthOwn.filter((e) => e.currency === 'USD').reduce((sum, e) => sum + (e.amountOriginal || 0), 0);
+    return { month: key, label: formatMonthLabel(key + '-01'), Gastos: ars, GastosUSD: usd };
   });
 }
 

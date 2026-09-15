@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useAppState } from './lib/useAppState';
-import { parseIncomeText } from './lib/parser';
 import {
   downloadFile,
   exportStateAsJson,
@@ -11,7 +10,6 @@ import {
   sendTelegramBackup,
 } from './lib/storage';
 import { todayISO } from './lib/model';
-import QuickEntrySheet from './components/QuickEntrySheet';
 import ExpenseFormModal from './components/ExpenseFormModal';
 import IncomeFormModal from './components/IncomeFormModal';
 import Dashboard from './components/Dashboard';
@@ -33,22 +31,8 @@ export default function App() {
   const [state, actions] = useAppState();
   const [tab, setTab] = useState('dashboard');
 
-  const [quickIncomeOpen, setQuickIncomeOpen] = useState(false);
   const [showExpenseForm, setShowExpenseForm] = useState(false);
-  const [incomeDraft, setIncomeDraft] = useState(null);
   const [showIncomeForm, setShowIncomeForm] = useState(false);
-
-  function handleQuickIncomeSubmit(rawText) {
-    setIncomeDraft(parseIncomeText(rawText));
-    setQuickIncomeOpen(false);
-    setShowIncomeForm(true);
-  }
-
-  function openClassicIncomeForm() {
-    setIncomeDraft(null);
-    setShowIncomeForm(true);
-    setQuickIncomeOpen(false);
-  }
 
   // Backup automático silencioso: si pasó más de un día desde el último,
   // lo descarga solo a Descargas al abrir la app (no depende de un horario
@@ -118,7 +102,7 @@ export default function App() {
             + Nuevo gasto
           </button>
           <button
-            onClick={() => setQuickIncomeOpen(true)}
+            onClick={() => setShowIncomeForm(true)}
             className="flex-1 rounded-2xl border border-ok/25 bg-ok/10 py-3.5 text-[0.95rem] font-semibold tracking-tight text-ok"
           >
             + Nuevo ingreso
@@ -143,15 +127,6 @@ export default function App() {
         ))}
       </nav>
 
-      {quickIncomeOpen && (
-        <QuickEntrySheet
-          open
-          onClose={() => setQuickIncomeOpen(false)}
-          onSubmitText={handleQuickIncomeSubmit}
-          onUseClassicForm={openClassicIncomeForm}
-        />
-      )}
-
       {showExpenseForm && (
         <ExpenseFormModal
           open
@@ -166,7 +141,8 @@ export default function App() {
         <IncomeFormModal
           open
           onClose={() => setShowIncomeForm(false)}
-          draft={incomeDraft}
+          draft={null}
+          state={state}
           actions={actions}
         />
       )}

@@ -25,25 +25,33 @@ export default function MovimientosTable({ state, actions }) {
   const groupName = (id) => state.groups.find((g) => g.id === id)?.name;
   const subName = (id) => state.subcategories.find((s) => s.id === id)?.name;
 
-  const movements = useMemo(() => {
+  const { movementsArs, movementsUsd } = useMemo(() => {
     const list = [];
     for (const e of state.expenses) {
       if (!isInRange(e.date, from, to)) continue;
       if (groupFilter !== 'todos' && e.groupId !== groupFilter) continue;
-      list.push({ kind: 'gasto', ...e });
+      list.push({
+        kind: 'gasto',
+        ...e,
+        nativeAmount: e.currency === 'USD' ? e.amountOriginal : e.amount,
+      });
     }
     if (groupFilter === 'todos') {
       for (const i of state.incomes) {
         if (!isInRange(i.date, from, to)) continue;
-        list.push({ kind: 'ingreso', ...i });
+        list.push({
+          kind: 'ingreso',
+          ...i,
+          nativeAmount: i.currency === 'USD' ? i.amountOriginal : i.amount,
+        });
       }
     }
     const q = search.trim().toLowerCase();
     const min = parseFloat(minAmount);
     const max = parseFloat(maxAmount);
     const filtered = list.filter((m) => {
-      if (Number.isFinite(min) && m.amount < min) return false;
-      if (Number.isFinite(max) && m.amount > max) return false;
+      if (Number.isFinite(min) && m.nativeAmount < min) return false;
+      if (Number.isFinite(max) && m.nativeAmount > max) return false;
       if (!q) return true;
       const haystack = [
         m.description,
@@ -58,10 +66,15 @@ export default function MovimientosTable({ state, actions }) {
     });
 
     const dir = sort.dir === 'asc' ? 1 : -1;
-    return filtered.sort((a, b) => {
-      if (sort.field === 'amount') return (a.amount - b.amount) * dir;
+    const sorted = filtered.sort((a, b) => {
+      if (sort.field === 'amount') return (a.nativeAmount - b.nativeAmount) * dir;
       return (a.date < b.date ? -1 : a.date > b.date ? 1 : 0) * dir;
     });
+
+    return {
+      movementsArs: sorted.filter((m) => m.currency !== 'USD'),
+      movementsUsd: sorted.filter((m) => m.currency === 'USD'),
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state, from, to, groupFilter, search, minAmount, maxAmount, sort]);
 
@@ -70,7 +83,8 @@ export default function MovimientosTable({ state, actions }) {
   }
 
   function handleDelete(m) {
-    if (!confirm(`¿Borrar "${m.description}" (${formatARS(m.amount)})?`)) return;
+    const label = m.currency === 'USD' ? formatUsd(m.nativeAmount) : formatARS(m.nativeAmount);
+    if (!confirm(`¿Borrar "${m.description}" (${label})?`)) return;
     if (m.kind === 'gasto') actions.deleteExpense(m.id);
     else actions.deleteIncome(m.id);
   }
@@ -132,58 +146,39 @@ export default function MovimientosTable({ state, actions }) {
         />
       </div>
 
-      <div className="overflow-x-auto rounded-2xl border border-hair bg-surface">
-        <table className="w-full min-w-[560px] text-sm">
-          <thead>
-            <tr className="border-b border-hair bg-surface-2 text-left text-[0.7rem] font-semibold uppercase tracking-wide text-ink-faint">
-              <th className="cursor-pointer px-3 py-2.5" onClick={() => toggleSort('date')}>
-                Fecha {sort.field === 'date' && (sort.dir === 'asc' ? '↑' : '↓')}
-              </th>
-              <th className="px-3 py-2">Categoría</th>
-              <th className="px-3 py-2">Descripción</th>
-              <th className="cursor-pointer px-3 py-2 text-right" onClick={() => toggleSort('amount')}>
-                Monto {sort.field === 'amount' && (sort.dir === 'asc' ? '↑' : '↓')}
-              </th>
-              <th className="px-3 py-2"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {movements.map((m) => (
-              <tr key={m.kind + m.id} className="border-b border-hair last:border-0">
-                <td className="whitespace-nowrap px-3 py-2 text-ink-soft">{formatDate(m.date)}</td>
-                <td className="px-3 py-2 text-ink">
-                  {m.kind === 'ingreso' ? (
-                    <span className="text-ok">Ingreso</span>
-                  ) : (
-                    <>
-                      {groupName(m.groupId) || <span className="text-warn">Sin categorizar</span>}
-                      {m.subcategoryId && <span className="text-ink-faint"> · {subName(m.subcategoryId)}</span>}
-                    </>
-                  )}
-                </td>
-                <td className="px-3 py-2 text-ink">
-                  {m.description}
-                  {m.personName && (
-                    <span className="ml-1.5 rounded-full bg-accent/10 px-2 py-0.5 text-xs font-medium text-accent">
-                      {m.personName}
-                    </span>
-                  )}
-                </td>
-                <td className={`whitespace-nowrap px-3 py-2 text-right font-medium num ${m.kind === 'ingreso' ? 'text-ok' : 'text-ink'}`}>
-                  {m.kind === 'ingreso' ? '+' : '-'}{formatARS(m.amount)}
-                </td>
-                <td className="whitespace-nowrap px-3 py-2 text-right text-ink-faint">
-                  <button onClick={() => setEditing({ kind: m.kind, id: m.id })} className="px-1">✏️</button>
-                  <button onClick={() => handleDelete(m)} className="px-1">🗑️</button>
-                </td>
-              </tr>
-            ))}
-            {movements.length === 0 && (
-              <tr><td colSpan={5} className="px-3 py-6 text-center text-ink-faint">Sin movimientos en este período.</td></tr>
-            )}
-          </tbody>
-        </table>
+      <div>
+        <p className="mb-2 text-[0.7rem] font-semibold uppercase tracking-[0.1em] text-ink-faint">
+          Movimientos en pesos
+        </p>
+        <MovementsList
+          movements={movementsArs}
+          sort={sort}
+          toggleSort={toggleSort}
+          groupName={groupName}
+          subName={subName}
+          formatAmount={formatARS}
+          onEdit={setEditing}
+          onDelete={handleDelete}
+        />
       </div>
+
+      {movementsUsd.length > 0 && (
+        <div>
+          <p className="mb-2 text-[0.7rem] font-semibold uppercase tracking-[0.1em] text-ink-faint">
+            Movimientos en dólares
+          </p>
+          <MovementsList
+            movements={movementsUsd}
+            sort={sort}
+            toggleSort={toggleSort}
+            groupName={groupName}
+            subName={subName}
+            formatAmount={formatUsd}
+            onEdit={setEditing}
+            onDelete={handleDelete}
+          />
+        </div>
+      )}
 
       {editing?.kind === 'gasto' && (
         <ExpenseFormModal
@@ -201,9 +196,71 @@ export default function MovimientosTable({ state, actions }) {
           onClose={() => setEditing(null)}
           editingId={editing.id}
           draft={toIncomeDraft(state.incomes.find((i) => i.id === editing.id))}
+          state={state}
           actions={actions}
         />
       )}
+    </div>
+  );
+}
+
+function formatUsd(n) {
+  return `US$ ${new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 }).format(n || 0)}`;
+}
+
+function MovementsList({ movements, sort, toggleSort, groupName, subName, formatAmount, onEdit, onDelete }) {
+  return (
+    <div className="overflow-x-auto rounded-2xl border border-hair bg-surface">
+      <table className="w-full min-w-[560px] text-sm">
+        <thead>
+          <tr className="border-b border-hair bg-surface-2 text-left text-[0.7rem] font-semibold uppercase tracking-wide text-ink-faint">
+            <th className="cursor-pointer px-3 py-2.5" onClick={() => toggleSort('date')}>
+              Fecha {sort.field === 'date' && (sort.dir === 'asc' ? '↑' : '↓')}
+            </th>
+            <th className="px-3 py-2">Categoría</th>
+            <th className="px-3 py-2">Descripción</th>
+            <th className="cursor-pointer px-3 py-2 text-right" onClick={() => toggleSort('amount')}>
+              Monto {sort.field === 'amount' && (sort.dir === 'asc' ? '↑' : '↓')}
+            </th>
+            <th className="px-3 py-2"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {movements.map((m) => (
+            <tr key={m.kind + m.id} className="border-b border-hair last:border-0">
+              <td className="whitespace-nowrap px-3 py-2 text-ink-soft">{formatDate(m.date)}</td>
+              <td className="px-3 py-2 text-ink">
+                {m.kind === 'ingreso' ? (
+                  <span className="text-ok">Ingreso</span>
+                ) : (
+                  <>
+                    {groupName(m.groupId) || <span className="text-warn">Sin categorizar</span>}
+                    {m.subcategoryId && <span className="text-ink-faint"> · {subName(m.subcategoryId)}</span>}
+                  </>
+                )}
+              </td>
+              <td className="px-3 py-2 text-ink">
+                {m.description}
+                {m.personName && (
+                  <span className="ml-1.5 rounded-full bg-accent/10 px-2 py-0.5 text-xs font-medium text-accent">
+                    {m.personName}
+                  </span>
+                )}
+              </td>
+              <td className={`whitespace-nowrap px-3 py-2 text-right font-medium num ${m.kind === 'ingreso' ? 'text-ok' : 'text-ink'}`}>
+                {m.kind === 'ingreso' ? '+' : '-'}{formatAmount(m.nativeAmount)}
+              </td>
+              <td className="whitespace-nowrap px-3 py-2 text-right text-ink-faint">
+                <button onClick={() => onEdit({ kind: m.kind, id: m.id })} className="px-1">✏️</button>
+                <button onClick={() => onDelete(m)} className="px-1">🗑️</button>
+              </td>
+            </tr>
+          ))}
+          {movements.length === 0 && (
+            <tr><td colSpan={5} className="px-3 py-6 text-center text-ink-faint">Sin movimientos en este período.</td></tr>
+          )}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -226,5 +283,12 @@ function toExpenseDraft(e) {
 
 function toIncomeDraft(i) {
   if (!i) return null;
-  return { amountRaw: i.amount, description: i.description, date: i.date, rawText: null };
+  return {
+    amountRaw: i.currency === 'USD' ? i.amountOriginal : i.amount,
+    currency: i.currency,
+    description: i.description,
+    date: i.date,
+    fxRate: i.fxRate,
+    rawText: null,
+  };
 }

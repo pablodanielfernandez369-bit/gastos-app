@@ -90,6 +90,9 @@ export function newIncome(partial) {
   return {
     id: uuid(),
     amount: 0,
+    currency: 'ARS',
+    amountOriginal: null,
+    fxRate: null,
     description: '',
     date: todayISO(),
     inputMethod: 'formulario',

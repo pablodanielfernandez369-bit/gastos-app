@@ -3,7 +3,7 @@ import PeriodFilter from './PeriodFilter';
 import { computeTotals, expensesInRange, incomesInRange, monthOverMonthTotals } from '../lib/selectors';
 import { formatARS, formatDate, rangeForPeriod } from '../lib/format';
 import { todayISO } from '../lib/model';
-import { useDolar, usdRate } from '../lib/useDolar';
+import { useDolar } from '../lib/useDolar';
 import RecurringReminders from './RecurringReminders';
 import PriceAlerts from './PriceAlerts';
 import BudgetGoals from './BudgetGoals';
@@ -30,7 +30,13 @@ export default function Dashboard({ state, actions }) {
       return incomesInRange(state, from, to)
         .slice()
         .sort((a, b) => (a.date < b.date ? 1 : -1))
-        .map((i) => ({ id: i.id, date: i.date, label: i.description || 'Ingreso', amount: i.amount }));
+        .map((i) => ({
+          id: i.id,
+          date: i.date,
+          label: i.description || 'Ingreso',
+          amount: i.currency === 'USD' ? i.amountOriginal : i.amount,
+          currency: i.currency,
+        }));
     }
     return expensesInRange(state, from, to)
       .filter((e) => !detail.groupId || e.groupId === detail.groupId)
@@ -45,16 +51,23 @@ export default function Dashboard({ state, actions }) {
           date: e.date,
           label: e.description || label || 'Gasto',
           sub: e.description ? label : null,
-          amount: e.amount,
+          amount: e.currency === 'USD' ? e.amountOriginal : e.amount,
+          currency: e.currency,
         };
       });
   }, [detail, state, from, to]);
 
-  const detailTotal = detailItems.reduce((sum, it) => sum + it.amount, 0);
+  // Los montos quedan por moneda, nunca se suman ARS con USD entre sí.
+  const detailTotals = detailItems.reduce(
+    (acc, it) => {
+      if (it.currency === 'USD') acc.usd += it.amount;
+      else acc.ars += it.amount;
+      return acc;
+    },
+    { ars: 0, usd: 0 }
+  );
 
   const dolar = useDolar();
-  const rate = usdRate(state.config, dolar);
-  const toUsd = (ars) => (rate ? `US$ ${formatNum(ars / rate)}` : null);
 
   const savingsPositive = totals.savings >= 0;
 
@@ -81,35 +94,34 @@ export default function Dashboard({ state, actions }) {
               Capacidad de ahorro
             </p>
             <p className="mt-2 font-display text-[2.7rem] font-medium leading-none tracking-tight text-ink num">
-              {formatARS(totals.savings)}
+              {formatARS(totals.savingsByCurrency.ars)}
             </p>
             <p className="mt-2.5 text-sm text-ink-soft num">
-              {toUsd(totals.savings) && <span>{toUsd(totals.savings)} · </span>}
-              {totals.incomeTotal > 0 ? (
+              {totals.incomeByCurrency.ars > 0 ? (
                 <span className={`font-medium ${savingsPositive ? 'text-ok' : 'text-warn'}`}>
-                  {totals.savingsPct.toFixed(0)}% de tus ingresos
+                  {totals.savingsPct.toFixed(0)}% de tus ingresos en pesos
                 </span>
               ) : (
                 'Cargá tus ingresos para ver el %'
               )}
             </p>
+            {hasUsdActivity(totals) && (
+              <p className="mt-1 font-display text-xl font-medium text-ink num">
+                {formatUsd(totals.savingsByCurrency.usd)}{' '}
+                <span className="text-sm font-normal text-ink-faint">de ahorro en dólares</span>
+              </p>
+            )}
           </div>
 
           <div className="rounded-2xl border border-hair bg-surface p-4">
             <p className="text-[0.7rem] font-semibold uppercase tracking-[0.1em] text-ink-faint">
               Ahorro acumulado
             </p>
-            <p className="mt-1 font-display text-2xl font-medium text-ink num">{formatARS(allTime.savings)}</p>
-            {toUsd(allTime.savings) && (
-              <p className="mt-1 text-sm text-ink-soft num">
-                {toUsd(allTime.savings)}
-                {rate && (
-                  <span className="text-xs text-ink-faint">
-                    {' '}· dólar {formatNum(rate)}
-                    {state.config?.fxRateManual ? ' (fijado)' : ' blue prom.'}
-                  </span>
-                )}
-              </p>
+            <p className="mt-1 font-display text-2xl font-medium text-ink num">
+              {formatARS(allTime.savingsByCurrency.ars)}
+            </p>
+            {hasUsdActivity(allTime) && (
+              <p className="mt-1 text-sm text-ink-soft num">{formatUsd(allTime.savingsByCurrency.usd)}</p>
             )}
           </div>
         </div>
@@ -122,7 +134,10 @@ export default function Dashboard({ state, actions }) {
               className="rounded-2xl border border-hair bg-surface p-4 text-left transition active:scale-[0.98] hover:border-ink-faint"
             >
               <p className="text-[0.7rem] font-semibold uppercase tracking-[0.08em] text-ink-faint">Ingresos</p>
-              <p className="mt-1 text-lg font-semibold text-ink num">{formatARS(totals.incomeTotal)}</p>
+              <p className="mt-1 text-lg font-semibold text-ink num">{formatARS(totals.incomeByCurrency.ars)}</p>
+              {totals.incomeByCurrency.usd > 0 && (
+                <p className="text-sm font-medium text-ink-soft num">{formatUsd(totals.incomeByCurrency.usd)}</p>
+              )}
               <DeltaTag delta={mom.income} goodDirection="up" />
             </button>
             <button
@@ -131,7 +146,10 @@ export default function Dashboard({ state, actions }) {
               className="rounded-2xl border border-hair bg-surface p-4 text-left transition active:scale-[0.98] hover:border-ink-faint"
             >
               <p className="text-[0.7rem] font-semibold uppercase tracking-[0.08em] text-ink-faint">Gastos</p>
-              <p className="mt-1 text-lg font-semibold text-ink num">{formatARS(totals.expenseTotal)}</p>
+              <p className="mt-1 text-lg font-semibold text-ink num">{formatARS(totals.expenseByCurrency.ars)}</p>
+              {totals.expenseByCurrency.usd > 0 && (
+                <p className="text-sm font-medium text-ink-soft num">{formatUsd(totals.expenseByCurrency.usd)}</p>
+              )}
               <DeltaTag delta={mom.expense} goodDirection="down" />
             </button>
           </div>
@@ -148,16 +166,24 @@ export default function Dashboard({ state, actions }) {
                   {g.name}
                 </p>
                 <p className="mt-1 text-lg font-semibold text-ink num">
-                  {formatARS(totals.expenseByGroup[g.id] || 0)}
+                  {formatARS(totals.expenseByGroup[g.id]?.ars || 0)}
                 </p>
+                {totals.expenseByGroup[g.id]?.usd > 0 && (
+                  <p className="text-sm font-medium text-ink-soft num">
+                    {formatUsd(totals.expenseByGroup[g.id].usd)}
+                  </p>
+                )}
                 <DeltaTag delta={mom.byGroup[g.id]} goodDirection="down" />
               </button>
             ))}
           </div>
 
-          {totals.expenseByGroup._sinCategoria > 0 && (
+          {(totals.expenseByGroup._sinCategoria?.ars > 0 || totals.expenseByGroup._sinCategoria?.usd > 0) && (
             <p className="text-sm text-warn num">
-              {formatARS(totals.expenseByGroup._sinCategoria)} sin categorizar — revisalos en Movimientos.
+              {totals.expenseByGroup._sinCategoria.ars > 0 && formatARS(totals.expenseByGroup._sinCategoria.ars)}
+              {totals.expenseByGroup._sinCategoria.ars > 0 && totals.expenseByGroup._sinCategoria.usd > 0 && ' + '}
+              {totals.expenseByGroup._sinCategoria.usd > 0 && formatUsd(totals.expenseByGroup._sinCategoria.usd)}
+              {' '}sin categorizar — revisalos en Movimientos.
             </p>
           )}
         </div>
@@ -165,7 +191,10 @@ export default function Dashboard({ state, actions }) {
 
       <Modal open={!!detail} onClose={() => setDetail(null)} title={detail?.title || ''}>
         <p className="mb-3 text-sm text-ink-soft num">
-          Total del período: <span className="font-semibold text-ink">{formatARS(detailTotal)}</span>
+          Total del período: <span className="font-semibold text-ink">{formatARS(detailTotals.ars)}</span>
+          {detailTotals.usd > 0 && (
+            <span className="font-semibold text-ink"> · {formatUsd(detailTotals.usd)}</span>
+          )}
         </p>
         {detailItems.length === 0 ? (
           <p className="py-4 text-center text-sm text-ink-faint">Sin movimientos en este período.</p>
@@ -180,7 +209,9 @@ export default function Dashboard({ state, actions }) {
                     {it.sub ? ` · ${it.sub}` : ''}
                   </p>
                 </div>
-                <p className="shrink-0 text-sm font-semibold text-ink num">{formatARS(it.amount)}</p>
+                <p className="shrink-0 text-sm font-semibold text-ink num">
+                  {it.currency === 'USD' ? formatUsd(it.amount) : formatARS(it.amount)}
+                </p>
               </li>
             ))}
           </ul>
@@ -207,6 +238,16 @@ function DeltaTag({ delta, goodDirection }) {
 
 function formatNum(n) {
   return new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 }).format(n || 0);
+}
+
+function formatUsd(n) {
+  return `US$ ${formatNum(n)}`;
+}
+
+// Solo mostramos la línea de dólares si hubo algún movimiento en esa moneda
+// en el período — si el usuario no usa USD, no le aparece un "US$ 0" de más.
+function hasUsdActivity(totals) {
+  return totals.incomeByCurrency.usd !== 0 || totals.expenseByCurrency.usd !== 0;
 }
 
 function DolarStrip({ dolar, manual }) {
