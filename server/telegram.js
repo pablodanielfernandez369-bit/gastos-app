@@ -59,9 +59,12 @@ async function parseExpense(text, state) {
     '- Para la subcategoría: si hay una existente de ese grupo que encaje, usá su "subcategoryId". ' +
     'Si no, dejá subcategoryId null y poné "newSubcategoryName" con un nombre corto y prolijo.\n' +
     '- "description": 1 a 3 palabras, lo más parecido posible a lo que escribió el usuario.\n' +
-    '- "personName": si el gasto está asociado a una persona ("de Mel", "para Juan", ' +
-    '"el psicólogo de Mel", "regalo de mamá"), poné ese nombre acá. Si no hay ninguna ' +
-    'persona mencionada, null. No inventes.\n' +
+    '- "personName": SOLO si el mensaje nombra explícitamente una persona distinta del ' +
+    'usuario ("de Juan", "para Ana", "el psicólogo de Caro", "regalo de mamá"), poné ese ' +
+    'nombre EXACTO tal cual aparece en el mensaje. Si el mensaje no menciona ninguna ' +
+    'persona, "personName" DEBE ser null. Nunca copies un nombre de estas instrucciones ' +
+    'ni de ningún otro lado: el nombre tiene que estar escrito, literalmente, en el ' +
+    'mensaje del usuario.\n' +
     '- "confident": false si no pudiste sacar un monto o el mensaje es ambiguo.\n\n' +
     `Hoy es ${today}.\nGRUPOS: ${JSON.stringify(grupos)}\nSUBCATEGORIAS: ${JSON.stringify(subs)}`;
 
