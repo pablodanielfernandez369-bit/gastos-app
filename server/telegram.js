@@ -18,6 +18,14 @@ export const telegramConfigured = Boolean(BOT_TOKEN && CHAT_ID && WEBHOOK_SECRET
 
 const api = (method) => `https://api.telegram.org/bot${BOT_TOKEN}/${method}`;
 
+// Id de la confirmación pendiente más reciente (bot de un solo usuario: no
+// hace falta más que esto para saber "de qué gasto está hablando" si el
+// próximo mensaje no aprieta un botón sino que corrige algo por texto). Vive
+// en memoria: si el server se reinicia se pierde, y un mensaje que en
+// realidad era una corrección se trata como gasto nuevo — degradación
+// aceptable, no rompe nada.
+let activePendingId = null;
+
 async function tg(method, body) {
   const res = await fetch(api(method), {
     method: 'POST',
@@ -37,17 +45,22 @@ const editText = (messageId, text, extra = {}) =>
 
 // --- Interpretación del mensaje con Claude ---
 
-async function parseExpense(text, state) {
+async function parseExpense(text, state, pendingContext = null) {
   const grupos = state.groups.map((g) => ({ id: g.id, nombre: g.name }));
   const subs = state.subcategories.map((s) => ({ id: s.id, grupoId: s.groupId, nombre: s.name }));
   const today = todayAR();
 
-  const system =
-    'Interpretás un gasto que un usuario argentino escribió en lenguaje natural y ' +
-    'devolvés SOLO un JSON válido, sin texto alrededor, con esta forma exacta:\n' +
+  const schemaFields =
     '{"amount": number, "currency": "ARS"|"USD", "groupId": string|null, ' +
     '"newGroupName": string|null, "subcategoryId": string|null, "newSubcategoryName": string|null, ' +
-    '"description": string, "personName": string|null, "confident": boolean}\n\n' +
+    '"description": string, "personName": string|null, "confident": boolean' +
+    (pendingContext ? ', "isCorrection": boolean' : '') +
+    '}';
+
+  let system =
+    'Interpretás un gasto que un usuario argentino escribió en lenguaje natural y ' +
+    'devolvés SOLO un JSON válido, sin texto alrededor, con esta forma exacta:\n' +
+    `${schemaFields}\n\n` +
     'Reglas:\n' +
     '- "amount": el número. "15 lucas"/"15 mil" = 15000, "2 palos"/"2 millones" = 2000000.\n' +
     '- "currency": "USD" solo si menciona dólares/usd/u$s, si no "ARS".\n' +
@@ -65,8 +78,25 @@ async function parseExpense(text, state) {
     'persona, "personName" DEBE ser null. Nunca copies un nombre de estas instrucciones ' +
     'ni de ningún otro lado: el nombre tiene que estar escrito, literalmente, en el ' +
     'mensaje del usuario.\n' +
-    '- "confident": false si no pudiste sacar un monto o el mensaje es ambiguo.\n\n' +
-    `Hoy es ${today}.\nGRUPOS: ${JSON.stringify(grupos)}\nSUBCATEGORIAS: ${JSON.stringify(subs)}`;
+    '- "confident": false si no pudiste sacar un monto o el mensaje es ambiguo.\n';
+
+  if (pendingContext) {
+    const { messageId: _messageId, originalText: _originalText, isCorrection: _isCorrection, ...prevFields } = pendingContext;
+    system +=
+      '\nHay un gasto que el usuario escribió hace un momento y TODAVÍA NO CONFIRMÓ (se lo ' +
+      'mostré con botones, está esperando que apriete uno):\n' +
+      `${JSON.stringify(prevFields)}\n\n` +
+      'El mensaje nuevo puede ser (a) una corrección o aclaración de ESE MISMO gasto — cambia ' +
+      'el monto, la moneda, la categoría, el nombre, la descripción, o pide sacar/agregar algo ' +
+      '(ej "no, eran 25000", "no era de mel", "va en super", "sacale el nombre", "en dólares") ' +
+      '— o (b) la descripción de un gasto totalmente distinto y nuevo, sin relación con el de ' +
+      'arriba. Si es (a): devolvé el gasto COMPLETO ya corregido, repitiendo tal cual los campos ' +
+      'que no cambiaron (incluido el "amount" si no lo corrigió), y poné "isCorrection": true. ' +
+      'Si es (b): interpretalo como un gasto nuevo de cero, ignorando el de arriba, y poné ' +
+      '"isCorrection": false.\n';
+  }
+
+  system += `\nHoy es ${today}.\nGRUPOS: ${JSON.stringify(grupos)}\nSUBCATEGORIAS: ${JSON.stringify(subs)}`;
 
   const r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -188,7 +218,9 @@ async function handleMessage(msg) {
           '· _gasté 15 mil en el super_\n' +
           '· _pagué 8000 de nafta_\n' +
           '· _120 dólares de una campera_\n\n' +
-          'Te muestro lo que entendí y confirmás con un botón. Si la categoría no existe, la creo.\n\n' +
+          'Te muestro lo que entendí y confirmás con un botón. Si la categoría no existe, la creo. ' +
+          'Si algo salió mal, antes de tocar un botón escribime la corrección ' +
+          '(ej: _"no era de mel"_, _"eran 25000"_, _"va en super"_) y lo actualizo en el mismo mensaje.\n\n' +
           'Escribí */resumen* cuando quieras para ver cómo venís.'
       );
     } else if (cmd === '/resumen') {
@@ -204,19 +236,43 @@ async function handleMessage(msg) {
     return;
   }
 
-  let parsed;
   try {
     const { data: state } = await getState();
     if (!state || !state.groups?.length) {
       return send('Abrí la app una vez (gastos-app-396i.onrender.com) para que se sincronicen tus categorías y después escribime el gasto.');
     }
-    parsed = await parseExpense(text, state);
+
+    // Si hay una confirmación pendiente, le pasamos ese contexto: el mensaje
+    // nuevo puede ser una corrección de ESE gasto ("no era de mel", "eran
+    // 25000") en vez de uno nuevo — parseExpense decide cuál es.
+    let pendingContext = null;
+    if (activePendingId) {
+      pendingContext = await getPending(activePendingId);
+      if (!pendingContext) activePendingId = null;
+    }
+
+    const parsed = await parseExpense(text, state, pendingContext);
     if (!parsed.confident || !parsed.amount) {
       return send('No pude sacar el monto o no entendí bien. Probá algo como "gasté 5000 en nafta".');
     }
+    const isCorrection = Boolean(pendingContext && parsed.isCorrection);
+    delete parsed.isCorrection;
+
+    if (isCorrection) {
+      const updated = { ...parsed, originalText: pendingContext.originalText, messageId: pendingContext.messageId };
+      await savePending(activePendingId, updated);
+      if (updated.messageId) {
+        await editText(updated.messageId, describePending(state, updated), confirmKeyboard(activePendingId));
+      } else {
+        await send(describePending(state, updated), confirmKeyboard(activePendingId));
+      }
+      return;
+    }
+
     const id = randomUUID().slice(0, 8);
-    await savePending(id, { ...parsed, originalText: text });
-    await send(describePending(state, parsed), confirmKeyboard(id));
+    const sent = await send(describePending(state, parsed), confirmKeyboard(id));
+    await savePending(id, { ...parsed, originalText: text, messageId: sent?.result?.message_id ?? null });
+    activePendingId = id;
   } catch (err) {
     console.error('Error procesando mensaje de Telegram:', err.message);
     await send('Uf, algo falló procesando eso. Probá de nuevo en un rato.');
@@ -232,6 +288,7 @@ async function handleCallback(cb) {
 
   const pending = await getPending(id);
   if (!pending) {
+    if (activePendingId === id) activePendingId = null;
     await ack('Esa confirmación ya no está disponible.');
     if (messageId) await editText(messageId, '⌛ Esta confirmación venció. Mandá el gasto de nuevo.');
     return;
@@ -241,6 +298,7 @@ async function handleCallback(cb) {
 
   if (action === 'cx') {
     await deletePending(id);
+    if (activePendingId === id) activePendingId = null;
     await ack('Cancelado');
     return editText(messageId, '❌ Cancelado.');
   }
@@ -249,6 +307,7 @@ async function handleCallback(cb) {
     try {
       const { groupId, subcategoryId } = await commitExpense(pending);
       await deletePending(id);
+      if (activePendingId === id) activePendingId = null;
       await ack('Guardado ✅');
       const g = groupName(state, groupId) || pending.newGroupName || 'sin categoría';
       const money = pending.currency === 'USD' ? `US$ ${fmt(pending.amount)}` : `$ ${fmt(pending.amount)}`;
@@ -303,6 +362,7 @@ async function handleCallback(cb) {
     try {
       const { groupId, subcategoryId, state: newState } = await commitExpense(pending);
       await deletePending(id);
+      if (activePendingId === id) activePendingId = null;
       await ack('Guardado ✅');
       const g = groupName(newState, groupId) || 'sin categoría';
       const money = pending.currency === 'USD' ? `US$ ${fmt(pending.amount)}` : `$ ${fmt(pending.amount)}`;
