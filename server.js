@@ -19,10 +19,26 @@ const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 const TELEGRAM_WEBHOOK_SECRET = process.env.TELEGRAM_WEBHOOK_SECRET;
 
+// ---- Clave de acceso: si está configurada, todo lo que lee o escribe datos
+// personales la exige por header. El celular la manda automático una vez que
+// la cargaste ahí (ver src/lib/storage.js); sin ACCESS_CODE seteada, queda
+// abierto (comportamiento de antes, útil para desarrollo local). No se le
+// exige al webhook de Telegram ni al keep-alive: esos ya tienen su propia
+// verificación (secret_token del bot / no exponen datos). ----
+
+const ACCESS_CODE = process.env.ACCESS_CODE;
+
+function checkAccess(req, res, next) {
+  if (!ACCESS_CODE || req.get('x-access-code') === ACCESS_CODE) return next();
+  res.status(401).json({ error: 'Clave incorrecta' });
+}
+
+app.get('/api/access-check', checkAccess, (req, res) => res.json({ ok: true }));
+
 // ---- Estado del usuario en Supabase (fuente de verdad; el navegador tiene
 // una copia en localStorage como caché offline) ----
 
-app.get('/api/state', async (req, res) => {
+app.get('/api/state', checkAccess, async (req, res) => {
   if (!supabaseConfigured) return res.status(503).json({ error: 'Base no configurada' });
   try {
     const { data, updatedAt } = await getState();
@@ -33,7 +49,7 @@ app.get('/api/state', async (req, res) => {
   }
 });
 
-app.put('/api/state', async (req, res) => {
+app.put('/api/state', checkAccess, async (req, res) => {
   if (!supabaseConfigured) return res.status(503).json({ error: 'Base no configurada' });
   const { state } = req.body || {};
   if (!state || !state.groups || !state.expenses || !state.incomes) {
@@ -83,7 +99,7 @@ app.post('/api/telegram/webhook', (req, res) => {
 
 // ---- Asistente con IA ----
 
-app.post('/api/ask', async (req, res) => {
+app.post('/api/ask', checkAccess, async (req, res) => {
   const { question, state } = req.body || {};
   if (!question || !state) {
     return res.status(400).json({ error: 'Falta la pregunta o los datos' });
@@ -104,7 +120,7 @@ app.post('/api/ask', async (req, res) => {
 
 // ---- Backup del estado como archivo .json al chat de Telegram ----
 
-app.post('/api/backup', async (req, res) => {
+app.post('/api/backup', checkAccess, async (req, res) => {
   const { state } = req.body || {};
   if (!state || !state.groups || !state.expenses || !state.incomes) {
     return res.status(400).json({ error: 'El estado no parece válido' });

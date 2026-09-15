@@ -27,11 +27,34 @@ export function exportStateAsJson(state) {
   return JSON.stringify(state, null, 2);
 }
 
+// --- Clave de acceso: el celular que la puso una vez queda andando solo
+// (se manda en cada pedido al servidor), cualquier otro que abra el link
+// sin la clave correcta no puede leer ni escribir el estado. ---
+
+const ACCESS_CODE_KEY = 'gastos_app_v1_access_code';
+
+export function getAccessCode() {
+  return localStorage.getItem(ACCESS_CODE_KEY) || '';
+}
+
+export function setAccessCode(code) {
+  localStorage.setItem(ACCESS_CODE_KEY, code);
+}
+
+export function clearAccessCode() {
+  localStorage.removeItem(ACCESS_CODE_KEY);
+}
+
+export function accessHeaders() {
+  const code = getAccessCode();
+  return code ? { 'x-access-code': code } : {};
+}
+
 // --- Sincronización con el servidor (Supabase es la fuente de verdad;
 // localStorage queda como caché para andar rápido y offline) ---
 
 export async function fetchServerState() {
-  const res = await fetch('/api/state');
+  const res = await fetch('/api/state', { headers: accessHeaders() });
   if (!res.ok) throw new Error(`GET /api/state ${res.status}`);
   return res.json(); // { data, updatedAt }
 }
@@ -39,7 +62,7 @@ export async function fetchServerState() {
 export async function pushServerState(state) {
   const res = await fetch('/api/state', {
     method: 'PUT',
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', ...accessHeaders() },
     body: JSON.stringify({ state }),
   });
   if (!res.ok) throw new Error(`PUT /api/state ${res.status}`);
@@ -73,7 +96,7 @@ export function setLastTelegramBackupAt(timestamp) {
 export async function sendTelegramBackup(state) {
   const res = await fetch('/api/backup', {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', ...accessHeaders() },
     body: JSON.stringify({ state }),
   });
   if (!res.ok) {

@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSpeechRecognition } from '../lib/speech';
+import { accessHeaders } from '../lib/storage';
 
 async function fetchAnswer(question, state) {
   const res = await fetch('/api/ask', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...accessHeaders() },
     body: JSON.stringify({ question, state }),
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
