@@ -11,9 +11,11 @@ export default function IncomeFormModal({ open, onClose, draft, state, actions, 
   const [currency, setCurrency] = useState(draft?.currency ?? 'ARS');
   const [description, setDescription] = useState(draft?.description ?? '');
   const [date, setDate] = useState(draft?.date ?? todayISO());
+  const [isLocalReimbursement, setIsLocalReimbursement] = useState(Boolean(draft?.groupId));
 
   const dolar = useDolar();
   const rate = usdRate(state?.config, dolar) || draft?.fxRate || null;
+  const localGroup = state?.groups?.find((g) => /^local$/i.test(g.name));
 
   const amountFinal = useMemo(() => {
     const n = parseFloat(amountRaw);
@@ -34,6 +36,7 @@ export default function IncomeFormModal({ open, onClose, draft, state, actions, 
       description: description.trim() || '(sin descripción)',
       date,
       inputMethod: 'formulario',
+      groupId: isLocalReimbursement && localGroup ? localGroup.id : null,
     };
 
     if (editingId) {
@@ -93,6 +96,17 @@ export default function IncomeFormModal({ open, onClose, draft, state, actions, 
             placeholder="ej: cobré el sueldo"
           />
         </div>
+
+        {localGroup && (
+          <label className="flex items-center gap-2 rounded-lg border border-hair px-3 py-2.5 text-sm text-ink">
+            <input
+              type="checkbox"
+              checked={isLocalReimbursement}
+              onChange={(e) => setIsLocalReimbursement(e.target.checked)}
+            />
+            Es un reembolso del local (se descuenta de lo gastado ahí)
+          </label>
+        )}
 
         <div>
           <label className="block text-xs font-medium text-ink-soft mb-1">Fecha</label>

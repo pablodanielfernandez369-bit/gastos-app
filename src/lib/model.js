@@ -9,17 +9,24 @@ import { v4 as uuid } from 'uuid';
 //   type (siempre 'variable' — el campo queda por compatibilidad),
 //   inputMethod ('texto'|'voz'|'formulario'|'telegram'), createdAt
 // }
-// Ingreso: { id, amount, description, date, inputMethod, createdAt }
+// Ingreso: {
+//   id, amount, description, date, inputMethod, createdAt,
+//   groupId — normalmente null (ingreso personal); si se marca como
+//   reembolso de Local, se le pone el id del grupo "Local" y se descuenta
+//   de lo gastado ahí (ver selectors.computeLocalBalance)
+// }
 
 export function defaultState() {
   const viviendaId = 'vivienda';
   const salidasId = 'salidas';
   const diaADiaId = 'diaadia';
+  const localId = 'local';
 
   const groups = [
     { id: viviendaId, name: 'Vivienda', color: '#1F5673' },
     { id: salidasId, name: 'Salidas/Ocio', color: '#6D4B8F' },
     { id: diaADiaId, name: 'Día a día', color: '#8A6D3F' },
+    { id: localId, name: 'Local', color: '#3F6E63' },
   ];
 
   const subcategories = [
@@ -110,6 +117,7 @@ export function newIncome(partial) {
     description: '',
     date: todayISO(),
     inputMethod: 'formulario',
+    groupId: null,
     createdAt: Date.now(),
     ...partial,
   };

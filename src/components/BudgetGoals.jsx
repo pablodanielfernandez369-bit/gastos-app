@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { computeMonthBudget, computeStreak } from '../lib/selectors';
+import { computeMonthBudget, computeStreak, computeLocalBalance } from '../lib/selectors';
 import { formatARS, formatDate, monthKey } from '../lib/format';
 import Modal from './Modal';
 
@@ -35,9 +35,11 @@ const STATUS = {
 export default function BudgetGoals({ state }) {
   const b = useMemo(() => computeMonthBudget(state), [state]);
   const streak = useMemo(() => computeStreak(state), [state]);
+  const local = useMemo(() => computeLocalBalance(state), [state]);
+  const hasLocalActivity = Boolean(local && (local.spent > 0 || local.reimbursed > 0));
   const [dismissed, setDismissed] = useState(getDismissedAlert);
 
-  if (!b.hasAnyGoal) {
+  if (!b.hasAnyGoal && !hasLocalActivity) {
     return (
       <div className="rounded-2xl border border-dashed border-hair bg-surface p-4 text-sm text-ink-soft">
         Definí tu <strong className="text-ink">meta de ahorro</strong>, tu{' '}
@@ -100,6 +102,8 @@ export default function BudgetGoals({ state }) {
 
       <DisponibleCard d={b.disponible} />
 
+      {hasLocalActivity && <LocalBalanceCard l={local} state={state} />}
+
       <div className="grid gap-3 sm:grid-cols-2">
         {b.savings && <SavingsCard s={b.savings} reliable={b.projReliable} />}
         {b.extras && <ExtrasCard e={b.extras} reliable={b.projReliable} streak={streak} state={state} />}
@@ -130,6 +134,69 @@ function DisponibleCard({ d }) {
         </p>
       )}
     </div>
+  );
+}
+
+function LocalBalanceCard({ l, state }) {
+  const owed = l.balance > 0;
+  const [open, setOpen] = useState(false);
+
+  const items = useMemo(() => {
+    if (!open) return [];
+    const gastos = state.expenses
+      .filter((e) => e.groupId === l.groupId)
+      .map((e) => ({ id: e.id, date: e.date, label: e.description || 'Gasto', amount: -e.amount }));
+    const reembolsos = state.incomes
+      .filter((i) => i.groupId === l.groupId)
+      .map((i) => ({ id: i.id, date: i.date, label: i.description || 'Reembolso', amount: i.amount }));
+    return [...gastos, ...reembolsos].sort((a, b) => (a.date < b.date ? 1 : -1));
+  }, [open, state, l.groupId]);
+
+  return (
+    <>
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={() => setOpen(true)}
+        onKeyDown={(ev) => (ev.key === 'Enter' || ev.key === ' ') && setOpen(true)}
+        className={`cursor-pointer rounded-2xl border p-4 text-left transition active:scale-[0.98] hover:border-ink-faint ${owed ? 'border-caution/40 bg-caution/5' : 'border-hair bg-surface'}`}
+      >
+        <p className="text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-ink-faint">
+          Local
+        </p>
+        <p className={`mt-1.5 font-display text-[1.9rem] font-medium leading-none num ${owed ? 'text-caution' : 'text-ok'}`}>
+          {formatARS(Math.abs(l.balance))}
+        </p>
+        <p className="mt-2 text-xs text-ink-soft num">
+          {owed ? 'te deben' : l.balance < 0 ? 'repusiste de más' : 'al día'} ·{' '}
+          {formatARS(l.spent)} gastado − {formatARS(l.reimbursed)} repuesto
+        </p>
+      </div>
+
+      <Modal open={open} onClose={() => setOpen(false)} title="Local">
+        <p className="mb-3 text-sm text-ink-soft num">
+          {formatARS(l.spent)} gastado − {formatARS(l.reimbursed)} repuesto ={' '}
+          <span className="font-semibold text-ink">{formatARS(l.balance)}</span>
+        </p>
+        {items.length === 0 ? (
+          <p className="py-4 text-center text-sm text-ink-faint">Sin movimientos.</p>
+        ) : (
+          <ul className="divide-y divide-hair">
+            {items.map((it) => (
+              <li key={it.id} className="flex items-start justify-between gap-3 py-2.5">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-ink">{it.label}</p>
+                  <p className="text-xs text-ink-faint">{formatDate(it.date)}</p>
+                </div>
+                <p className={`shrink-0 text-sm font-semibold num ${it.amount < 0 ? 'text-ink' : 'text-ok'}`}>
+                  {it.amount < 0 ? '−' : '+'}{formatARS(Math.abs(it.amount))}
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Modal>
+    </>
   );
 }
 

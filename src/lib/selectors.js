@@ -404,6 +404,24 @@ export function computeStreak(state, now = new Date()) {
   return { streak, dailyAllotment, todaySpent, onTrackToday: todaySpent <= dailyAllotment };
 }
 
+// Balance acumulado (no mensual) del grupo "Local": cuánto se gastó ahí
+// contra cuánto se repuso (ingresos marcados con groupId = Local). No se
+// reinicia cada mes — es plata adelantada por Pablo hasta que se la
+// devuelvan, no un presupuesto.
+export function computeLocalBalance(state) {
+  const local = state.groups.find((g) => /^local$/i.test(g.name));
+  if (!local) return null;
+
+  const spent = state.expenses
+    .filter((e) => e.groupId === local.id)
+    .reduce((sum, e) => sum + e.amount, 0);
+  const reimbursed = state.incomes
+    .filter((i) => i.groupId === local.id)
+    .reduce((sum, i) => sum + i.amount, 0);
+
+  return { groupId: local.id, spent, reimbursed, balance: spent - reimbursed };
+}
+
 // verde si va y proyecta bien; rojo si ya pasó el 90% o proyecta pasarse;
 // amarillo en el medio.
 function statusFor(pct, projectedPct) {

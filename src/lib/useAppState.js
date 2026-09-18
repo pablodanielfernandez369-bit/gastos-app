@@ -123,13 +123,12 @@ function migrateState(saved) {
     RECOLOR[g.color] ? { ...g, color: RECOLOR[g.color] } : g
   );
 
-  // El grupo "Local/Negocio" ya no se usa: se saca si no tiene gastos cargados
-  // (si tuviera, se deja para no perder historial).
-  const local = s.groups.find((g) => /local|negocio/i.test(g.name));
-  if (local && !s.expenses.some((e) => e.groupId === local.id)) {
-    s.groups = s.groups.filter((g) => g.id !== local.id);
-    s.subcategories = (s.subcategories || []).filter((sc) => sc.groupId !== local.id);
-    s.recurring = (s.recurring || []).filter((r) => r.groupId !== local.id);
+  // Grupo "Local": gastos del local de Pablo, separados de los personales.
+  // Un ingreso puede marcarse como reembolso de Local (groupId del ingreso
+  // = id de este grupo) para descontarlo de lo gastado — ver
+  // selectors.computeLocalBalance, que es acumulado, no mensual.
+  if (!s.groups.some((g) => /^local$/i.test(g.name))) {
+    s.groups = [...s.groups, { id: 'local', name: 'Local', color: '#3F6E63' }];
   }
 
   return s;
