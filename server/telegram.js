@@ -114,7 +114,11 @@ async function parseExpense(text, state, pendingContext = null) {
   });
   if (!r.ok) throw new Error(`Anthropic ${r.status}: ${await r.text()}`);
   const data = await r.json();
-  const raw = data.content?.[0]?.text?.trim() || '';
+  // Sonnet 5 a veces antepone un bloque "thinking" antes del de texto: no
+  // asumir que la respuesta está en content[0], buscar el primer bloque de
+  // texto real.
+  const textBlock = data.content?.find((b) => b.type === 'text');
+  const raw = textBlock?.text?.trim() || '';
   const json = raw.replace(/^```json\s*|\s*```$/g, '');
   return JSON.parse(json);
 }

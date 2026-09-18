@@ -3,6 +3,26 @@ import { computeMonthBudget, computeStreak } from '../lib/selectors';
 import { formatARS, formatDate, monthKey } from '../lib/format';
 import Modal from './Modal';
 
+// El cartel de alertas se puede cerrar y no vuelve a aparecer hasta que
+// cambie lo que dice (otro % de presupuesto, otra meta que se desvía, etc.):
+// se guarda la firma del texto ya visto, no un simple "visto sí/no".
+const ALERT_DISMISS_KEY = 'gastos_app_v1_dismissed_alert';
+function getDismissedAlert() {
+  try {
+    return localStorage.getItem(ALERT_DISMISS_KEY) || '';
+  } catch {
+    return '';
+  }
+}
+function setDismissedAlert(signature) {
+  try {
+    localStorage.setItem(ALERT_DISMISS_KEY, signature);
+  } catch {
+    // localStorage no disponible (privado/bloqueado): el cartel no persiste
+    // cerrado entre visitas, pero no rompe nada.
+  }
+}
+
 // Semáforo del presupuesto de extras del mes en curso + estado de la meta de
 // ahorro. Siempre usa el mes calendario actual, sin importar el filtro de
 // período del dashboard (las metas son mensuales).
@@ -15,6 +35,7 @@ const STATUS = {
 export default function BudgetGoals({ state }) {
   const b = useMemo(() => computeMonthBudget(state), [state]);
   const streak = useMemo(() => computeStreak(state), [state]);
+  const [dismissed, setDismissed] = useState(getDismissedAlert);
 
   if (!b.hasAnyGoal) {
     return (
@@ -54,11 +75,21 @@ export default function BudgetGoals({ state }) {
   }
 
   const anyRed = (b.extras && b.extras.status === 'rojo') || (b.vivienda && b.vivienda.status === 'rojo') || (b.coherence && !b.coherence.fits) || (b.savings && !b.savings.onTrack && b.projReliable && b.savings.projected < 0);
+  const alertSignature = alerts.join('|');
+  const showAlerts = alerts.length > 0 && alertSignature !== dismissed;
 
   return (
     <div className="space-y-3">
-      {alerts.length > 0 && (
-        <div className={`rounded-2xl border p-4 text-sm ${anyRed ? 'border-warn/40 bg-warn/5 text-warn' : 'border-caution/40 bg-caution/5 text-caution'}`}>
+      {showAlerts && (
+        <div className={`relative rounded-2xl border p-4 pr-10 text-sm ${anyRed ? 'border-warn/40 bg-warn/5 text-warn' : 'border-caution/40 bg-caution/5 text-caution'}`}>
+          <button
+            type="button"
+            aria-label="Cerrar aviso"
+            onClick={() => { setDismissedAlert(alertSignature); setDismissed(alertSignature); }}
+            className="absolute right-3 top-3 leading-none opacity-60 hover:opacity-100"
+          >
+            ✕
+          </button>
           <ul className="space-y-1.5">
             {alerts.map((a, i) => (
               <li key={i} className="num">{a}</li>

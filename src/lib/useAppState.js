@@ -9,7 +9,12 @@ function migrateState(saved) {
   if (!saved) return defaultState();
   const s = { ...saved };
 
-  s.config = { fxRate: null, savingsGoal: null, extrasBudget: null, extrasGroupId: null, ...s.config };
+  s.config = {
+    fxRate: null, savingsGoal: null,
+    extrasBudget: null, extrasGroupId: null,
+    viviendaBudget: null, viviendaGroupId: null,
+    ...s.config,
+  };
 
   // Asegura un grupo para gastos extras/salidas y lo deja como default del
   // presupuesto si todavía no hay uno elegido.
@@ -25,6 +30,18 @@ function migrateState(saved) {
   }
   if (!s.config.extrasGroupId || !s.groups.some((g) => g.id === s.config.extrasGroupId)) {
     s.config.extrasGroupId = extras.id;
+  }
+
+  // Mismo criterio para el grupo de vivienda: si el config no tiene un
+  // viviendaGroupId válido (cuentas creadas antes de que existiera este
+  // presupuesto), lo autodetecta por nombre.
+  let vivienda = s.groups?.find((g) => /vivienda/i.test(g.name));
+  if (!vivienda) {
+    vivienda = { id: 'vivienda', name: 'Vivienda', color: '#1F5673' };
+    s.groups = [...(s.groups || []), vivienda];
+  }
+  if (!s.config.viviendaGroupId || !s.groups.some((g) => g.id === s.config.viviendaGroupId)) {
+    s.config.viviendaGroupId = vivienda.id;
   }
 
   // Recolorea los grupos al rediseño "papel cálido" si todavía tienen los

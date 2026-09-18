@@ -237,7 +237,11 @@ async function askClaude(question, state) {
   }
 
   const data = await r.json();
-  return data.content?.[0]?.text?.trim() || 'No pude generar una respuesta.';
+  // Sonnet 5 a veces antepone un bloque "thinking" antes del de texto: no
+  // asumir que la respuesta está en content[0], buscar el primer bloque de
+  // texto real.
+  const textBlock = data.content?.find((b) => b.type === 'text');
+  return textBlock?.text?.trim() || 'No pude generar una respuesta.';
 }
 
 app.use(express.static(path.join(__dirname, 'dist')));
