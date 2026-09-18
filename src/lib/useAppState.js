@@ -87,6 +87,35 @@ function migrateState(saved) {
     s.config.diaADiaGroupId = diaADia.id;
   }
 
+  // "Otro" en Vivienda era en la práctica el cajón de sastre donde caía todo
+  // el gasto variable (súper, verdulería, psicólogo...) al no tener
+  // categoría propia. Si ese "Otro" tiene gastos cargados, es el histórico
+  // viejo: se muda a Día a día con todo su historial. Se detecta por tener
+  // gastos (no por existir nomás) para que sea idempotente — una vez mudado,
+  // Vivienda queda con un "Otro" nuevo y vacío que ya no vuelve a moverse.
+  const viviendaOtro = s.subcategories.find(
+    (sc) => sc.groupId === vivienda.id && /^otro$/i.test(sc.name)
+  );
+  if (viviendaOtro && s.expenses.some((e) => e.subcategoryId === viviendaOtro.id)) {
+    // Si Día a día ya tiene un "Otro" vacío (creado en una migración previa
+    // que solo movió Internet/Agua), lo sacamos para no duplicar: el "Otro"
+    // con historial pasa a ser el de acá.
+    const emptyDiaADiaOtro = s.subcategories.find(
+      (sc) => sc.groupId === diaADia.id && sc.id !== viviendaOtro.id && /^otro$/i.test(sc.name) &&
+        !s.expenses.some((e) => e.subcategoryId === sc.id)
+    );
+    if (emptyDiaADiaOtro) {
+      s.subcategories = s.subcategories.filter((sc) => sc.id !== emptyDiaADiaOtro.id);
+    }
+    s.subcategories = s.subcategories.map((sc) =>
+      sc.id === viviendaOtro.id ? { ...sc, groupId: diaADia.id } : sc
+    );
+    s.expenses = s.expenses.map((e) =>
+      e.subcategoryId === viviendaOtro.id ? { ...e, groupId: diaADia.id } : e
+    );
+    s.subcategories = [...s.subcategories, { id: uuid(), groupId: vivienda.id, name: 'Otro' }];
+  }
+
   // Recolorea los grupos al rediseño "papel cálido" si todavía tienen los
   // colores viejos (azul/violeta tailwind por defecto).
   const RECOLOR = { '#2563eb': '#1F5673', '#7c3aed': '#6D4B8F', '#d97706': '#B0491F' };
