@@ -197,8 +197,7 @@ async function askClaude(question, state) {
   };
 
   const system =
-    'Sos un asistente financiero personal argentino. Hablás en español rioplatense, ' +
-    'informal y directo, como si le contestaras a un amigo por WhatsApp. ' +
+    'Sos un asistente financiero personal argentino, en español rioplatense. ' +
     'Respondés preguntas sobre gastos e ingresos personales y del local del usuario usando ' +
     'EXCLUSIVAMENTE los datos JSON que te paso, no inventes nada que no esté ahí. ' +
     'Todos los montos están en pesos argentinos: nunca digas "dólares" ni pienses el símbolo $ como USD. ' +
@@ -212,8 +211,11 @@ async function askClaude(question, state) {
     'un rango de fechas específico, una subcategoría, o una combinación categoría+nombre a la vez ' +
     '(ej "peaje de Mel") — en esos casos filtrá los gastos vos y sumá con cuidado, revisando el total dos veces. ' +
     'Si piden comparar con el mes pasado, calculá el total de ese mes filtrando por fecha. ' +
-    'Respondé corto, 1 a 3 oraciones, con el monto final bien claro y formateado (ej: $15.000). ' +
-    'No repitas la pregunta ni expliques cómo la calculaste salvo que te lo pidan.\n\n' +
+    'Respondé directo al dato, sin preámbulo ni charla: nada de "dale", saludos, comentarios ' +
+    'de color ni relleno conversacional. Solo el monto/dato pedido, bien claro y formateado ' +
+    '(ej: $15.000), en la menor cantidad de palabras posible — una frase corta alcanza, o ' +
+    'directamente el número solo si la pregunta es simple. No repitas la pregunta ni expliques ' +
+    'cómo lo calculaste salvo que te lo pidan.\n\n' +
     `DATOS:\n${JSON.stringify(compact)}`;
 
   const r = await fetch('https://api.anthropic.com/v1/messages', {
