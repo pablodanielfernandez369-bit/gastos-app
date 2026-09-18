@@ -42,7 +42,7 @@ export default function BudgetGoals({ state }) {
       <div className="rounded-2xl border border-dashed border-hair bg-surface p-4 text-sm text-ink-soft">
         Definí tu <strong className="text-ink">meta de ahorro</strong>, tu{' '}
         <strong className="text-ink">presupuesto de salidas</strong> o tu{' '}
-        <strong className="text-ink">presupuesto de vivienda</strong> del mes en Ajustes&nbsp;⚙️
+        <strong className="text-ink">presupuesto de día a día</strong> del mes en Ajustes&nbsp;⚙️
         para ver acá cómo venís.
       </div>
     );
@@ -58,14 +58,14 @@ export default function BudgetGoals({ state }) {
   } else if (b.extras && b.extras.status === 'amarillo') {
     alerts.push(`Ojo con las salidas: llevás ${toPct(b.extras.pct)} del presupuesto y quedan ${b.extras.daysLeft} días.`);
   }
-  if (b.vivienda && b.vivienda.status === 'rojo') {
+  if (b.diaADia && b.diaADia.status === 'rojo') {
     alerts.push(
-      b.vivienda.spent >= b.vivienda.budget
-        ? `Te pasaste del presupuesto de vivienda: ${formatARS(b.vivienda.spent)} de ${formatARS(b.vivienda.budget)}.`
-        : `Si seguís a este ritmo terminás el mes en ${formatARS(b.vivienda.projected)} de vivienda (${toPct(b.vivienda.projectedPct)} del presupuesto).`
+      b.diaADia.spent >= b.diaADia.budget
+        ? `Te pasaste del presupuesto de día a día: ${formatARS(b.diaADia.spent)} de ${formatARS(b.diaADia.budget)}.`
+        : `Si seguís a este ritmo terminás el mes en ${formatARS(b.diaADia.projected)} de día a día (${toPct(b.diaADia.projectedPct)} del presupuesto).`
     );
-  } else if (b.vivienda && b.vivienda.status === 'amarillo') {
-    alerts.push(`Ojo con vivienda: llevás ${toPct(b.vivienda.pct)} del presupuesto y quedan ${b.vivienda.daysLeft} días.`);
+  } else if (b.diaADia && b.diaADia.status === 'amarillo') {
+    alerts.push(`Ojo con el día a día: llevás ${toPct(b.diaADia.pct)} del presupuesto y quedan ${b.diaADia.daysLeft} días.`);
   }
   if (b.savings && !b.savings.onTrack) {
     alerts.push(`A este ritmo vas a ahorrar ${formatARS(Math.max(0, b.savings.projected))}, por debajo de tu meta de ${formatARS(b.savings.goal)}.`);
@@ -74,7 +74,7 @@ export default function BudgetGoals({ state }) {
     alerts.push(`Lo gastado este mes + tu meta de ahorro + el presupuesto de salidas suman ${formatARS(b.coherence.gap)} más que tu ingreso. Bajá la meta o el presupuesto.`);
   }
 
-  const anyRed = (b.extras && b.extras.status === 'rojo') || (b.vivienda && b.vivienda.status === 'rojo') || (b.coherence && !b.coherence.fits) || (b.savings && !b.savings.onTrack && b.projReliable && b.savings.projected < 0);
+  const anyRed = (b.extras && b.extras.status === 'rojo') || (b.diaADia && b.diaADia.status === 'rojo') || (b.coherence && !b.coherence.fits) || (b.savings && !b.savings.onTrack && b.projReliable && b.savings.projected < 0);
   const alertSignature = alerts.join('|');
   const showAlerts = alerts.length > 0 && alertSignature !== dismissed;
 
@@ -103,7 +103,7 @@ export default function BudgetGoals({ state }) {
       <div className="grid gap-3 sm:grid-cols-2">
         {b.savings && <SavingsCard s={b.savings} reliable={b.projReliable} />}
         {b.extras && <ExtrasCard e={b.extras} reliable={b.projReliable} streak={streak} state={state} />}
-        {b.vivienda && <ViviendaCard v={b.vivienda} reliable={b.projReliable} state={state} />}
+        {b.diaADia && <DiaADiaCard d={b.diaADia} reliable={b.projReliable} state={state} />}
       </div>
     </div>
   );
@@ -248,22 +248,22 @@ function ExtrasCard({ e, reliable, streak, state }) {
   );
 }
 
-function ViviendaCard({ v, reliable, state }) {
-  const st = STATUS[v.status];
+function DiaADiaCard({ d, reliable, state }) {
+  const st = STATUS[d.status];
   const [open, setOpen] = useState(false);
 
   const items = useMemo(() => {
     if (!open) return [];
     const currKey = monthKey(new Date().toISOString());
-    const viviendaGroupId = state.config?.viviendaGroupId;
+    const diaADiaGroupId = state.config?.diaADiaGroupId;
     return state.expenses
-      .filter((ex) => monthKey(ex.date) === currKey && ex.groupId === viviendaGroupId)
+      .filter((ex) => monthKey(ex.date) === currKey && ex.groupId === diaADiaGroupId)
       .slice()
       .sort((a, b) => (a.date < b.date ? 1 : -1))
       .map((ex) => ({
         id: ex.id,
         date: ex.date,
-        label: ex.description || state.subcategories.find((s) => s.id === ex.subcategoryId)?.name || 'Vivienda',
+        label: ex.description || state.subcategories.find((s) => s.id === ex.subcategoryId)?.name || 'Día a día',
         sub: ex.description ? state.subcategories.find((s) => s.id === ex.subcategoryId)?.name : null,
         amount: ex.amount,
       }));
@@ -279,33 +279,33 @@ function ViviendaCard({ v, reliable, state }) {
         className={`cursor-pointer rounded-2xl border p-4 text-left transition active:scale-[0.98] hover:border-ink-faint ${st.box}`}
       >
         <div className="flex items-baseline justify-between">
-          <p className="font-display text-[0.95rem] font-medium text-ink">Vivienda</p>
-          <p className={`text-sm font-semibold num ${st.text}`}>{toPct(v.pct)}</p>
+          <p className="font-display text-[0.95rem] font-medium text-ink">Día a día</p>
+          <p className={`text-sm font-semibold num ${st.text}`}>{toPct(d.pct)}</p>
         </div>
         <p className="mt-1.5 font-display text-[1.6rem] font-medium leading-none text-ink num">
-          {formatARS(v.spent)}{' '}
-          <span className="text-sm font-normal text-ink-faint">de {formatARS(v.budget)}</span>
+          {formatARS(d.spent)}{' '}
+          <span className="text-sm font-normal text-ink-faint">de {formatARS(d.budget)}</span>
         </p>
         <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-surface-2">
-          <div className={`h-full rounded-full ${st.bar}`} style={{ width: `${clampPct(v.pct)}%` }} />
+          <div className={`h-full rounded-full ${st.bar}`} style={{ width: `${clampPct(d.pct)}%` }} />
         </div>
         <p className="mt-2.5 text-xs text-ink-soft num">
-          {v.remaining >= 0 ? (
-            <>Te quedan <strong className="text-ink">{formatARS(v.remaining)}</strong> este mes</>
+          {d.remaining >= 0 ? (
+            <>Te quedan <strong className="text-ink">{formatARS(d.remaining)}</strong> este mes</>
           ) : (
-            <>Te pasaste <strong className="text-warn">{formatARS(-v.remaining)}</strong></>
+            <>Te pasaste <strong className="text-warn">{formatARS(-d.remaining)}</strong></>
           )}
         </p>
         {reliable && (
           <p className="mt-1 text-xs text-ink-soft num">
-            A este ritmo terminás en <strong className={st.text}>{formatARS(v.projected)}</strong> ({toPct(v.projectedPct)})
+            A este ritmo terminás en <strong className={st.text}>{formatARS(d.projected)}</strong> ({toPct(d.projectedPct)})
           </p>
         )}
       </div>
 
-      <Modal open={open} onClose={() => setOpen(false)} title="Vivienda">
+      <Modal open={open} onClose={() => setOpen(false)} title="Día a día">
         <p className="mb-3 text-sm text-ink-soft num">
-          Total del mes: <span className="font-semibold text-ink">{formatARS(v.spent)}</span>
+          Total del mes: <span className="font-semibold text-ink">{formatARS(d.spent)}</span>
         </p>
         {items.length === 0 ? (
           <p className="py-4 text-center text-sm text-ink-faint">Sin movimientos este mes.</p>

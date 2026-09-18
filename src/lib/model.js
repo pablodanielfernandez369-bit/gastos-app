@@ -14,19 +14,21 @@ import { v4 as uuid } from 'uuid';
 export function defaultState() {
   const viviendaId = 'vivienda';
   const salidasId = 'salidas';
+  const diaADiaId = 'diaadia';
 
   const groups = [
     { id: viviendaId, name: 'Vivienda', color: '#1F5673' },
     { id: salidasId, name: 'Salidas/Ocio', color: '#6D4B8F' },
+    { id: diaADiaId, name: 'Día a día', color: '#8A6D3F' },
   ];
 
   const subcategories = [
+    // Vivienda: solo lo fijo/inevitable, sin presupuesto (no tiene sentido
+    // ponerle un tope a algo que no podés bajar mes a mes).
     { id: uuid(), groupId: viviendaId, name: 'Alquiler' },
     { id: uuid(), groupId: viviendaId, name: 'Expensas' },
     { id: uuid(), groupId: viviendaId, name: 'Luz' },
     { id: uuid(), groupId: viviendaId, name: 'Gas' },
-    { id: uuid(), groupId: viviendaId, name: 'Internet' },
-    { id: uuid(), groupId: viviendaId, name: 'Agua' },
     { id: uuid(), groupId: viviendaId, name: 'Otro' },
 
     { id: uuid(), groupId: salidasId, name: 'Comidas afuera' },
@@ -35,6 +37,16 @@ export function defaultState() {
     { id: uuid(), groupId: salidasId, name: 'Entretenimiento' },
     { id: uuid(), groupId: salidasId, name: 'Regalos' },
     { id: uuid(), groupId: salidasId, name: 'Otro' },
+
+    // Día a día: gasto variable que no es salida/ocio (necesario pero no
+    // fijo) — acá va el presupuesto que antes estaba en Vivienda.
+    { id: uuid(), groupId: diaADiaId, name: 'Internet' },
+    { id: uuid(), groupId: diaADiaId, name: 'Agua' },
+    { id: uuid(), groupId: diaADiaId, name: 'Súper' },
+    { id: uuid(), groupId: diaADiaId, name: 'Verdulería' },
+    { id: uuid(), groupId: diaADiaId, name: 'Ferretería' },
+    { id: uuid(), groupId: diaADiaId, name: 'Psicólogo' },
+    { id: uuid(), groupId: diaADiaId, name: 'Otro' },
   ];
 
   return {
@@ -50,8 +62,8 @@ export function defaultState() {
       savingsGoal: null, // meta de ahorro mensual en ARS
       extrasBudget: null, // presupuesto mensual para gastos extras/salidas en ARS
       extrasGroupId: salidasId, // qué grupo cuenta como "extras" para el presupuesto
-      viviendaBudget: null, // presupuesto mensual para gastos de vivienda en ARS
-      viviendaGroupId: viviendaId, // qué grupo cuenta como "vivienda" para el presupuesto
+      diaADiaBudget: null, // presupuesto mensual para gastos variables del día a día en ARS
+      diaADiaGroupId: diaADiaId, // qué grupo cuenta como "día a día" para el presupuesto
     },
   };
 }

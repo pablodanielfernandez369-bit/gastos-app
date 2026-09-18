@@ -38,14 +38,14 @@ export default function ExpenseFormModal({ open, onClose, draft, state, actions,
   }, [amountRaw, currency, rate]);
 
   // Aviso no bloqueante: si este gasto va en una categoría con presupuesto
-  // (extras o vivienda) y con él el mes se pasa del presupuesto, se lo
+  // (extras o día a día) y con él el mes se pasa del presupuesto, se lo
   // mostramos antes de guardar.
   const budgetWarning = useMemo(() => {
     const cfg = state.config || {};
     if (!groupId || amountFinal <= 0) return null;
     const budget =
       groupId === cfg.extrasGroupId ? cfg.extrasBudget :
-      groupId === cfg.viviendaGroupId ? cfg.viviendaBudget :
+      groupId === cfg.diaADiaGroupId ? cfg.diaADiaBudget :
       null;
     if (!budget) return null;
     const mk = (date || todayISO()).slice(0, 7);

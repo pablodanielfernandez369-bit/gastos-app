@@ -285,30 +285,27 @@ export function computeMonthBudget(state, now = new Date()) {
     };
   }
 
-  // --- Presupuesto de vivienda ---
-  // A diferencia de extras, vivienda no se extrapola día a día (son cuotas
-  // fijas cargadas de a poco durante el mes, no gasto discrecional diario):
-  // igual reusamos la misma proyección lineal como referencia de "a este
-  // ritmo", pero lo que más importa acá es spent/budget/remaining.
-  const viviendaGroupId = cfg.viviendaGroupId || null;
-  const viviendaSpent = monthExpenses
-    .filter((e) => e.groupId === viviendaGroupId)
+  // --- Presupuesto de "Día a día" (gasto variable que no es Vivienda ni
+  // Salidas/Ocio: súper, verdulería, ferretería, psicólogo, etc) ---
+  const diaADiaGroupId = cfg.diaADiaGroupId || null;
+  const diaADiaSpent = monthExpenses
+    .filter((e) => e.groupId === diaADiaGroupId)
     .reduce((sum, e) => sum + e.amount, 0);
-  const viviendaBudget = cfg.viviendaBudget || null;
-  let vivienda = null;
-  if (viviendaBudget) {
-    const remaining = viviendaBudget - viviendaSpent;
-    const projected = project(viviendaSpent);
-    vivienda = {
-      budget: viviendaBudget,
-      spent: viviendaSpent,
+  const diaADiaBudget = cfg.diaADiaBudget || null;
+  let diaADia = null;
+  if (diaADiaBudget) {
+    const remaining = diaADiaBudget - diaADiaSpent;
+    const projected = project(diaADiaSpent);
+    diaADia = {
+      budget: diaADiaBudget,
+      spent: diaADiaSpent,
       remaining,
-      pct: viviendaSpent / viviendaBudget,
+      pct: diaADiaSpent / diaADiaBudget,
       projected,
-      projectedPct: projected / viviendaBudget,
+      projectedPct: projected / diaADiaBudget,
       perDayLeft: daysLeft > 0 ? Math.max(0, remaining) / daysLeft : Math.max(0, remaining),
       daysLeft,
-      status: statusFor(viviendaSpent / viviendaBudget, projReliable ? projected / viviendaBudget : 0),
+      status: statusFor(diaADiaSpent / diaADiaBudget, projReliable ? projected / diaADiaBudget : 0),
     };
   }
 
@@ -366,11 +363,11 @@ export function computeMonthBudget(state, now = new Date()) {
     incomeTotal,
     expenseTotal,
     extras,
-    vivienda,
+    diaADia,
     savings,
     coherence,
     disponible,
-    hasAnyGoal: Boolean(extrasBudget || savingsGoal || viviendaBudget),
+    hasAnyGoal: Boolean(extrasBudget || savingsGoal || diaADiaBudget),
   };
 }
 

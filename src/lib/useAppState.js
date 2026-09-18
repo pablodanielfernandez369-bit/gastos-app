@@ -12,7 +12,7 @@ function migrateState(saved) {
   s.config = {
     fxRate: null, savingsGoal: null,
     extrasBudget: null, extrasGroupId: null,
-    viviendaBudget: null, viviendaGroupId: null,
+    diaADiaBudget: null, diaADiaGroupId: null,
     ...s.config,
   };
 
@@ -32,16 +32,59 @@ function migrateState(saved) {
     s.config.extrasGroupId = extras.id;
   }
 
-  // Mismo criterio para el grupo de vivienda: si el config no tiene un
-  // viviendaGroupId válido (cuentas creadas antes de que existiera este
-  // presupuesto), lo autodetecta por nombre.
+  // Asegura que el grupo "Vivienda" siga existiendo.
   let vivienda = s.groups?.find((g) => /vivienda/i.test(g.name));
   if (!vivienda) {
     vivienda = { id: 'vivienda', name: 'Vivienda', color: '#1F5673' };
     s.groups = [...(s.groups || []), vivienda];
   }
-  if (!s.config.viviendaGroupId || !s.groups.some((g) => g.id === s.config.viviendaGroupId)) {
-    s.config.viviendaGroupId = vivienda.id;
+
+  // Grupo "Día a día": gasto variable (súper, verdulería, ferretería,
+  // psicólogo, etc), separado de Vivienda (fijo/inevitable, sin presupuesto)
+  // y de Salidas/Ocio (discrecional). La primera vez que se crea, se mudan
+  // ahí las subcategorías "Internet"/"Agua" que antes vivían en Vivienda
+  // —junto con los gastos ya cargados que las usaban, para reclasificarlos
+  // también— y el presupuesto que estaba puesto en Vivienda pasa a ser el
+  // de esta categoría nueva.
+  let diaADia = s.groups?.find((g) => /d[ií]a a d[ií]a/i.test(g.name));
+  if (!diaADia) {
+    diaADia = { id: 'diaadia', name: 'Día a día', color: '#8A6D3F' };
+    s.groups = [...s.groups, diaADia];
+
+    const movedNames = /^(internet|agua)$/i;
+    const movedSubIds = new Set(
+      (s.subcategories || [])
+        .filter((sc) => sc.groupId === vivienda.id && movedNames.test(sc.name))
+        .map((sc) => sc.id)
+    );
+    if (movedSubIds.size > 0) {
+      s.subcategories = s.subcategories.map((sc) =>
+        movedSubIds.has(sc.id) ? { ...sc, groupId: diaADia.id } : sc
+      );
+      s.expenses = (s.expenses || []).map((e) =>
+        movedSubIds.has(e.subcategoryId) ? { ...e, groupId: diaADia.id } : e
+      );
+    }
+
+    const newSubNames = ['Súper', 'Verdulería', 'Ferretería', 'Psicólogo', 'Otro'];
+    const already = new Set(
+      (s.subcategories || []).filter((sc) => sc.groupId === diaADia.id).map((sc) => sc.name)
+    );
+    s.subcategories = [
+      ...s.subcategories,
+      ...newSubNames
+        .filter((name) => !already.has(name))
+        .map((name) => ({ id: uuid(), groupId: diaADia.id, name })),
+    ];
+
+    if (s.config.viviendaBudget && !s.config.diaADiaBudget) {
+      s.config.diaADiaBudget = s.config.viviendaBudget;
+    }
+  }
+  delete s.config.viviendaBudget;
+  delete s.config.viviendaGroupId;
+  if (!s.config.diaADiaGroupId || !s.groups.some((g) => g.id === s.config.diaADiaGroupId)) {
+    s.config.diaADiaGroupId = diaADia.id;
   }
 
   // Recolorea los grupos al rediseño "papel cálido" si todavía tienen los
@@ -214,11 +257,11 @@ export function useAppState() {
     setExtrasGroupId(groupId) {
       setState((s) => ({ ...s, config: { ...s.config, extrasGroupId: groupId } }));
     },
-    setViviendaBudget(amount) {
-      setState((s) => ({ ...s, config: { ...s.config, viviendaBudget: amount } }));
+    setDiaADiaBudget(amount) {
+      setState((s) => ({ ...s, config: { ...s.config, diaADiaBudget: amount } }));
     },
-    setViviendaGroupId(groupId) {
-      setState((s) => ({ ...s, config: { ...s.config, viviendaGroupId: groupId } }));
+    setDiaADiaGroupId(groupId) {
+      setState((s) => ({ ...s, config: { ...s.config, diaADiaGroupId: groupId } }));
     },
 
     addRecurring(recurring) {
