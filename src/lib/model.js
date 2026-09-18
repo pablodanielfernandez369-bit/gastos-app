@@ -50,6 +50,8 @@ export function defaultState() {
       savingsGoal: null, // meta de ahorro mensual en ARS
       extrasBudget: null, // presupuesto mensual para gastos extras/salidas en ARS
       extrasGroupId: salidasId, // qué grupo cuenta como "extras" para el presupuesto
+      viviendaBudget: null, // presupuesto mensual para gastos de vivienda en ARS
+      viviendaGroupId: viviendaId, // qué grupo cuenta como "vivienda" para el presupuesto
     },
   };
 }

@@ -390,12 +390,19 @@ export async function sendResumen() {
   const extrasId = state.config?.extrasGroupId;
   const extras = gastos.filter((e) => e.groupId === extrasId).reduce((s, e) => s + e.amount, 0);
   const budget = state.config?.extrasBudget;
+  const viviendaId = state.config?.viviendaGroupId;
+  const vivienda = gastos.filter((e) => e.groupId === viviendaId).reduce((s, e) => s + e.amount, 0);
+  const viviendaBudget = state.config?.viviendaBudget;
   const goal = state.config?.savingsGoal;
 
   let txt = `📊 *Resumen del mes*\n\nIngresos: $ ${fmt(totIngreso)}\nGastos: $ ${fmt(totGasto)}\nAhorro: $ ${fmt(totIngreso - totGasto)}`;
   if (budget) {
     const pct = Math.round((extras / budget) * 100);
     txt += `\n\nSalidas: $ ${fmt(extras)} de $ ${fmt(budget)} (${pct}%)`;
+  }
+  if (viviendaBudget) {
+    const pct = Math.round((vivienda / viviendaBudget) * 100);
+    txt += `\nVivienda: $ ${fmt(vivienda)} de $ ${fmt(viviendaBudget)} (${pct}%)`;
   }
   if (goal) {
     txt += `\nMeta de ahorro: $ ${fmt(goal)} — vas $ ${fmt(totIngreso - totGasto)}`;

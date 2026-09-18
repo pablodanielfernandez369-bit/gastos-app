@@ -42,6 +42,31 @@ export default function GoalsManager({ state, actions }) {
         </p>
       </div>
 
+      <MoneyField
+        label="Presupuesto de vivienda"
+        value={cfg.viviendaBudget}
+        onChange={actions.setViviendaBudget}
+        placeholder="400000"
+      />
+
+      <div>
+        <label className="mb-1 block text-xs font-medium text-ink-soft">
+          Qué categoría cuenta como “vivienda”
+        </label>
+        <select
+          className="w-full rounded-lg border border-hair px-3 py-2"
+          value={cfg.viviendaGroupId ?? ''}
+          onChange={(e) => actions.setViviendaGroupId(e.target.value || null)}
+        >
+          {state.groups.map((g) => (
+            <option key={g.id} value={g.id}>{g.name}</option>
+          ))}
+        </select>
+        <p className="mt-1 text-xs text-ink-faint">
+          Destiná un capital fijo para alquiler, expensas y servicios, y avisamos si te pasás.
+        </p>
+      </div>
+
       <div>
         <label className="mb-1 block text-xs font-medium text-ink-soft">
           Cotización del dólar (para ver tus ahorros en USD)

@@ -197,6 +197,12 @@ export function useAppState() {
     setExtrasGroupId(groupId) {
       setState((s) => ({ ...s, config: { ...s.config, extrasGroupId: groupId } }));
     },
+    setViviendaBudget(amount) {
+      setState((s) => ({ ...s, config: { ...s.config, viviendaBudget: amount } }));
+    },
+    setViviendaGroupId(groupId) {
+      setState((s) => ({ ...s, config: { ...s.config, viviendaGroupId: groupId } }));
+    },
 
     addRecurring(recurring) {
       setState((s) => ({ ...s, recurring: [...s.recurring, recurring] }));

@@ -37,19 +37,25 @@ export default function ExpenseFormModal({ open, onClose, draft, state, actions,
     return n;
   }, [amountRaw, currency, rate]);
 
-  // Aviso no bloqueante: si este gasto va en la categoría de "extras" y con él
-  // el mes se pasa del presupuesto, se lo mostramos antes de guardar.
-  const extrasWarning = useMemo(() => {
+  // Aviso no bloqueante: si este gasto va en una categoría con presupuesto
+  // (extras o vivienda) y con él el mes se pasa del presupuesto, se lo
+  // mostramos antes de guardar.
+  const budgetWarning = useMemo(() => {
     const cfg = state.config || {};
-    if (!cfg.extrasBudget || !groupId || groupId !== cfg.extrasGroupId || amountFinal <= 0) return null;
+    if (!groupId || amountFinal <= 0) return null;
+    const budget =
+      groupId === cfg.extrasGroupId ? cfg.extrasBudget :
+      groupId === cfg.viviendaGroupId ? cfg.viviendaBudget :
+      null;
+    if (!budget) return null;
     const mk = (date || todayISO()).slice(0, 7);
     const spent = state.expenses
-      .filter((e) => e.id !== editingId && e.groupId === cfg.extrasGroupId && e.date.slice(0, 7) === mk)
+      .filter((e) => e.id !== editingId && e.groupId === groupId && e.date.slice(0, 7) === mk)
       .reduce((sum, e) => sum + e.amount, 0);
     const after = spent + amountFinal;
-    if (after <= cfg.extrasBudget) return null;
-    return { after, budget: cfg.extrasBudget };
-  }, [state.expenses, state.config, groupId, date, amountFinal, editingId]);
+    if (after <= budget) return null;
+    return { after, budget, groupName: groups.find((g) => g.id === groupId)?.name || 'esta categoría' };
+  }, [state.expenses, state.config, groupId, date, amountFinal, editingId, groups]);
 
   function handleAddSubcategory() {
     if (!newSubName.trim() || !groupId) return;
@@ -157,10 +163,10 @@ export default function ExpenseFormModal({ open, onClose, draft, state, actions,
           {missingCategory && (
             <p className="mt-1 text-sm text-warn">No pude identificar la categoría, elegí una ↑</p>
           )}
-          {extrasWarning && (
+          {budgetWarning && (
             <p className="mt-2 rounded-lg border border-warn/25 bg-warn/5 px-3 py-2 text-sm text-warn num">
-              Con este gasto el mes queda en {formatPreviewARS(extrasWarning.after)} de salidas,
-              arriba de tu presupuesto de {formatPreviewARS(extrasWarning.budget)}.
+              Con este gasto el mes queda en {formatPreviewARS(budgetWarning.after)} de {budgetWarning.groupName},
+              arriba de tu presupuesto de {formatPreviewARS(budgetWarning.budget)}.
             </p>
           )}
         </div>

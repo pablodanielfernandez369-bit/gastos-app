@@ -19,8 +19,9 @@ export default function BudgetGoals({ state }) {
   if (!b.hasAnyGoal) {
     return (
       <div className="rounded-2xl border border-dashed border-hair bg-surface p-4 text-sm text-ink-soft">
-        Definí tu <strong className="text-ink">meta de ahorro</strong> y tu{' '}
-        <strong className="text-ink">presupuesto de salidas</strong> del mes en Ajustes&nbsp;⚙️
+        Definí tu <strong className="text-ink">meta de ahorro</strong>, tu{' '}
+        <strong className="text-ink">presupuesto de salidas</strong> o tu{' '}
+        <strong className="text-ink">presupuesto de vivienda</strong> del mes en Ajustes&nbsp;⚙️
         para ver acá cómo venís.
       </div>
     );
@@ -36,6 +37,15 @@ export default function BudgetGoals({ state }) {
   } else if (b.extras && b.extras.status === 'amarillo') {
     alerts.push(`Ojo con las salidas: llevás ${toPct(b.extras.pct)} del presupuesto y quedan ${b.extras.daysLeft} días.`);
   }
+  if (b.vivienda && b.vivienda.status === 'rojo') {
+    alerts.push(
+      b.vivienda.spent >= b.vivienda.budget
+        ? `Te pasaste del presupuesto de vivienda: ${formatARS(b.vivienda.spent)} de ${formatARS(b.vivienda.budget)}.`
+        : `Si seguís a este ritmo terminás el mes en ${formatARS(b.vivienda.projected)} de vivienda (${toPct(b.vivienda.projectedPct)} del presupuesto).`
+    );
+  } else if (b.vivienda && b.vivienda.status === 'amarillo') {
+    alerts.push(`Ojo con vivienda: llevás ${toPct(b.vivienda.pct)} del presupuesto y quedan ${b.vivienda.daysLeft} días.`);
+  }
   if (b.savings && !b.savings.onTrack) {
     alerts.push(`A este ritmo vas a ahorrar ${formatARS(Math.max(0, b.savings.projected))}, por debajo de tu meta de ${formatARS(b.savings.goal)}.`);
   }
@@ -43,7 +53,7 @@ export default function BudgetGoals({ state }) {
     alerts.push(`Lo gastado este mes + tu meta de ahorro + el presupuesto de salidas suman ${formatARS(b.coherence.gap)} más que tu ingreso. Bajá la meta o el presupuesto.`);
   }
 
-  const anyRed = (b.extras && b.extras.status === 'rojo') || (b.coherence && !b.coherence.fits) || (b.savings && !b.savings.onTrack && b.projReliable && b.savings.projected < 0);
+  const anyRed = (b.extras && b.extras.status === 'rojo') || (b.vivienda && b.vivienda.status === 'rojo') || (b.coherence && !b.coherence.fits) || (b.savings && !b.savings.onTrack && b.projReliable && b.savings.projected < 0);
 
   return (
     <div className="space-y-3">
@@ -62,6 +72,7 @@ export default function BudgetGoals({ state }) {
       <div className="grid gap-3 sm:grid-cols-2">
         {b.savings && <SavingsCard s={b.savings} reliable={b.projReliable} />}
         {b.extras && <ExtrasCard e={b.extras} reliable={b.projReliable} streak={streak} state={state} />}
+        {b.vivienda && <ViviendaCard v={b.vivienda} reliable={b.projReliable} state={state} />}
       </div>
     </div>
   );
@@ -182,6 +193,88 @@ function ExtrasCard({ e, reliable, streak, state }) {
       <Modal open={open} onClose={() => setOpen(false)} title="Salidas / gastos extras">
         <p className="mb-3 text-sm text-ink-soft num">
           Total del mes: <span className="font-semibold text-ink">{formatARS(e.spent)}</span>
+        </p>
+        {items.length === 0 ? (
+          <p className="py-4 text-center text-sm text-ink-faint">Sin movimientos este mes.</p>
+        ) : (
+          <ul className="divide-y divide-hair">
+            {items.map((it) => (
+              <li key={it.id} className="flex items-start justify-between gap-3 py-2.5">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-ink">{it.label}</p>
+                  <p className="text-xs text-ink-faint">
+                    {formatDate(it.date)}
+                    {it.sub ? ` · ${it.sub}` : ''}
+                  </p>
+                </div>
+                <p className="shrink-0 text-sm font-semibold text-ink num">{formatARS(it.amount)}</p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Modal>
+    </>
+  );
+}
+
+function ViviendaCard({ v, reliable, state }) {
+  const st = STATUS[v.status];
+  const [open, setOpen] = useState(false);
+
+  const items = useMemo(() => {
+    if (!open) return [];
+    const currKey = monthKey(new Date().toISOString());
+    const viviendaGroupId = state.config?.viviendaGroupId;
+    return state.expenses
+      .filter((ex) => monthKey(ex.date) === currKey && ex.groupId === viviendaGroupId)
+      .slice()
+      .sort((a, b) => (a.date < b.date ? 1 : -1))
+      .map((ex) => ({
+        id: ex.id,
+        date: ex.date,
+        label: ex.description || state.subcategories.find((s) => s.id === ex.subcategoryId)?.name || 'Vivienda',
+        sub: ex.description ? state.subcategories.find((s) => s.id === ex.subcategoryId)?.name : null,
+        amount: ex.amount,
+      }));
+  }, [open, state]);
+
+  return (
+    <>
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={() => setOpen(true)}
+        onKeyDown={(ev) => (ev.key === 'Enter' || ev.key === ' ') && setOpen(true)}
+        className={`cursor-pointer rounded-2xl border p-4 text-left transition active:scale-[0.98] hover:border-ink-faint ${st.box}`}
+      >
+        <div className="flex items-baseline justify-between">
+          <p className="font-display text-[0.95rem] font-medium text-ink">Vivienda</p>
+          <p className={`text-sm font-semibold num ${st.text}`}>{toPct(v.pct)}</p>
+        </div>
+        <p className="mt-1.5 font-display text-[1.6rem] font-medium leading-none text-ink num">
+          {formatARS(v.spent)}{' '}
+          <span className="text-sm font-normal text-ink-faint">de {formatARS(v.budget)}</span>
+        </p>
+        <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-surface-2">
+          <div className={`h-full rounded-full ${st.bar}`} style={{ width: `${clampPct(v.pct)}%` }} />
+        </div>
+        <p className="mt-2.5 text-xs text-ink-soft num">
+          {v.remaining >= 0 ? (
+            <>Te quedan <strong className="text-ink">{formatARS(v.remaining)}</strong> este mes</>
+          ) : (
+            <>Te pasaste <strong className="text-warn">{formatARS(-v.remaining)}</strong></>
+          )}
+        </p>
+        {reliable && (
+          <p className="mt-1 text-xs text-ink-soft num">
+            A este ritmo terminás en <strong className={st.text}>{formatARS(v.projected)}</strong> ({toPct(v.projectedPct)})
+          </p>
+        )}
+      </div>
+
+      <Modal open={open} onClose={() => setOpen(false)} title="Vivienda">
+        <p className="mb-3 text-sm text-ink-soft num">
+          Total del mes: <span className="font-semibold text-ink">{formatARS(v.spent)}</span>
         </p>
         {items.length === 0 ? (
           <p className="py-4 text-center text-sm text-ink-faint">Sin movimientos este mes.</p>
