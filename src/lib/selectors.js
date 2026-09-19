@@ -7,6 +7,29 @@ function nativeAmount(item) {
   return item.currency === 'USD' ? item.amountOriginal || 0 : item.amount;
 }
 
+// Un ingreso con groupId es un reembolso (ej. "me repusieron plata del
+// local"): no es plata nueva, es plata propia que volvió. Se lo saca de los
+// ingresos y se lo resta del gasto de ese grupo como un gasto negativo.
+// computeLocalBalance mira el estado crudo (acumulado), no éste.
+export function netReimbursements(state) {
+  if (!state.incomes.some((i) => i.groupId)) return state;
+  const refunds = state.incomes.filter((i) => i.groupId);
+  return {
+    ...state,
+    incomes: state.incomes.filter((i) => !i.groupId),
+    expenses: [
+      ...state.expenses,
+      ...refunds.map((i) => ({
+        ...i,
+        description: i.description || 'Reposición',
+        amount: -i.amount,
+        amountOriginal: i.amountOriginal != null ? -i.amountOriginal : i.amountOriginal,
+        subcategoryId: null,
+      })),
+    ],
+  };
+}
+
 export function expensesInRange(state, from, to) {
   return state.expenses.filter((e) => isInRange(e.date, from, to));
 }
@@ -40,7 +63,8 @@ export function expenseTotalsByCurrency(expenses) {
   return { ars, usd };
 }
 
-export function computeTotals(state, from, to) {
+export function computeTotals(rawState, from, to) {
+  const state = netReimbursements(rawState);
   const expenses = expensesInRange(state, from, to);
   const incomes = incomesInRange(state, from, to);
 
@@ -99,7 +123,8 @@ export function computeTotals(state, from, to) {
 // Serie mensual (últimos `months` meses con datos, o desde el primer
 // movimiento) para el gráfico de evolución ingresos/gastos/ahorro, separada
 // en pesos y en dólares (sin convertir uno al otro).
-export function computeMonthlySeries(state, months = 12) {
+export function computeMonthlySeries(rawState, months = 12) {
+  const state = netReimbursements(rawState);
   const keys = new Set();
   for (const e of state.expenses) keys.add(monthKey(e.date));
   for (const i of state.incomes) keys.add(monthKey(i.date));
@@ -199,7 +224,8 @@ function monthKeyOf(date) {
 // Ingresos/gastos totales y por grupo del mes calendario actual vs el
 // anterior, para el "vs mes pasado" de las tarjetas del dashboard. Devuelve
 // null en cada bucket sin base del mes anterior (no hay % contra cero).
-export function monthOverMonthTotals(state) {
+export function monthOverMonthTotals(rawState) {
+  const state = netReimbursements(rawState);
   const now = new Date();
   const currKey = monthKeyOf(now);
   const prevKey = monthKeyOf(new Date(now.getFullYear(), now.getMonth() - 1, 1));
@@ -234,7 +260,8 @@ export function monthOverMonthTotals(state) {
 // Estado de las metas del mes calendario en curso: cuánto se lleva gastado en
 // "extras" vs el presupuesto, proyección a fin de mes según el ritmo actual,
 // cuánto queda por día, y cómo viene la meta de ahorro.
-export function computeMonthBudget(state, now = new Date()) {
+export function computeMonthBudget(rawState, now = new Date()) {
+  const state = netReimbursements(rawState);
   const cfg = state.config || {};
   const currKey = monthKeyOf(now);
   const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();

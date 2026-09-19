@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import PeriodFilter from './PeriodFilter';
-import { computeTotals, expensesInRange, incomesInRange, monthOverMonthTotals } from '../lib/selectors';
+import { netReimbursements, computeTotals, expensesInRange, incomesInRange, monthOverMonthTotals } from '../lib/selectors';
 import { formatARS, formatDate, rangeForPeriod } from '../lib/format';
 import { todayISO } from '../lib/model';
 import { useDolar } from '../lib/useDolar';
@@ -24,10 +24,12 @@ export default function Dashboard({ state, actions }) {
   const allTime = useMemo(() => computeTotals(state, null, null), [state]);
   const mom = useMemo(() => monthOverMonthTotals(state), [state]);
 
+  const netted = useMemo(() => netReimbursements(state), [state]);
+
   const detailItems = useMemo(() => {
     if (!detail) return [];
     if (detail.kind === 'income') {
-      return incomesInRange(state, from, to)
+      return incomesInRange(netted, from, to)
         .slice()
         .sort((a, b) => (a.date < b.date ? 1 : -1))
         .map((i) => ({
@@ -38,7 +40,7 @@ export default function Dashboard({ state, actions }) {
           currency: i.currency,
         }));
     }
-    return expensesInRange(state, from, to)
+    return expensesInRange(netted, from, to)
       .filter((e) => !detail.groupId || e.groupId === detail.groupId)
       .slice()
       .sort((a, b) => (a.date < b.date ? 1 : -1))
@@ -55,7 +57,7 @@ export default function Dashboard({ state, actions }) {
           currency: e.currency,
         };
       });
-  }, [detail, state, from, to]);
+  }, [detail, state, netted, from, to]);
 
   // Los montos quedan por moneda, nunca se suman ARS con USD entre sí.
   const detailTotals = detailItems.reduce(
@@ -160,7 +162,7 @@ export default function Dashboard({ state, actions }) {
               const reimbursed = incomesInRange(state, from, to)
                 .filter((i) => i.groupId === g.id && i.currency !== 'USD')
                 .reduce((sum, i) => sum + i.amount, 0);
-              const groupArs = (totals.expenseByGroup[g.id]?.ars || 0) - reimbursed;
+              const groupArs = totals.expenseByGroup[g.id]?.ars || 0;
               return (
               <button
                 type="button"
