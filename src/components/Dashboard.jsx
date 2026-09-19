@@ -155,7 +155,13 @@ export default function Dashboard({ state, actions }) {
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            {state.groups.map((g) => (
+            {state.groups.map((g) => {
+              // Reembolsos (ingresos marcados con este grupo, ej. Local) descuentan lo gastado.
+              const reimbursed = incomesInRange(state, from, to)
+                .filter((i) => i.groupId === g.id && i.currency !== 'USD')
+                .reduce((sum, i) => sum + i.amount, 0);
+              const groupArs = (totals.expenseByGroup[g.id]?.ars || 0) - reimbursed;
+              return (
               <button
                 type="button"
                 key={g.id}
@@ -166,8 +172,11 @@ export default function Dashboard({ state, actions }) {
                   {g.name}
                 </p>
                 <p className="mt-1 text-lg font-semibold text-ink num">
-                  {formatARS(totals.expenseByGroup[g.id]?.ars || 0)}
+                  {formatARS(groupArs)}
                 </p>
+                {reimbursed > 0 && (
+                  <p className="text-xs text-ink-faint num">repuesto {formatARS(reimbursed)}</p>
+                )}
                 {totals.expenseByGroup[g.id]?.usd > 0 && (
                   <p className="text-sm font-medium text-ink-soft num">
                     {formatUsd(totals.expenseByGroup[g.id].usd)}
@@ -175,7 +184,8 @@ export default function Dashboard({ state, actions }) {
                 )}
                 <DeltaTag delta={mom.byGroup[g.id]} goodDirection="down" />
               </button>
-            ))}
+              );
+            })}
           </div>
 
           {(totals.expenseByGroup._sinCategoria?.ars > 0 || totals.expenseByGroup._sinCategoria?.usd > 0) && (
