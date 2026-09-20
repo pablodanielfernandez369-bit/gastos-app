@@ -107,6 +107,7 @@ export default function Dashboard({ state, actions }) {
                 'Cargá tus ingresos para ver el %'
               )}
             </p>
+            <SwapNote swaps={totals.swaps} savingsArs={totals.savingsByCurrency.ars} className="mt-1" />
             {hasUsdActivity(totals) && (
               <p className="mt-1 font-display text-xl font-medium text-ink num">
                 {formatUsd(totals.savingsByCurrency.usd)}{' '}
@@ -122,6 +123,7 @@ export default function Dashboard({ state, actions }) {
             <p className="mt-1 font-display text-2xl font-medium text-ink num">
               {formatARS(allTime.savingsByCurrency.ars)}
             </p>
+            <SwapNote swaps={allTime.swaps} savingsArs={allTime.savingsByCurrency.ars} className="mt-1" />
             {hasUsdActivity(allTime) && (
               <p className="mt-1 text-sm text-ink-soft num">{formatUsd(allTime.savingsByCurrency.usd)}</p>
             )}
@@ -286,5 +288,17 @@ function DolarStrip({ dolar, manual }) {
         {manual && <span className="ml-2 text-xs text-ink-faint">fijado</span>}
       </span>
     </a>
+  );
+}
+
+// De todo el ahorro en pesos, cuánto está puesto en dólares (al valor de compra)
+// y cuánto sigue líquido en pesos.
+function SwapNote({ swaps, savingsArs, className = '' }) {
+  if (!swaps || swaps.ars <= 0) return null;
+  return (
+    <p className={`text-sm text-ink-soft num ${className}`}>
+      Incluye {formatARS(swaps.ars)} en US$ {new Intl.NumberFormat('es-AR', { maximumFractionDigits: 2 }).format(swaps.usd)} comprados
+      {' · '}líquido en pesos {formatARS(savingsArs - swaps.ars)}
+    </p>
   );
 }

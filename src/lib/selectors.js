@@ -63,8 +63,9 @@ export function expenseTotalsByCurrency(expenses) {
   return { ars, usd };
 }
 
-// Compras de USD hechas con pesos: descuentan del ahorro en pesos y suman al
-// ahorro en dólares. No tocan ingresos ni gastos.
+// Compras de USD hechas con pesos. Siguen contando como ahorro en pesos (al
+// valor con que se compraron); solo se informa cuánto de ese ahorro está en
+// dólares y cuánto quedó líquido en pesos. No tocan ingresos ni gastos.
 export function exchangesInRange(state, from, to) {
   return (state.exchanges || []).filter((x) => isInRange(x.date, from, to));
 }
@@ -87,8 +88,8 @@ export function computeTotals(rawState, from, to) {
   const expenseTotal = expenses.reduce((sum, e) => sum + e.amount, 0);
   const expenseByCurrency = expenseTotalsByCurrency(expenses);
   const savingsByCurrency = {
-    ars: incomeByCurrency.ars - expenseByCurrency.ars - swaps.ars,
-    usd: incomeByCurrency.usd - expenseByCurrency.usd + swaps.usd,
+    ars: incomeByCurrency.ars - expenseByCurrency.ars,
+    usd: incomeByCurrency.usd - expenseByCurrency.usd,
   };
 
   // Por grupo, también separado por moneda: un gasto en USD no le suma
@@ -125,6 +126,7 @@ export function computeTotals(rawState, from, to) {
     expenseTotal,
     expenseByCurrency,
     savingsByCurrency,
+    swaps,
     expenseByGroup,
     expenseBySubcategory,
     savings,
@@ -156,16 +158,15 @@ export function computeMonthlySeries(rawState, months = 12) {
     const incomeUsd = sumNative(monthIncomes, 'USD');
     const expenseArs = sumNative(monthExpenses, 'ARS');
     const expenseUsd = sumNative(monthExpenses, 'USD');
-    const swaps = exchangeTotals((state.exchanges || []).filter((x) => monthKey(x.date) === key));
     return {
       month: key,
       label: formatMonthLabel(key + '-01'),
       Ingresos: incomeArs,
       Gastos: expenseArs,
-      Ahorro: incomeArs - expenseArs - swaps.ars,
+      Ahorro: incomeArs - expenseArs,
       IngresosUSD: incomeUsd,
       GastosUSD: expenseUsd,
-      AhorroUSD: incomeUsd - expenseUsd + swaps.usd,
+      AhorroUSD: incomeUsd - expenseUsd,
     };
   });
 }
