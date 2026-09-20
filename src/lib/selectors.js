@@ -63,8 +63,22 @@ export function expenseTotalsByCurrency(expenses) {
   return { ars, usd };
 }
 
+// Compras de USD hechas con pesos: descuentan del ahorro en pesos y suman al
+// ahorro en dólares. No tocan ingresos ni gastos.
+export function exchangesInRange(state, from, to) {
+  return (state.exchanges || []).filter((x) => isInRange(x.date, from, to));
+}
+
+export function exchangeTotals(exchanges) {
+  return exchanges.reduce(
+    (acc, x) => ({ ars: acc.ars + (x.ars || 0), usd: acc.usd + (x.usd || 0) }),
+    { ars: 0, usd: 0 }
+  );
+}
+
 export function computeTotals(rawState, from, to) {
   const state = netReimbursements(rawState);
+  const swaps = exchangeTotals(exchangesInRange(state, from, to));
   const expenses = expensesInRange(state, from, to);
   const incomes = incomesInRange(state, from, to);
 
@@ -73,8 +87,8 @@ export function computeTotals(rawState, from, to) {
   const expenseTotal = expenses.reduce((sum, e) => sum + e.amount, 0);
   const expenseByCurrency = expenseTotalsByCurrency(expenses);
   const savingsByCurrency = {
-    ars: incomeByCurrency.ars - expenseByCurrency.ars,
-    usd: incomeByCurrency.usd - expenseByCurrency.usd,
+    ars: incomeByCurrency.ars - expenseByCurrency.ars - swaps.ars,
+    usd: incomeByCurrency.usd - expenseByCurrency.usd + swaps.usd,
   };
 
   // Por grupo, también separado por moneda: un gasto en USD no le suma
@@ -128,6 +142,7 @@ export function computeMonthlySeries(rawState, months = 12) {
   const keys = new Set();
   for (const e of state.expenses) keys.add(monthKey(e.date));
   for (const i of state.incomes) keys.add(monthKey(i.date));
+  for (const x of state.exchanges || []) keys.add(monthKey(x.date));
 
   const sortedKeys = [...keys].sort().slice(-months);
 
@@ -141,15 +156,16 @@ export function computeMonthlySeries(rawState, months = 12) {
     const incomeUsd = sumNative(monthIncomes, 'USD');
     const expenseArs = sumNative(monthExpenses, 'ARS');
     const expenseUsd = sumNative(monthExpenses, 'USD');
+    const swaps = exchangeTotals((state.exchanges || []).filter((x) => monthKey(x.date) === key));
     return {
       month: key,
       label: formatMonthLabel(key + '-01'),
       Ingresos: incomeArs,
       Gastos: expenseArs,
-      Ahorro: incomeArs - expenseArs,
+      Ahorro: incomeArs - expenseArs - swaps.ars,
       IngresosUSD: incomeUsd,
       GastosUSD: expenseUsd,
-      AhorroUSD: incomeUsd - expenseUsd,
+      AhorroUSD: incomeUsd - expenseUsd + swaps.usd,
     };
   });
 }

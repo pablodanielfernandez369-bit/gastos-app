@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import PeriodFilter from './PeriodFilter';
 import ExpenseFormModal from './ExpenseFormModal';
 import IncomeFormModal from './IncomeFormModal';
+import ExchangeFormModal from './ExchangeFormModal';
 import { formatARS, formatDate, rangeForPeriod, isInRange } from '../lib/format';
 import { exportMovementsCsv } from '../lib/csv';
 import { todayISO } from '../lib/model';
@@ -45,6 +46,13 @@ export default function MovimientosTable({ state, actions }) {
           nativeAmount: i.currency === 'USD' ? i.amountOriginal : i.amount,
         });
       }
+      // Una compra de USD aparece en las dos listas: sale en pesos, entra en dólares.
+      for (const x of state.exchanges || []) {
+        if (!isInRange(x.date, from, to)) continue;
+        const description = `Compra US$ ${x.usd} a ${formatARS(x.rate)}${x.description ? ' · ' + x.description : ''}`;
+        list.push({ kind: 'cambio', id: x.id, date: x.date, description, currency: 'ARS', nativeAmount: x.ars });
+        list.push({ kind: 'cambio', id: x.id, date: x.date, description, currency: 'USD', nativeAmount: x.usd });
+      }
     }
     const q = search.trim().toLowerCase();
     const min = parseFloat(minAmount);
@@ -86,6 +94,7 @@ export default function MovimientosTable({ state, actions }) {
     const label = m.currency === 'USD' ? formatUsd(m.nativeAmount) : formatARS(m.nativeAmount);
     if (!confirm(`¿Borrar "${m.description}" (${label})?`)) return;
     if (m.kind === 'gasto') actions.deleteExpense(m.id);
+    else if (m.kind === 'cambio') actions.deleteExchange(m.id);
     else actions.deleteIncome(m.id);
   }
 
@@ -190,6 +199,15 @@ export default function MovimientosTable({ state, actions }) {
           actions={actions}
         />
       )}
+      {editing?.kind === 'cambio' && (
+        <ExchangeFormModal
+          open
+          onClose={() => setEditing(null)}
+          editingId={editing.id}
+          draft={(state.exchanges || []).find((x) => x.id === editing.id)}
+          actions={actions}
+        />
+      )}
       {editing?.kind === 'ingreso' && (
         <IncomeFormModal
           open
@@ -227,11 +245,13 @@ function MovementsList({ movements, sort, toggleSort, groupName, subName, format
         </thead>
         <tbody>
           {movements.map((m) => (
-            <tr key={m.kind + m.id} className="border-b border-hair last:border-0">
+            <tr key={m.kind + m.id + m.currency} className="border-b border-hair last:border-0">
               <td className="whitespace-nowrap px-3 py-2 text-ink-soft">{formatDate(m.date)}</td>
               <td className="px-3 py-2 text-ink">
                 {m.kind === 'ingreso' ? (
                   <span className="text-ok">Ingreso</span>
+                ) : m.kind === 'cambio' ? (
+                  <span className="text-ink-soft">Compra USD</span>
                 ) : (
                   <>
                     {groupName(m.groupId) || <span className="text-warn">Sin categorizar</span>}
@@ -247,8 +267,8 @@ function MovementsList({ movements, sort, toggleSort, groupName, subName, format
                   </span>
                 )}
               </td>
-              <td className={`whitespace-nowrap px-3 py-2 text-right font-medium num ${m.kind === 'ingreso' ? 'text-ok' : 'text-ink'}`}>
-                {m.kind === 'ingreso' ? '+' : '-'}{formatAmount(m.nativeAmount)}
+              <td className={`whitespace-nowrap px-3 py-2 text-right font-medium num ${isPlus(m) ? 'text-ok' : 'text-ink'}`}>
+                {isPlus(m) ? '+' : '-'}{formatAmount(m.nativeAmount)}
               </td>
               <td className="whitespace-nowrap px-3 py-2 text-right text-ink-faint">
                 <button onClick={() => onEdit({ kind: m.kind, id: m.id })} className="px-1">✏️</button>
@@ -263,6 +283,11 @@ function MovementsList({ movements, sort, toggleSort, groupName, subName, format
       </table>
     </div>
   );
+}
+
+// Ingresos y la pata en dólares de una compra de USD suman; el resto resta.
+function isPlus(m) {
+  return m.kind === 'ingreso' || (m.kind === 'cambio' && m.currency === 'USD');
 }
 
 function toExpenseDraft(e) {

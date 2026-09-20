@@ -24,6 +24,10 @@ export function exportMovementsCsv(state) {
     rows.push(['ingreso', i.date, i.amount, '', '', '', i.description, i.inputMethod]);
   }
 
+  for (const x of state.exchanges || []) {
+    rows.push(['compra_usd', x.date, x.ars, '', '', '', `US$ ${x.usd} a ${x.rate}${x.description ? ' ' + x.description : ''}`, 'formulario']);
+  }
+
   const csv = rows.map((r) => r.map(csvEscape).join(';')).join('\n');
   downloadFile(`movimientos_${new Date().toISOString().slice(0, 10)}.csv`, csv, 'text/csv;charset=utf-8');
 }

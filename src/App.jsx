@@ -12,6 +12,7 @@ import {
 import { todayISO } from './lib/model';
 import ExpenseFormModal from './components/ExpenseFormModal';
 import IncomeFormModal from './components/IncomeFormModal';
+import ExchangeFormModal from './components/ExchangeFormModal';
 import Dashboard from './components/Dashboard';
 import MovimientosTable from './components/MovimientosTable';
 import Reportes from './components/Reportes';
@@ -33,6 +34,7 @@ export default function App() {
 
   const [showExpenseForm, setShowExpenseForm] = useState(false);
   const [showIncomeForm, setShowIncomeForm] = useState(false);
+  const [showExchangeForm, setShowExchangeForm] = useState(false);
 
   // Backup automático silencioso: si pasó más de un día desde el último,
   // lo descarga solo a Descargas al abrir la app (no depende de un horario
@@ -107,6 +109,13 @@ export default function App() {
           >
             + Nuevo ingreso
           </button>
+          <button
+            onClick={() => setShowExchangeForm(true)}
+            aria-label="Compré dólares"
+            className="shrink-0 rounded-2xl border border-hair bg-surface px-4 py-3.5 text-[0.95rem] font-semibold tracking-tight text-ink"
+          >
+            US$
+          </button>
         </div>
       )}
 
@@ -135,6 +144,10 @@ export default function App() {
           state={state}
           actions={actions}
         />
+      )}
+
+      {showExchangeForm && (
+        <ExchangeFormModal open onClose={() => setShowExchangeForm(false)} draft={null} actions={actions} />
       )}
 
       {showIncomeForm && (

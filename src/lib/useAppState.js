@@ -8,6 +8,7 @@ import { defaultState } from './model';
 function migrateState(saved) {
   if (!saved) return defaultState();
   const s = { ...saved };
+  s.exchanges = Array.isArray(s.exchanges) ? s.exchanges : [];
 
   s.config = {
     fxRate: null, savingsGoal: null,
@@ -236,6 +237,19 @@ export function useAppState() {
     },
     deleteIncome(id) {
       setState((s) => ({ ...s, incomes: s.incomes.filter((i) => i.id !== id) }));
+    },
+
+    addExchange(exchange) {
+      setState((s) => ({ ...s, exchanges: [...(s.exchanges || []), exchange] }));
+    },
+    updateExchange(id, patch) {
+      setState((s) => ({
+        ...s,
+        exchanges: (s.exchanges || []).map((x) => (x.id === id ? { ...x, ...patch } : x)),
+      }));
+    },
+    deleteExchange(id) {
+      setState((s) => ({ ...s, exchanges: (s.exchanges || []).filter((x) => x.id !== id) }));
     },
 
     addGroup(name) {

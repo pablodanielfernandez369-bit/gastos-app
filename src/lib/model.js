@@ -62,6 +62,7 @@ export function defaultState() {
     subcategories,
     expenses: [],
     incomes: [],
+    exchanges: [], // compras de USD con pesos: { id, date, usd, rate, ars, description }
     recurring: [], // gastos fijos recurrentes: { id, groupId, subcategoryId, description, amount, dayOfMonth }
     config: {
       fxRate: null, // última cotización USD->ARS usada al cargar un gasto en USD
@@ -103,6 +104,21 @@ export function newRecurring(partial) {
     description: '',
     amount: 0,
     dayOfMonth: 10,
+    ...partial,
+  };
+}
+
+// Compra de dólares con pesos ahorrados: no es ingreso ni gasto, solo pasa
+// plata del pool de pesos al de dólares. `ars` es lo que salió en pesos.
+export function newExchange(partial) {
+  return {
+    id: uuid(),
+    date: todayISO(),
+    usd: 0,
+    rate: 0,
+    ars: 0,
+    description: '',
+    createdAt: Date.now(),
     ...partial,
   };
 }
