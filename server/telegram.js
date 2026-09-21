@@ -98,29 +98,44 @@ async function parseExpense(text, state, pendingContext = null) {
 
   system += `\nHoy es ${today}.\nGRUPOS: ${JSON.stringify(grupos)}\nSUBCATEGORIAS: ${JSON.stringify(subs)}`;
 
-  const r = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'x-api-key': ANTHROPIC_API_KEY,
-      'anthropic-version': '2023-06-01',
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      max_tokens: 300,
-      system,
-      messages: [{ role: 'user', content: text }],
-    }),
-  });
-  if (!r.ok) throw new Error(`Anthropic ${r.status}: ${await r.text()}`);
-  const data = await r.json();
-  // Sonnet 5 a veces antepone un bloque "thinking" antes del de texto: no
-  // asumir que la respuesta está en content[0], buscar el primer bloque de
-  // texto real.
-  const textBlock = data.content?.find((b) => b.type === 'text');
-  const raw = textBlock?.text?.trim() || '';
-  const json = raw.replace(/^```json\s*|\s*```$/g, '');
-  return JSON.parse(json);
+  // Sonnet 5 puede "pensar" antes de responder y ese razonamiento cuenta para
+  // max_tokens: con un tope chico (300) un mensaje ambiguo (ej "ayuda a papás")
+  // se quedaba sin lugar para el JSON y volvía vacío. Tope holgado + 1 reintento.
+  let lastErr;
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const r = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'x-api-key': ANTHROPIC_API_KEY,
+          'anthropic-version': '2023-06-01',
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: MODEL,
+          max_tokens: 2000,
+          system,
+          messages: [{ role: 'user', content: text }],
+        }),
+      });
+      if (!r.ok) throw new Error(`Anthropic ${r.status}: ${await r.text()}`);
+      const data = await r.json();
+      // No asumir que la respuesta está en content[0] (puede venir un bloque
+      // "thinking" antes): buscar el bloque de texto real.
+      const raw = data.content?.find((b) => b.type === 'text')?.text?.trim() || '';
+      // Tomar el primer objeto JSON aunque venga con texto o ``` alrededor.
+      const start = raw.indexOf('{');
+      const end = raw.lastIndexOf('}');
+      if (start === -1 || end <= start) {
+        throw new Error(`Sin JSON en la respuesta (stop_reason=${data.stop_reason}, bloques=${(data.content || []).map((b) => b.type).join(',')}): ${raw.slice(0, 200)}`);
+      }
+      return JSON.parse(raw.slice(start, end + 1));
+    } catch (err) {
+      lastErr = err;
+      console.error(`parseExpense intento ${attempt} falló:`, err.message);
+    }
+  }
+  throw lastErr;
 }
 
 // --- Helpers de presentación ---

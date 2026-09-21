@@ -227,7 +227,7 @@ async function askClaude(question, state) {
     },
     body: JSON.stringify({
       model: MODEL,
-      max_tokens: 400,
+      max_tokens: 2000,
       system,
       messages: [{ role: 'user', content: question }],
     }),
