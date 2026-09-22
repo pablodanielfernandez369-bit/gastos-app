@@ -95,7 +95,7 @@ export default function Dashboard({ state, actions }) {
             <p className="text-[0.7rem] font-semibold uppercase tracking-[0.13em] text-ink-faint">
               Capacidad de ahorro
             </p>
-            <p className="mt-2 font-display text-[2.7rem] font-medium leading-none tracking-tight text-ink num">
+            <p className="mt-2 font-numeral text-[2.7rem] font-medium leading-none tracking-tight text-ink num">
               {formatARS(totals.savingsByCurrency.ars)}
             </p>
             <p className="mt-2.5 text-sm text-ink-soft num">
@@ -109,7 +109,7 @@ export default function Dashboard({ state, actions }) {
             </p>
             <SwapNote swaps={totals.swaps} savingsArs={totals.savingsByCurrency.ars} className="mt-1" />
             {hasUsdActivity(totals) && (
-              <p className="mt-1 font-display text-xl font-medium text-ink num">
+              <p className="mt-1 font-numeral text-xl font-medium text-ink num">
                 {formatUsd(totals.savingsByCurrency.usd)}{' '}
                 <span className="text-sm font-normal text-ink-faint">de ahorro en dólares</span>
               </p>
@@ -120,7 +120,7 @@ export default function Dashboard({ state, actions }) {
             <p className="text-[0.7rem] font-semibold uppercase tracking-[0.1em] text-ink-faint">
               Ahorro acumulado
             </p>
-            <p className="mt-1 font-display text-2xl font-medium text-ink num">
+            <p className="mt-1 font-numeral text-2xl font-medium text-ink num">
               {formatARS(allTime.savingsByCurrency.ars)}
             </p>
             <SwapNote swaps={allTime.swaps} savingsArs={allTime.savingsByCurrency.ars} className="mt-1" />
@@ -245,7 +245,7 @@ function DolarStrip({ dolar, manual }) {
         Dólar blue hoy
       </span>
       <span className="text-right">
-        <span className="font-display text-lg font-medium text-ink num">${formatNum(value)}</span>
+        <span className="font-numeral text-lg font-medium text-ink num">${formatNum(value)}</span>
         {!manual && dolar?.compra && dolar?.venta && (
           <span className="ml-2 text-xs text-ink-faint num">
             {formatNum(dolar.compra)} / {formatNum(dolar.venta)}

@@ -22,6 +22,10 @@ export default {
       fontFamily: {
         display: ['Playfair Display', 'Georgia', 'serif'],
         sans: ['Manrope', 'system-ui', 'Segoe UI', 'Roboto', 'sans-serif'],
+        // Solo para los montos/números (Capacidad de ahorro, billeteras,
+        // Movimientos, Reportes...). Los títulos y el chip de categoría
+        // siguen en font-display (Playfair Display).
+        numeral: ['Crimson Pro', 'Georgia', 'serif'],
       },
     },
   },

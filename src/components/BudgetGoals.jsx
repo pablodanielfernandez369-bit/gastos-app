@@ -87,7 +87,7 @@ function ViviendaCard({ v, state }) {
     <>
       <WalletTile color={color} letter="V" onClick={() => setOpen(true)}>
         <p className="font-display text-[0.95rem] font-medium text-ink">Vivienda</p>
-        <p className="mt-1.5 font-display text-[1.6rem] font-medium leading-none text-ink num">
+        <p className="mt-1.5 font-numeral text-[1.6rem] font-medium leading-none text-ink num">
           {formatARS(v.spent)}
         </p>
         <p className="mt-2.5 text-xs text-ink-soft">Gastado este mes · sin presupuesto</p>
@@ -111,7 +111,7 @@ function ViviendaCard({ v, state }) {
                     {it.sub ? ` · ${it.sub}` : ''}
                   </p>
                 </div>
-                <p className="shrink-0 font-display text-sm font-semibold text-ink num">
+                <p className="shrink-0 font-numeral text-sm font-semibold text-ink num">
                   {it.usd ? formatUsdNum(it.amount) : formatARS(it.amount)}
                 </p>
               </li>
@@ -157,7 +157,7 @@ function DolaresCard({ usd, rate, state }) {
     <>
       <WalletTile color={USD_COLOR} letter="U" onClick={() => setOpen(true)}>
         <p className="font-display text-[0.95rem] font-medium text-ink">Dólares</p>
-        <p className="mt-1.5 font-display text-[1.6rem] font-medium leading-none text-ink num">
+        <p className="mt-1.5 font-numeral text-[1.6rem] font-medium leading-none text-ink num">
           {formatUsdNum(usd)}
         </p>
         <p className="mt-2.5 text-xs text-ink-soft num">
@@ -187,7 +187,7 @@ function DolaresCard({ usd, rate, state }) {
                     <p className="truncate text-sm font-medium text-ink">{it.label}</p>
                     <p className="text-xs text-ink-faint">{formatDate(it.date)}</p>
                   </div>
-                  <p className={`shrink-0 font-display text-sm font-semibold num ${it.sign < 0 ? 'text-ink' : 'text-ok'}`}>
+                  <p className={`shrink-0 font-numeral text-sm font-semibold num ${it.sign < 0 ? 'text-ink' : 'text-ok'}`}>
                     {it.sign < 0 ? '−' : '+'}{formatUsdNum(Math.abs(it.amount))}
                   </p>
                 </li>
@@ -224,7 +224,7 @@ function LocalBalanceCard({ l, state }) {
     <>
       <WalletTile color={color} letter="L" onClick={() => setOpen(true)}>
         <p className="font-display text-[0.95rem] font-medium text-ink">Local</p>
-        <p className={`mt-1.5 font-display text-[1.6rem] font-medium leading-none num ${owed ? 'text-caution' : 'text-ok'}`}>
+        <p className={`mt-1.5 font-numeral text-[1.6rem] font-medium leading-none num ${owed ? 'text-caution' : 'text-ok'}`}>
           {formatARS(Math.abs(l.balance))}
         </p>
         <p className="mt-2.5 text-xs text-ink-soft num">
@@ -254,7 +254,7 @@ function LocalBalanceCard({ l, state }) {
                     <p className="truncate text-sm font-medium text-ink">{it.label}</p>
                     <p className="text-xs text-ink-faint">{formatDate(it.date)}</p>
                   </div>
-                  <p className={`shrink-0 font-display text-sm font-semibold num ${it.amount < 0 ? 'text-ink' : 'text-ok'}`}>
+                  <p className={`shrink-0 font-numeral text-sm font-semibold num ${it.amount < 0 ? 'text-ink' : 'text-ok'}`}>
                     {it.amount < 0 ? '−' : '+'}{formatARS(Math.abs(it.amount))}
                   </p>
                 </li>
@@ -297,7 +297,7 @@ function ExtrasCard({ e, streak, state }) {
             🔥 {streak.streak} {streak.streak === 1 ? 'día' : 'días'} en verde este mes
           </p>
         )}
-        <p className="mt-1.5 font-display text-[1.6rem] font-medium leading-none text-ink num">
+        <p className="mt-1.5 font-numeral text-[1.6rem] font-medium leading-none text-ink num">
           {formatARS(e.spent)}
         </p>
         <p className="mt-2.5 text-xs text-ink-soft">Gastado este mes · sin presupuesto</p>
@@ -321,7 +321,7 @@ function ExtrasCard({ e, streak, state }) {
                     {it.sub ? ` · ${it.sub}` : ''}
                   </p>
                 </div>
-                <p className="shrink-0 font-display text-sm font-semibold text-ink num">{formatARS(it.amount)}</p>
+                <p className="shrink-0 font-numeral text-sm font-semibold text-ink num">{formatARS(it.amount)}</p>
               </li>
             ))}
           </ul>
@@ -356,7 +356,7 @@ function DiaADiaCard({ d, state }) {
     <>
       <WalletTile color={color} letter="D" onClick={() => setOpen(true)}>
         <p className="font-display text-[0.95rem] font-medium text-ink">Día a día</p>
-        <p className="mt-1.5 font-display text-[1.6rem] font-medium leading-none text-ink num">
+        <p className="mt-1.5 font-numeral text-[1.6rem] font-medium leading-none text-ink num">
           {formatARS(d.spent)}
         </p>
         <p className="mt-2.5 text-xs text-ink-soft">Gastado este mes · sin presupuesto</p>
@@ -380,7 +380,7 @@ function DiaADiaCard({ d, state }) {
                     {it.sub ? ` · ${it.sub}` : ''}
                   </p>
                 </div>
-                <p className="shrink-0 font-display text-sm font-semibold text-ink num">{formatARS(it.amount)}</p>
+                <p className="shrink-0 font-numeral text-sm font-semibold text-ink num">{formatARS(it.amount)}</p>
               </li>
             ))}
           </ul>

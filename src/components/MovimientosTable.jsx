@@ -284,7 +284,7 @@ function MovementsList({ movements, sort, toggleSort, groupName, groupColor, sub
                   </span>
                 )}
               </td>
-              <td className={`whitespace-nowrap px-3 py-2 text-right font-display font-semibold num ${isPlus(m) ? 'text-ok' : 'text-ink'}`}>
+              <td className={`whitespace-nowrap px-3 py-2 text-right font-numeral font-semibold num ${isPlus(m) ? 'text-ok' : 'text-ink'}`}>
                 {isPlus(m) ? '+' : '-'}{formatAmount(m.nativeAmount)}
               </td>
               <td className="whitespace-nowrap px-3 py-2 text-right text-ink-faint">

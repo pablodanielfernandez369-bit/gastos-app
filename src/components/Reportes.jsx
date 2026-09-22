@@ -27,7 +27,7 @@ function MonoLegend({ data, fmt }) {
         <div key={d.name} className="flex items-center gap-2 rounded-full border border-hair bg-surface-2 px-2.5 py-1.5 text-xs">
           <MonoChip color={d.color} letter={d.name.charAt(0).toUpperCase()} size={20} />
           <span className="font-medium text-ink">{d.name}</span>
-          <span className="font-display text-ink-faint num">{fmt(d.value)}</span>
+          <span className="font-numeral text-ink-faint num">{fmt(d.value)}</span>
         </div>
       ))}
     </div>
@@ -295,7 +295,7 @@ function PersonExpenses({ state, from, to }) {
       <p className="text-xs font-medium uppercase tracking-[0.08em] text-ink-faint">
         {selected} · período elegido
       </p>
-      <p className="mt-1 font-display text-2xl font-medium text-ink num">{formatARS(total.ars)}</p>
+      <p className="mt-1 font-numeral text-2xl font-medium text-ink num">{formatARS(total.ars)}</p>
       {total.usd > 0 && (
         <p className="text-sm font-medium text-ink-soft num">{formatUsd(total.usd)}</p>
       )}
