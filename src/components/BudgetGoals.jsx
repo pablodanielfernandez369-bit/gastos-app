@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
-import { computeMonthBudget, computeStreak, computeLocalBalance } from '../lib/selectors';
+import { computeMonthBudget, computeStreak, computeLocalBalance, computeTotals } from '../lib/selectors';
 import { formatARS, formatDate, monthKey } from '../lib/format';
+import { useDolar, usdRate } from '../lib/useDolar';
 import Modal from './Modal';
 
 // El cartel de alertas se puede cerrar y no vuelve a aparecer hasta que
@@ -37,18 +38,13 @@ export default function BudgetGoals({ state }) {
   const streak = useMemo(() => computeStreak(state), [state]);
   const local = useMemo(() => computeLocalBalance(state), [state]);
   const hasLocalActivity = Boolean(local && (local.spent > 0 || local.reimbursed > 0));
+  // Ahorro en USD acumulado (todo el historial, no el mes): es lo que
+  // muestra la billetera "Dólares" — mismo dato que ya se ve en el
+  // Dashboard como "de ahorro en dólares", nada nuevo se calcula.
+  const allTime = useMemo(() => computeTotals(state, null, null), [state]);
+  const dolar = useDolar();
+  const usdToArs = usdRate(state.config, dolar);
   const [dismissed, setDismissed] = useState(getDismissedAlert);
-
-  if (!b.hasAnyGoal && !hasLocalActivity) {
-    return (
-      <div className="rounded-2xl border border-dashed border-hair bg-surface p-4 text-sm text-ink-soft">
-        Definí tu <strong className="text-ink">meta de ahorro</strong>, tu{' '}
-        <strong className="text-ink">presupuesto de salidas</strong> o tu{' '}
-        <strong className="text-ink">presupuesto de día a día</strong> del mes en Ajustes&nbsp;⚙️
-        para ver acá cómo venís.
-      </div>
-    );
-  }
 
   const alerts = [];
   if (b.extras && b.extras.status === 'rojo') {
@@ -100,15 +96,76 @@ export default function BudgetGoals({ state }) {
         </div>
       )}
 
-      <DisponibleCard d={b.disponible} />
-
-      {hasLocalActivity && <LocalBalanceCard l={local} state={state} />}
-
-      <div className="grid gap-3 sm:grid-cols-2">
-        {b.savings && <SavingsCard s={b.savings} reliable={b.projReliable} />}
-        {b.extras && <ExtrasCard e={b.extras} reliable={b.projReliable} streak={streak} state={state} />}
-        {b.diaADia && <DiaADiaCard d={b.diaADia} reliable={b.projReliable} state={state} />}
+      <div className="grid grid-cols-2 gap-3">
+        <DisponibleCard d={b.disponible} />
+        <IngresosMesCard incomeTotal={b.incomeTotal} />
       </div>
+
+      {b.savings && <SavingsCard s={b.savings} reliable={b.projReliable} />}
+
+      {!b.hasAnyGoal && (
+        <p className="rounded-2xl border border-dashed border-hair bg-surface p-4 text-sm text-ink-soft">
+          Definí tu <strong className="text-ink">meta de ahorro</strong> o tus presupuestos del mes en
+          Ajustes&nbsp;⚙️ para ver el ritmo de Día a día y Salidas.
+        </p>
+      )}
+
+      <div>
+        <p className="mb-2 text-[0.7rem] font-semibold uppercase tracking-[0.13em] text-ink-faint">
+          Billeteras
+        </p>
+        <div className="grid grid-cols-2 gap-3">
+          {b.vivienda && <ViviendaCard v={b.vivienda} />}
+          {b.diaADia && <DiaADiaCard d={b.diaADia} reliable={b.projReliable} state={state} />}
+          {b.extras && <ExtrasCard e={b.extras} reliable={b.projReliable} streak={streak} state={state} />}
+          <DolaresCard usd={allTime.savingsByCurrency.usd} rate={usdToArs} />
+        </div>
+        {hasLocalActivity && (
+          <div className="mt-3">
+            <LocalBalanceCard l={local} state={state} />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function IngresosMesCard({ incomeTotal }) {
+  return (
+    <div className="rounded-2xl border border-hair bg-surface p-4">
+      <p className="text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-ink-faint">
+        Ingresos del mes
+      </p>
+      <p className="mt-1.5 font-display text-[1.9rem] font-medium leading-none text-ink num">
+        {formatARS(incomeTotal)}
+      </p>
+    </div>
+  );
+}
+
+function ViviendaCard({ v }) {
+  return (
+    <div className="rounded-2xl border border-hair bg-surface p-4">
+      <p className="font-display text-[0.95rem] font-medium text-ink">Vivienda</p>
+      <p className="mt-1.5 font-display text-[1.6rem] font-medium leading-none text-ink num">
+        {formatARS(v.spent)}
+      </p>
+      <p className="mt-2.5 text-xs text-ink-soft">Gastado este mes · sin presupuesto</p>
+    </div>
+  );
+}
+
+function DolaresCard({ usd, rate }) {
+  const equivalent = rate ? usd * rate : null;
+  return (
+    <div className="rounded-2xl border border-hair bg-surface p-4">
+      <p className="font-display text-[0.95rem] font-medium text-ink">Dólares</p>
+      <p className="mt-1.5 font-display text-[1.6rem] font-medium leading-none text-ink num">
+        US$ {new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 }).format(usd || 0)}
+      </p>
+      <p className="mt-2.5 text-xs text-ink-soft num">
+        {equivalent != null ? <>≈ {formatARS(equivalent)} al blue de hoy</> : 'Ahorro acumulado en dólares'}
+      </p>
     </div>
   );
 }

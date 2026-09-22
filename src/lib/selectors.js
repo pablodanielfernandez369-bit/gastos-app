@@ -303,6 +303,13 @@ export function computeMonthBudget(rawState, now = new Date()) {
     .filter((e) => e.groupId === extrasGroupId)
     .reduce((sum, e) => sum + e.amount, 0);
 
+  // Vivienda no tiene presupuesto (es lo fijo/inevitable), pero para la
+  // billetera igual se muestra cuánto se lleva gastado este mes.
+  const viviendaGroup = state.groups.find((g) => /^vivienda$/i.test(g.name));
+  const viviendaSpent = viviendaGroup
+    ? monthExpenses.filter((e) => e.groupId === viviendaGroup.id).reduce((sum, e) => sum + e.amount, 0)
+    : 0;
+
   // Para la proyección solo extrapolamos el gasto de "salidas/ocio" (lo que
   // realmente se acumula día a día). El resto — alquiler, super, servicios —
   // se toma como ya gastado del mes: no se multiplica. Se suman los
@@ -408,6 +415,7 @@ export function computeMonthBudget(rawState, now = new Date()) {
     expenseTotal,
     extras,
     diaADia,
+    vivienda: viviendaGroup ? { groupId: viviendaGroup.id, spent: viviendaSpent } : null,
     savings,
     coherence,
     disponible,
