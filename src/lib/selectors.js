@@ -318,14 +318,16 @@ export function computeMonthBudget(rawState, now = new Date()) {
   const pendingRecurringTotal = pendingRecurring(state).reduce((s, r) => s + (r.amount || 0), 0);
 
   // --- Presupuesto de extras ---
+  // La billetera se muestra siempre que exista el grupo, tenga o no
+  // presupuesto puesto (sin presupuesto solo se ve el gasto, sin barra).
   const extrasBudget = cfg.extrasBudget || null;
-  let extras = null;
-  if (extrasBudget) {
+  let extras = extrasGroupId ? { groupId: extrasGroupId, spent: extrasSpent, budget: null } : null;
+  if (extras && extrasBudget) {
     const remaining = extrasBudget - extrasSpent;
     const projected = project(extrasSpent);
     extras = {
+      ...extras,
       budget: extrasBudget,
-      spent: extrasSpent,
       remaining,
       pct: extrasSpent / extrasBudget,
       projected,
@@ -343,13 +345,13 @@ export function computeMonthBudget(rawState, now = new Date()) {
     .filter((e) => e.groupId === diaADiaGroupId)
     .reduce((sum, e) => sum + e.amount, 0);
   const diaADiaBudget = cfg.diaADiaBudget || null;
-  let diaADia = null;
-  if (diaADiaBudget) {
+  let diaADia = diaADiaGroupId ? { groupId: diaADiaGroupId, spent: diaADiaSpent, budget: null } : null;
+  if (diaADia && diaADiaBudget) {
     const remaining = diaADiaBudget - diaADiaSpent;
     const projected = project(diaADiaSpent);
     diaADia = {
+      ...diaADia,
       budget: diaADiaBudget,
-      spent: diaADiaSpent,
       remaining,
       pct: diaADiaSpent / diaADiaBudget,
       projected,

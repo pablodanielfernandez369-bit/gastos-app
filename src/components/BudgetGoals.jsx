@@ -4,18 +4,10 @@ import { formatARS, formatDate, monthKey } from '../lib/format';
 import { useDolar, usdRate } from '../lib/useDolar';
 import Modal from './Modal';
 
-// Semáforo del presupuesto de extras/día a día del mes en curso. Siempre usa
-// el mes calendario actual, sin importar el filtro de período del dashboard
-// (las metas son mensuales).
-const STATUS = {
-  verde: { bar: 'bg-ok', text: 'text-ok', box: 'border-hair bg-surface' },
-  amarillo: { bar: 'bg-caution', text: 'text-caution', box: 'border-caution/40 bg-caution/5' },
-  rojo: { bar: 'bg-warn', text: 'text-warn', box: 'border-warn/40 bg-warn/5' },
-};
-
 // Las billeteras: Vivienda, Día a día, Salidas/Ocio, Dólares y Local, todas
-// ancho completo (una debajo de otra), sin mensajes de ritmo/proyección —
-// solo el número y, donde hay presupuesto, la barra de avance.
+// ancho completo (una debajo de otra), sin presupuesto ni mensajes de
+// ritmo/proyección — solo el nombre, el gastado del mes (o el saldo, según
+// la billetera) y el detalle de movimientos al tocarla.
 export default function BudgetGoals({ state }) {
   const b = useMemo(() => computeMonthBudget(state), [state]);
   const streak = useMemo(() => computeStreak(state), [state]);
@@ -247,7 +239,6 @@ function LocalBalanceCard({ l, state }) {
 }
 
 function ExtrasCard({ e, streak, state }) {
-  const st = STATUS[e.status];
   const [open, setOpen] = useState(false);
 
   const items = useMemo(() => {
@@ -274,24 +265,18 @@ function ExtrasCard({ e, streak, state }) {
         tabIndex={0}
         onClick={() => setOpen(true)}
         onKeyDown={(ev) => (ev.key === 'Enter' || ev.key === ' ') && setOpen(true)}
-        className={`cursor-pointer rounded-2xl border p-4 text-left transition active:scale-[0.98] hover:border-ink-faint ${st.box}`}
+        className="cursor-pointer rounded-2xl border border-hair bg-surface p-4 text-left transition active:scale-[0.98] hover:border-ink-faint"
       >
-        <div className="flex items-baseline justify-between">
-          <p className="font-display text-[0.95rem] font-medium text-ink">Salidas / gastos extras</p>
-          <p className={`text-sm font-semibold num ${st.text}`}>{toPct(e.pct)}</p>
-        </div>
+        <p className="font-display text-[0.95rem] font-medium text-ink">Salidas / gastos extras</p>
         {streak && streak.streak > 0 && (
           <p className="mt-0.5 text-xs font-medium text-ok">
             🔥 {streak.streak} {streak.streak === 1 ? 'día' : 'días'} en verde este mes
           </p>
         )}
         <p className="mt-1.5 font-display text-[1.6rem] font-medium leading-none text-ink num">
-          {formatARS(e.spent)}{' '}
-          <span className="text-sm font-normal text-ink-faint">de {formatARS(e.budget)}</span>
+          {formatARS(e.spent)}
         </p>
-        <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-surface-2">
-          <div className={`h-full rounded-full ${st.bar}`} style={{ width: `${clampPct(e.pct)}%` }} />
-        </div>
+        <p className="mt-2.5 text-xs text-ink-soft">Gastado este mes · sin presupuesto</p>
       </div>
 
       <Modal open={open} onClose={() => setOpen(false)} title="Salidas / gastos extras">
@@ -322,7 +307,6 @@ function ExtrasCard({ e, streak, state }) {
 }
 
 function DiaADiaCard({ d, state }) {
-  const st = STATUS[d.status];
   const [open, setOpen] = useState(false);
 
   const items = useMemo(() => {
@@ -349,19 +333,13 @@ function DiaADiaCard({ d, state }) {
         tabIndex={0}
         onClick={() => setOpen(true)}
         onKeyDown={(ev) => (ev.key === 'Enter' || ev.key === ' ') && setOpen(true)}
-        className={`cursor-pointer rounded-2xl border p-4 text-left transition active:scale-[0.98] hover:border-ink-faint ${st.box}`}
+        className="cursor-pointer rounded-2xl border border-hair bg-surface p-4 text-left transition active:scale-[0.98] hover:border-ink-faint"
       >
-        <div className="flex items-baseline justify-between">
-          <p className="font-display text-[0.95rem] font-medium text-ink">Día a día</p>
-          <p className={`text-sm font-semibold num ${st.text}`}>{toPct(d.pct)}</p>
-        </div>
+        <p className="font-display text-[0.95rem] font-medium text-ink">Día a día</p>
         <p className="mt-1.5 font-display text-[1.6rem] font-medium leading-none text-ink num">
-          {formatARS(d.spent)}{' '}
-          <span className="text-sm font-normal text-ink-faint">de {formatARS(d.budget)}</span>
+          {formatARS(d.spent)}
         </p>
-        <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-surface-2">
-          <div className={`h-full rounded-full ${st.bar}`} style={{ width: `${clampPct(d.pct)}%` }} />
-        </div>
+        <p className="mt-2.5 text-xs text-ink-soft">Gastado este mes · sin presupuesto</p>
       </div>
 
       <Modal open={open} onClose={() => setOpen(false)} title="Día a día">
@@ -389,11 +367,4 @@ function DiaADiaCard({ d, state }) {
       </Modal>
     </>
   );
-}
-
-function toPct(x) {
-  return `${Math.round((x || 0) * 100)}%`;
-}
-function clampPct(x) {
-  return Math.max(0, Math.min(100, (x || 0) * 100));
 }
