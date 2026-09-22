@@ -29,7 +29,11 @@ export default function BudgetGoals({ state }) {
         {b.vivienda && <ViviendaCard v={b.vivienda} state={state} />}
         {b.diaADia && <DiaADiaCard d={b.diaADia} state={state} />}
         {b.extras && <ExtrasCard e={b.extras} streak={streak} state={state} />}
-        <DolaresCard usd={allTime.savingsByCurrency.usd} rate={usdToArs} state={state} />
+        <DolaresCard
+          usd={allTime.savingsByCurrency.usd + (allTime.swaps?.usd || 0)}
+          rate={usdToArs}
+          state={state}
+        />
         {hasLocalActivity && <LocalBalanceCard l={local} state={state} />}
       </div>
     </div>
