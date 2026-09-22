@@ -102,15 +102,16 @@ function ViviendaCard({ v, state }) {
         ) : (
           <ul className="divide-y divide-hair">
             {items.map((it) => (
-              <li key={it.id} className="flex items-start justify-between gap-3 py-2.5">
-                <div className="min-w-0">
+              <li key={it.id} className="flex items-center gap-3 py-2.5">
+                <MonoChip color={color} letter={it.label.charAt(0).toUpperCase()} size={26} />
+                <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-ink">{it.label}</p>
                   <p className="text-xs text-ink-faint">
                     {formatDate(it.date)}
                     {it.sub ? ` · ${it.sub}` : ''}
                   </p>
                 </div>
-                <p className="shrink-0 text-sm font-semibold text-ink num">
+                <p className="shrink-0 font-display text-sm font-semibold text-ink num">
                   {it.usd ? formatUsdNum(it.amount) : formatARS(it.amount)}
                 </p>
               </li>
@@ -131,12 +132,12 @@ function DolaresCard({ usd, rate, state }) {
     const rows = [];
     for (const i of state.incomes) {
       if (i.currency === 'USD') {
-        rows.push({ id: 'i' + i.id, date: i.date, label: i.description || 'Ingreso', amount: i.amountOriginal, sign: 1 });
+        rows.push({ id: 'i' + i.id, date: i.date, label: i.description || 'Ingreso', amount: i.amountOriginal, sign: 1, kind: 'ingreso' });
       }
     }
     for (const e of state.expenses) {
       if (e.currency === 'USD') {
-        rows.push({ id: 'e' + e.id, date: e.date, label: e.description || 'Gasto', amount: e.amountOriginal, sign: -1 });
+        rows.push({ id: 'e' + e.id, date: e.date, label: e.description || 'Gasto', amount: e.amountOriginal, sign: -1, kind: 'gasto' });
       }
     }
     for (const x of state.exchanges || []) {
@@ -146,6 +147,7 @@ function DolaresCard({ usd, rate, state }) {
         label: x.description ? `Compra de dólares · ${x.description}` : 'Compra de dólares',
         amount: x.usd,
         sign: 1,
+        kind: 'compra',
       });
     }
     return rows.sort((a, b) => (a.date < b.date ? 1 : -1));
@@ -171,17 +173,26 @@ function DolaresCard({ usd, rate, state }) {
           <p className="py-4 text-center text-sm text-ink-faint">Sin movimientos en dólares.</p>
         ) : (
           <ul className="divide-y divide-hair">
-            {items.map((it) => (
-              <li key={it.id} className="flex items-start justify-between gap-3 py-2.5">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-ink">{it.label}</p>
-                  <p className="text-xs text-ink-faint">{formatDate(it.date)}</p>
-                </div>
-                <p className={`shrink-0 text-sm font-semibold num ${it.sign < 0 ? 'text-ink' : 'text-ok'}`}>
-                  {it.sign < 0 ? '−' : '+'}{formatUsdNum(Math.abs(it.amount))}
-                </p>
-              </li>
-            ))}
+            {items.map((it) => {
+              const chip =
+                it.kind === 'ingreso'
+                  ? { color: '#5A7D2A', letter: '$' }
+                  : it.kind === 'compra'
+                    ? { color: USD_COLOR, letter: 'U' }
+                    : { color: '#A39D90', letter: it.label.charAt(0).toUpperCase() };
+              return (
+                <li key={it.id} className="flex items-center gap-3 py-2.5">
+                  <MonoChip color={chip.color} letter={chip.letter} size={26} />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-ink">{it.label}</p>
+                    <p className="text-xs text-ink-faint">{formatDate(it.date)}</p>
+                  </div>
+                  <p className={`shrink-0 font-display text-sm font-semibold num ${it.sign < 0 ? 'text-ink' : 'text-ok'}`}>
+                    {it.sign < 0 ? '−' : '+'}{formatUsdNum(Math.abs(it.amount))}
+                  </p>
+                </li>
+              );
+            })}
           </ul>
         )}
       </Modal>
@@ -230,17 +241,25 @@ function LocalBalanceCard({ l, state }) {
           <p className="py-4 text-center text-sm text-ink-faint">Sin movimientos.</p>
         ) : (
           <ul className="divide-y divide-hair">
-            {items.map((it) => (
-              <li key={it.id} className="flex items-start justify-between gap-3 py-2.5">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-ink">{it.label}</p>
-                  <p className="text-xs text-ink-faint">{formatDate(it.date)}</p>
-                </div>
-                <p className={`shrink-0 text-sm font-semibold num ${it.amount < 0 ? 'text-ink' : 'text-ok'}`}>
-                  {it.amount < 0 ? '−' : '+'}{formatARS(Math.abs(it.amount))}
-                </p>
-              </li>
-            ))}
+            {items.map((it) => {
+              const isReembolso = it.amount >= 0;
+              return (
+                <li key={it.id} className="flex items-center gap-3 py-2.5">
+                  <MonoChip
+                    color={isReembolso ? '#5A7D2A' : color}
+                    letter={isReembolso ? '$' : it.label.charAt(0).toUpperCase()}
+                    size={26}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-ink">{it.label}</p>
+                    <p className="text-xs text-ink-faint">{formatDate(it.date)}</p>
+                  </div>
+                  <p className={`shrink-0 font-display text-sm font-semibold num ${it.amount < 0 ? 'text-ink' : 'text-ok'}`}>
+                    {it.amount < 0 ? '−' : '+'}{formatARS(Math.abs(it.amount))}
+                  </p>
+                </li>
+              );
+            })}
           </ul>
         )}
       </Modal>
@@ -293,15 +312,16 @@ function ExtrasCard({ e, streak, state }) {
         ) : (
           <ul className="divide-y divide-hair">
             {items.map((it) => (
-              <li key={it.id} className="flex items-start justify-between gap-3 py-2.5">
-                <div className="min-w-0">
+              <li key={it.id} className="flex items-center gap-3 py-2.5">
+                <MonoChip color={color} letter={it.label.charAt(0).toUpperCase()} size={26} />
+                <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-ink">{it.label}</p>
                   <p className="text-xs text-ink-faint">
                     {formatDate(it.date)}
                     {it.sub ? ` · ${it.sub}` : ''}
                   </p>
                 </div>
-                <p className="shrink-0 text-sm font-semibold text-ink num">{formatARS(it.amount)}</p>
+                <p className="shrink-0 font-display text-sm font-semibold text-ink num">{formatARS(it.amount)}</p>
               </li>
             ))}
           </ul>
@@ -351,15 +371,16 @@ function DiaADiaCard({ d, state }) {
         ) : (
           <ul className="divide-y divide-hair">
             {items.map((it) => (
-              <li key={it.id} className="flex items-start justify-between gap-3 py-2.5">
-                <div className="min-w-0">
+              <li key={it.id} className="flex items-center gap-3 py-2.5">
+                <MonoChip color={color} letter={it.label.charAt(0).toUpperCase()} size={26} />
+                <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-ink">{it.label}</p>
                   <p className="text-xs text-ink-faint">
                     {formatDate(it.date)}
                     {it.sub ? ` · ${it.sub}` : ''}
                   </p>
                 </div>
-                <p className="shrink-0 text-sm font-semibold text-ink num">{formatARS(it.amount)}</p>
+                <p className="shrink-0 font-display text-sm font-semibold text-ink num">{formatARS(it.amount)}</p>
               </li>
             ))}
           </ul>
