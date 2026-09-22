@@ -34,41 +34,156 @@ export default function BudgetGoals({ state }) {
         Billeteras
       </p>
       <div className="flex flex-col gap-3">
-        {b.vivienda && <ViviendaCard v={b.vivienda} />}
+        {b.vivienda && <ViviendaCard v={b.vivienda} state={state} />}
         {b.diaADia && <DiaADiaCard d={b.diaADia} state={state} />}
         {b.extras && <ExtrasCard e={b.extras} streak={streak} state={state} />}
-        <DolaresCard usd={allTime.savingsByCurrency.usd} rate={usdToArs} />
+        <DolaresCard usd={allTime.savingsByCurrency.usd} rate={usdToArs} state={state} />
         {hasLocalActivity && <LocalBalanceCard l={local} state={state} />}
       </div>
     </div>
   );
 }
 
-function ViviendaCard({ v }) {
+function ViviendaCard({ v, state }) {
+  const [open, setOpen] = useState(false);
+
+  const items = useMemo(() => {
+    if (!open) return [];
+    const currKey = monthKey(new Date().toISOString());
+    return state.expenses
+      .filter((ex) => monthKey(ex.date) === currKey && ex.groupId === v.groupId)
+      .slice()
+      .sort((a, b) => (a.date < b.date ? 1 : -1))
+      .map((ex) => ({
+        id: ex.id,
+        date: ex.date,
+        label: ex.description || state.subcategories.find((s) => s.id === ex.subcategoryId)?.name || 'Vivienda',
+        sub: ex.description ? state.subcategories.find((s) => s.id === ex.subcategoryId)?.name : null,
+        amount: ex.currency === 'USD' ? ex.amountOriginal : ex.amount,
+        usd: ex.currency === 'USD',
+      }));
+  }, [open, state, v.groupId]);
+
   return (
-    <div className="rounded-2xl border border-hair bg-surface p-4">
-      <p className="font-display text-[0.95rem] font-medium text-ink">Vivienda</p>
-      <p className="mt-1.5 font-display text-[1.6rem] font-medium leading-none text-ink num">
-        {formatARS(v.spent)}
-      </p>
-      <p className="mt-2.5 text-xs text-ink-soft">Gastado este mes · sin presupuesto</p>
-    </div>
+    <>
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={() => setOpen(true)}
+        onKeyDown={(ev) => (ev.key === 'Enter' || ev.key === ' ') && setOpen(true)}
+        className="cursor-pointer rounded-2xl border border-hair bg-surface p-4 text-left transition active:scale-[0.98] hover:border-ink-faint"
+      >
+        <p className="font-display text-[0.95rem] font-medium text-ink">Vivienda</p>
+        <p className="mt-1.5 font-display text-[1.6rem] font-medium leading-none text-ink num">
+          {formatARS(v.spent)}
+        </p>
+        <p className="mt-2.5 text-xs text-ink-soft">Gastado este mes · sin presupuesto</p>
+      </div>
+
+      <Modal open={open} onClose={() => setOpen(false)} title="Vivienda">
+        <p className="mb-3 text-sm text-ink-soft num">
+          Total del mes: <span className="font-semibold text-ink">{formatARS(v.spent)}</span>
+        </p>
+        {items.length === 0 ? (
+          <p className="py-4 text-center text-sm text-ink-faint">Sin movimientos este mes.</p>
+        ) : (
+          <ul className="divide-y divide-hair">
+            {items.map((it) => (
+              <li key={it.id} className="flex items-start justify-between gap-3 py-2.5">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-ink">{it.label}</p>
+                  <p className="text-xs text-ink-faint">
+                    {formatDate(it.date)}
+                    {it.sub ? ` · ${it.sub}` : ''}
+                  </p>
+                </div>
+                <p className="shrink-0 text-sm font-semibold text-ink num">
+                  {it.usd ? formatUsdNum(it.amount) : formatARS(it.amount)}
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Modal>
+    </>
   );
 }
 
-function DolaresCard({ usd, rate }) {
+function DolaresCard({ usd, rate, state }) {
+  const [open, setOpen] = useState(false);
   const equivalent = rate ? usd * rate : null;
+
+  const items = useMemo(() => {
+    if (!open) return [];
+    const rows = [];
+    for (const i of state.incomes) {
+      if (i.currency === 'USD') {
+        rows.push({ id: 'i' + i.id, date: i.date, label: i.description || 'Ingreso', amount: i.amountOriginal, sign: 1 });
+      }
+    }
+    for (const e of state.expenses) {
+      if (e.currency === 'USD') {
+        rows.push({ id: 'e' + e.id, date: e.date, label: e.description || 'Gasto', amount: e.amountOriginal, sign: -1 });
+      }
+    }
+    for (const x of state.exchanges || []) {
+      rows.push({
+        id: 'x' + x.id,
+        date: x.date,
+        label: x.description ? `Compra de dólares · ${x.description}` : 'Compra de dólares',
+        amount: x.usd,
+        sign: 1,
+      });
+    }
+    return rows.sort((a, b) => (a.date < b.date ? 1 : -1));
+  }, [open, state]);
+
   return (
-    <div className="rounded-2xl border border-hair bg-surface p-4">
-      <p className="font-display text-[0.95rem] font-medium text-ink">Dólares</p>
-      <p className="mt-1.5 font-display text-[1.6rem] font-medium leading-none text-ink num">
-        US$ {new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 }).format(usd || 0)}
-      </p>
-      <p className="mt-2.5 text-xs text-ink-soft num">
-        {equivalent != null ? <>≈ {formatARS(equivalent)} al blue de hoy</> : 'Ahorro acumulado en dólares'}
-      </p>
-    </div>
+    <>
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={() => setOpen(true)}
+        onKeyDown={(ev) => (ev.key === 'Enter' || ev.key === ' ') && setOpen(true)}
+        className="cursor-pointer rounded-2xl border border-hair bg-surface p-4 text-left transition active:scale-[0.98] hover:border-ink-faint"
+      >
+        <p className="font-display text-[0.95rem] font-medium text-ink">Dólares</p>
+        <p className="mt-1.5 font-display text-[1.6rem] font-medium leading-none text-ink num">
+          {formatUsdNum(usd)}
+        </p>
+        <p className="mt-2.5 text-xs text-ink-soft num">
+          {equivalent != null ? <>≈ {formatARS(equivalent)} al blue de hoy</> : 'Ahorro acumulado en dólares'}
+        </p>
+      </div>
+
+      <Modal open={open} onClose={() => setOpen(false)} title="Dólares">
+        <p className="mb-3 text-sm text-ink-soft num">
+          Ahorro acumulado: <span className="font-semibold text-ink">{formatUsdNum(usd)}</span>
+        </p>
+        {items.length === 0 ? (
+          <p className="py-4 text-center text-sm text-ink-faint">Sin movimientos en dólares.</p>
+        ) : (
+          <ul className="divide-y divide-hair">
+            {items.map((it) => (
+              <li key={it.id} className="flex items-start justify-between gap-3 py-2.5">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-ink">{it.label}</p>
+                  <p className="text-xs text-ink-faint">{formatDate(it.date)}</p>
+                </div>
+                <p className={`shrink-0 text-sm font-semibold num ${it.sign < 0 ? 'text-ink' : 'text-ok'}`}>
+                  {it.sign < 0 ? '−' : '+'}{formatUsdNum(Math.abs(it.amount))}
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Modal>
+    </>
   );
+}
+
+function formatUsdNum(n) {
+  return `US$ ${new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 }).format(n || 0)}`;
 }
 
 function LocalBalanceCard({ l, state }) {
