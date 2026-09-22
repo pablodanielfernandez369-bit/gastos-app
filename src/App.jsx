@@ -99,13 +99,15 @@ export default function App() {
         <div className="flex shrink-0 gap-2.5 px-4 pb-3 pt-2">
           <button
             onClick={() => setShowExpenseForm(true)}
-            className="flex-1 rounded-2xl bg-accent py-3.5 text-[0.95rem] font-semibold tracking-tight text-paper shadow-[0_8px_20px_-6px_rgba(176,73,31,0.4)]"
+            className="flex-1 rounded-2xl py-3.5 text-[0.95rem] font-semibold tracking-tight text-paper shadow-[0_8px_20px_-6px_rgba(176,73,31,0.4)]"
+            style={{ background: 'linear-gradient(180deg, color-mix(in srgb, #B0491F 78%, white) 0%, #B0491F 100%)' }}
           >
             + Nuevo gasto
           </button>
           <button
             onClick={() => setShowIncomeForm(true)}
-            className="flex-1 rounded-2xl border border-ok/25 bg-ok/10 py-3.5 text-[0.95rem] font-semibold tracking-tight text-ok"
+            className="flex-1 rounded-2xl border border-ok/25 py-3.5 text-[0.95rem] font-semibold tracking-tight text-ok"
+            style={{ background: 'linear-gradient(180deg, color-mix(in srgb, #5A7D2A 8%, #FCFAF5) 0%, color-mix(in srgb, #5A7D2A 16%, #FCFAF5) 100%)' }}
           >
             + Nuevo ingreso
           </button>
