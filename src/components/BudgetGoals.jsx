@@ -4,35 +4,18 @@ import { formatARS, formatDate, monthKey } from '../lib/format';
 import { useDolar, usdRate } from '../lib/useDolar';
 import Modal from './Modal';
 
-// El cartel de alertas se puede cerrar y no vuelve a aparecer hasta que
-// cambie lo que dice (otro % de presupuesto, otra meta que se desvía, etc.):
-// se guarda la firma del texto ya visto, no un simple "visto sí/no".
-const ALERT_DISMISS_KEY = 'gastos_app_v1_dismissed_alert';
-function getDismissedAlert() {
-  try {
-    return localStorage.getItem(ALERT_DISMISS_KEY) || '';
-  } catch {
-    return '';
-  }
-}
-function setDismissedAlert(signature) {
-  try {
-    localStorage.setItem(ALERT_DISMISS_KEY, signature);
-  } catch {
-    // localStorage no disponible (privado/bloqueado): el cartel no persiste
-    // cerrado entre visitas, pero no rompe nada.
-  }
-}
-
-// Semáforo del presupuesto de extras del mes en curso + estado de la meta de
-// ahorro. Siempre usa el mes calendario actual, sin importar el filtro de
-// período del dashboard (las metas son mensuales).
+// Semáforo del presupuesto de extras/día a día del mes en curso. Siempre usa
+// el mes calendario actual, sin importar el filtro de período del dashboard
+// (las metas son mensuales).
 const STATUS = {
   verde: { bar: 'bg-ok', text: 'text-ok', box: 'border-hair bg-surface' },
   amarillo: { bar: 'bg-caution', text: 'text-caution', box: 'border-caution/40 bg-caution/5' },
   rojo: { bar: 'bg-warn', text: 'text-warn', box: 'border-warn/40 bg-warn/5' },
 };
 
+// Las billeteras: Vivienda, Día a día, Salidas/Ocio, Dólares y Local, todas
+// ancho completo (una debajo de otra), sin mensajes de ritmo/proyección —
+// solo el número y, donde hay presupuesto, la barra de avance.
 export default function BudgetGoals({ state }) {
   const b = useMemo(() => computeMonthBudget(state), [state]);
   const streak = useMemo(() => computeStreak(state), [state]);
@@ -44,101 +27,19 @@ export default function BudgetGoals({ state }) {
   const allTime = useMemo(() => computeTotals(state, null, null), [state]);
   const dolar = useDolar();
   const usdToArs = usdRate(state.config, dolar);
-  const [dismissed, setDismissed] = useState(getDismissedAlert);
-
-  const alerts = [];
-  if (b.extras && b.extras.status === 'rojo') {
-    alerts.push(
-      b.extras.spent >= b.extras.budget
-        ? `Te pasaste del presupuesto de salidas: ${formatARS(b.extras.spent)} de ${formatARS(b.extras.budget)}.`
-        : `Si seguís a este ritmo terminás el mes en ${formatARS(b.extras.projected)} de salidas (${toPct(b.extras.projectedPct)} del presupuesto).`
-    );
-  } else if (b.extras && b.extras.status === 'amarillo') {
-    alerts.push(`Ojo con las salidas: llevás ${toPct(b.extras.pct)} del presupuesto y quedan ${b.extras.daysLeft} días.`);
-  }
-  if (b.diaADia && b.diaADia.status === 'rojo') {
-    alerts.push(
-      b.diaADia.spent >= b.diaADia.budget
-        ? `Te pasaste del presupuesto de día a día: ${formatARS(b.diaADia.spent)} de ${formatARS(b.diaADia.budget)}.`
-        : `Si seguís a este ritmo terminás el mes en ${formatARS(b.diaADia.projected)} de día a día (${toPct(b.diaADia.projectedPct)} del presupuesto).`
-    );
-  } else if (b.diaADia && b.diaADia.status === 'amarillo') {
-    alerts.push(`Ojo con el día a día: llevás ${toPct(b.diaADia.pct)} del presupuesto y quedan ${b.diaADia.daysLeft} días.`);
-  }
-  if (b.savings && !b.savings.onTrack) {
-    alerts.push(`A este ritmo vas a ahorrar ${formatARS(Math.max(0, b.savings.projected))}, por debajo de tu meta de ${formatARS(b.savings.goal)}.`);
-  }
-  if (b.coherence && !b.coherence.fits) {
-    alerts.push(`Lo gastado este mes + tu meta de ahorro + el presupuesto de salidas suman ${formatARS(b.coherence.gap)} más que tu ingreso. Bajá la meta o el presupuesto.`);
-  }
-
-  const anyRed = (b.extras && b.extras.status === 'rojo') || (b.diaADia && b.diaADia.status === 'rojo') || (b.coherence && !b.coherence.fits) || (b.savings && !b.savings.onTrack && b.projReliable && b.savings.projected < 0);
-  const alertSignature = alerts.join('|');
-  const showAlerts = alerts.length > 0 && alertSignature !== dismissed;
 
   return (
-    <div className="space-y-3">
-      {showAlerts && (
-        <div className={`relative rounded-2xl border p-4 pr-10 text-sm ${anyRed ? 'border-warn/40 bg-warn/5 text-warn' : 'border-caution/40 bg-caution/5 text-caution'}`}>
-          <button
-            type="button"
-            aria-label="Cerrar aviso"
-            onClick={() => { setDismissedAlert(alertSignature); setDismissed(alertSignature); }}
-            className="absolute right-3 top-3 leading-none opacity-60 hover:opacity-100"
-          >
-            ✕
-          </button>
-          <ul className="space-y-1.5">
-            {alerts.map((a, i) => (
-              <li key={i} className="num">{a}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      <div className="grid grid-cols-2 gap-3">
-        <DisponibleCard d={b.disponible} />
-        <IngresosMesCard incomeTotal={b.incomeTotal} />
-      </div>
-
-      {b.savings && <SavingsCard s={b.savings} reliable={b.projReliable} />}
-
-      {!b.hasAnyGoal && (
-        <p className="rounded-2xl border border-dashed border-hair bg-surface p-4 text-sm text-ink-soft">
-          Definí tu <strong className="text-ink">meta de ahorro</strong> o tus presupuestos del mes en
-          Ajustes&nbsp;⚙️ para ver el ritmo de Día a día y Salidas.
-        </p>
-      )}
-
-      <div>
-        <p className="mb-2 text-[0.7rem] font-semibold uppercase tracking-[0.13em] text-ink-faint">
-          Billeteras
-        </p>
-        <div className="grid grid-cols-2 gap-3">
-          {b.vivienda && <ViviendaCard v={b.vivienda} />}
-          {b.diaADia && <DiaADiaCard d={b.diaADia} reliable={b.projReliable} state={state} />}
-          {b.extras && <ExtrasCard e={b.extras} reliable={b.projReliable} streak={streak} state={state} />}
-          <DolaresCard usd={allTime.savingsByCurrency.usd} rate={usdToArs} />
-        </div>
-        {hasLocalActivity && (
-          <div className="mt-3">
-            <LocalBalanceCard l={local} state={state} />
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function IngresosMesCard({ incomeTotal }) {
-  return (
-    <div className="rounded-2xl border border-hair bg-surface p-4">
-      <p className="text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-ink-faint">
-        Ingresos del mes
+    <div>
+      <p className="mb-2 text-[0.7rem] font-semibold uppercase tracking-[0.13em] text-ink-faint">
+        Billeteras
       </p>
-      <p className="mt-1.5 font-display text-[1.9rem] font-medium leading-none text-ink num">
-        {formatARS(incomeTotal)}
-      </p>
+      <div className="flex flex-col gap-3">
+        {b.vivienda && <ViviendaCard v={b.vivienda} />}
+        {b.diaADia && <DiaADiaCard d={b.diaADia} state={state} />}
+        {b.extras && <ExtrasCard e={b.extras} streak={streak} state={state} />}
+        <DolaresCard usd={allTime.savingsByCurrency.usd} rate={usdToArs} />
+        {hasLocalActivity && <LocalBalanceCard l={local} state={state} />}
+      </div>
     </div>
   );
 }
@@ -170,30 +71,6 @@ function DolaresCard({ usd, rate }) {
   );
 }
 
-function DisponibleCard({ d }) {
-  const good = d.value >= 0;
-  return (
-    <div className={`rounded-2xl border p-4 ${good ? 'border-hair bg-surface' : 'border-warn/40 bg-warn/5'}`}>
-      <p className="text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-ink-faint">
-        Disponible para gastar
-      </p>
-      <p className={`mt-1.5 font-display text-[1.9rem] font-medium leading-none num ${good ? 'text-ink' : 'text-warn'}`}>
-        {formatARS(d.value)}
-      </p>
-      <p className="mt-2 text-xs text-ink-soft num">
-        {formatARS(d.incomeTotal)} cobrado − {formatARS(d.expenseTotal)} gastado
-        {d.savingsGoal > 0 && <> − {formatARS(d.savingsGoal)} de meta</>}
-        {d.pendingRecurringTotal > 0 && <> − {formatARS(d.pendingRecurringTotal)} pendiente</>}
-      </p>
-      {!good && (
-        <p className="mt-1 text-xs text-warn">
-          Ya comprometiste más de lo que cobraste este mes. Va a mejorar en cuanto entre más plata.
-        </p>
-      )}
-    </div>
-  );
-}
-
 function LocalBalanceCard({ l, state }) {
   const owed = l.balance > 0;
   const [open, setOpen] = useState(false);
@@ -218,15 +95,12 @@ function LocalBalanceCard({ l, state }) {
         onKeyDown={(ev) => (ev.key === 'Enter' || ev.key === ' ') && setOpen(true)}
         className={`cursor-pointer rounded-2xl border p-4 text-left transition active:scale-[0.98] hover:border-ink-faint ${owed ? 'border-caution/40 bg-caution/5' : 'border-hair bg-surface'}`}
       >
-        <p className="text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-ink-faint">
-          Local
-        </p>
-        <p className={`mt-1.5 font-display text-[1.9rem] font-medium leading-none num ${owed ? 'text-caution' : 'text-ok'}`}>
+        <p className="font-display text-[0.95rem] font-medium text-ink">Local</p>
+        <p className={`mt-1.5 font-display text-[1.6rem] font-medium leading-none num ${owed ? 'text-caution' : 'text-ok'}`}>
           {formatARS(Math.abs(l.balance))}
         </p>
-        <p className="mt-2 text-xs text-ink-soft num">
-          {owed ? 'te deben' : l.balance < 0 ? 'repusiste de más' : 'al día'} ·{' '}
-          {formatARS(l.spent)} gastado − {formatARS(l.reimbursed)} repuesto
+        <p className="mt-2.5 text-xs text-ink-soft num">
+          {owed ? 'te deben' : l.balance < 0 ? 'repusiste de más' : 'al día'}
         </p>
       </div>
 
@@ -257,32 +131,7 @@ function LocalBalanceCard({ l, state }) {
   );
 }
 
-function SavingsCard({ s, reliable }) {
-  const good = s.current >= s.goal || s.onTrack;
-  return (
-    <div className="rounded-2xl border border-hair bg-surface p-4">
-      <div className="flex items-baseline justify-between">
-        <p className="font-display text-[0.95rem] font-medium text-ink">Meta de ahorro del mes</p>
-        <p className={`text-sm font-semibold num ${good ? 'text-ok' : 'text-warn'}`}>{toPct(s.pct)}</p>
-      </div>
-      <p className="mt-1.5 font-display text-[1.6rem] font-medium leading-none text-ink num">
-        {formatARS(s.current)}{' '}
-        <span className="text-sm font-normal text-ink-faint">de {formatARS(s.goal)}</span>
-      </p>
-      <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-surface-2">
-        <div className={`h-full rounded-full ${good ? 'bg-ok' : 'bg-warn'}`} style={{ width: `${clampPct(s.pct)}%` }} />
-      </div>
-      {reliable && (
-        <p className="mt-2.5 text-xs text-ink-soft num">
-          Proyección a fin de mes:{' '}
-          <strong className={s.onTrack ? 'text-ok' : 'text-warn'}>{formatARS(Math.max(0, s.projected))}</strong>
-        </p>
-      )}
-    </div>
-  );
-}
-
-function ExtrasCard({ e, reliable, streak, state }) {
+function ExtrasCard({ e, streak, state }) {
   const st = STATUS[e.status];
   const [open, setOpen] = useState(false);
 
@@ -328,21 +177,6 @@ function ExtrasCard({ e, reliable, streak, state }) {
         <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-surface-2">
           <div className={`h-full rounded-full ${st.bar}`} style={{ width: `${clampPct(e.pct)}%` }} />
         </div>
-        <p className="mt-2.5 text-xs text-ink-soft num">
-          {e.remaining >= 0 ? (
-            <>
-              Te quedan <strong className="text-ink">{formatARS(e.remaining)}</strong> ·{' '}
-              <strong className="text-ink">{formatARS(e.perDayLeft)}/día</strong> por {e.daysLeft} días
-            </>
-          ) : (
-            <>Te pasaste <strong className="text-warn">{formatARS(-e.remaining)}</strong></>
-          )}
-        </p>
-        {reliable && (
-          <p className="mt-1 text-xs text-ink-soft num">
-            A este ritmo terminás en <strong className={st.text}>{formatARS(e.projected)}</strong> ({toPct(e.projectedPct)})
-          </p>
-        )}
       </div>
 
       <Modal open={open} onClose={() => setOpen(false)} title="Salidas / gastos extras">
@@ -372,7 +206,7 @@ function ExtrasCard({ e, reliable, streak, state }) {
   );
 }
 
-function DiaADiaCard({ d, reliable, state }) {
+function DiaADiaCard({ d, state }) {
   const st = STATUS[d.status];
   const [open, setOpen] = useState(false);
 
@@ -413,18 +247,6 @@ function DiaADiaCard({ d, reliable, state }) {
         <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-surface-2">
           <div className={`h-full rounded-full ${st.bar}`} style={{ width: `${clampPct(d.pct)}%` }} />
         </div>
-        <p className="mt-2.5 text-xs text-ink-soft num">
-          {d.remaining >= 0 ? (
-            <>Te quedan <strong className="text-ink">{formatARS(d.remaining)}</strong> este mes</>
-          ) : (
-            <>Te pasaste <strong className="text-warn">{formatARS(-d.remaining)}</strong></>
-          )}
-        </p>
-        {reliable && (
-          <p className="mt-1 text-xs text-ink-soft num">
-            A este ritmo terminás en <strong className={st.text}>{formatARS(d.projected)}</strong> ({toPct(d.projectedPct)})
-          </p>
-        )}
       </div>
 
       <Modal open={open} onClose={() => setOpen(false)} title="Día a día">
