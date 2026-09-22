@@ -4,6 +4,35 @@ import { formatARS, formatDate, monthKey } from '../lib/format';
 import { useDolar, usdRate } from '../lib/useDolar';
 import Modal from './Modal';
 
+// "Dólares" no es un grupo real (es transversal a toda la moneda), así que
+// no tiene un color propio en state.groups — se fija acá, a tono con el
+// resto de la paleta (dorado apagado).
+const USD_COLOR = '#B08A2E';
+
+// La tarjeta de cada billetera: un chip con la inicial + un degradé muy
+// suave del color de esa categoría de fondo. El mismo color se usa en
+// Movimientos/Reportes, así que la billetera queda coherente con el resto.
+function WalletTile({ color, letter, onClick, children }) {
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onClick}
+      onKeyDown={(ev) => (ev.key === 'Enter' || ev.key === ' ') && onClick()}
+      className="flex cursor-pointer items-center gap-3 rounded-2xl border border-hair p-4 text-left transition active:scale-[0.98] hover:border-ink-faint"
+      style={{ background: `linear-gradient(180deg, color-mix(in srgb, ${color} 16%, #FCFAF5) 0%, #FCFAF5 75%)` }}
+    >
+      <span
+        className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[9px] font-display text-sm font-semibold text-surface"
+        style={{ background: color }}
+      >
+        {letter}
+      </span>
+      <div className="min-w-0 flex-1">{children}</div>
+    </div>
+  );
+}
+
 // Las billeteras: Vivienda, Día a día, Salidas/Ocio, Dólares y Local, todas
 // ancho completo (una debajo de otra), sin presupuesto ni mensajes de
 // ritmo/proyección — solo el nombre, el gastado del mes (o el saldo, según
@@ -42,6 +71,7 @@ export default function BudgetGoals({ state }) {
 
 function ViviendaCard({ v, state }) {
   const [open, setOpen] = useState(false);
+  const color = state.groups.find((g) => g.id === v.groupId)?.color || '#A39D90';
 
   const items = useMemo(() => {
     if (!open) return [];
@@ -62,19 +92,13 @@ function ViviendaCard({ v, state }) {
 
   return (
     <>
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={() => setOpen(true)}
-        onKeyDown={(ev) => (ev.key === 'Enter' || ev.key === ' ') && setOpen(true)}
-        className="cursor-pointer rounded-2xl border border-hair bg-surface p-4 text-left transition active:scale-[0.98] hover:border-ink-faint"
-      >
+      <WalletTile color={color} letter="V" onClick={() => setOpen(true)}>
         <p className="font-display text-[0.95rem] font-medium text-ink">Vivienda</p>
         <p className="mt-1.5 font-display text-[1.6rem] font-medium leading-none text-ink num">
           {formatARS(v.spent)}
         </p>
         <p className="mt-2.5 text-xs text-ink-soft">Gastado este mes · sin presupuesto</p>
-      </div>
+      </WalletTile>
 
       <Modal open={open} onClose={() => setOpen(false)} title="Vivienda">
         <p className="mb-3 text-sm text-ink-soft num">
@@ -136,13 +160,7 @@ function DolaresCard({ usd, rate, state }) {
 
   return (
     <>
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={() => setOpen(true)}
-        onKeyDown={(ev) => (ev.key === 'Enter' || ev.key === ' ') && setOpen(true)}
-        className="cursor-pointer rounded-2xl border border-hair bg-surface p-4 text-left transition active:scale-[0.98] hover:border-ink-faint"
-      >
+      <WalletTile color={USD_COLOR} letter="U" onClick={() => setOpen(true)}>
         <p className="font-display text-[0.95rem] font-medium text-ink">Dólares</p>
         <p className="mt-1.5 font-display text-[1.6rem] font-medium leading-none text-ink num">
           {formatUsdNum(usd)}
@@ -150,7 +168,7 @@ function DolaresCard({ usd, rate, state }) {
         <p className="mt-2.5 text-xs text-ink-soft num">
           {equivalent != null ? <>≈ {formatARS(equivalent)} al blue de hoy</> : 'Ahorro acumulado en dólares'}
         </p>
-      </div>
+      </WalletTile>
 
       <Modal open={open} onClose={() => setOpen(false)} title="Dólares">
         <p className="mb-3 text-sm text-ink-soft num">
@@ -185,6 +203,7 @@ function formatUsdNum(n) {
 function LocalBalanceCard({ l, state }) {
   const owed = l.balance > 0;
   const [open, setOpen] = useState(false);
+  const color = state.groups.find((g) => g.id === l.groupId)?.color || '#A39D90';
 
   const items = useMemo(() => {
     if (!open) return [];
@@ -199,13 +218,7 @@ function LocalBalanceCard({ l, state }) {
 
   return (
     <>
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={() => setOpen(true)}
-        onKeyDown={(ev) => (ev.key === 'Enter' || ev.key === ' ') && setOpen(true)}
-        className={`cursor-pointer rounded-2xl border p-4 text-left transition active:scale-[0.98] hover:border-ink-faint ${owed ? 'border-caution/40 bg-caution/5' : 'border-hair bg-surface'}`}
-      >
+      <WalletTile color={color} letter="L" onClick={() => setOpen(true)}>
         <p className="font-display text-[0.95rem] font-medium text-ink">Local</p>
         <p className={`mt-1.5 font-display text-[1.6rem] font-medium leading-none num ${owed ? 'text-caution' : 'text-ok'}`}>
           {formatARS(Math.abs(l.balance))}
@@ -213,7 +226,7 @@ function LocalBalanceCard({ l, state }) {
         <p className="mt-2.5 text-xs text-ink-soft num">
           {owed ? 'te deben' : l.balance < 0 ? 'repusiste de más' : 'al día'}
         </p>
-      </div>
+      </WalletTile>
 
       <Modal open={open} onClose={() => setOpen(false)} title="Local">
         <p className="mb-3 text-sm text-ink-soft num">
@@ -244,6 +257,7 @@ function LocalBalanceCard({ l, state }) {
 
 function ExtrasCard({ e, streak, state }) {
   const [open, setOpen] = useState(false);
+  const color = state.groups.find((g) => g.id === e.groupId)?.color || '#A39D90';
 
   const items = useMemo(() => {
     if (!open) return [];
@@ -264,13 +278,7 @@ function ExtrasCard({ e, streak, state }) {
 
   return (
     <>
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={() => setOpen(true)}
-        onKeyDown={(ev) => (ev.key === 'Enter' || ev.key === ' ') && setOpen(true)}
-        className="cursor-pointer rounded-2xl border border-hair bg-surface p-4 text-left transition active:scale-[0.98] hover:border-ink-faint"
-      >
+      <WalletTile color={color} letter="S" onClick={() => setOpen(true)}>
         <p className="font-display text-[0.95rem] font-medium text-ink">Salidas / gastos extras</p>
         {streak && streak.streak > 0 && (
           <p className="mt-0.5 text-xs font-medium text-ok">
@@ -281,7 +289,7 @@ function ExtrasCard({ e, streak, state }) {
           {formatARS(e.spent)}
         </p>
         <p className="mt-2.5 text-xs text-ink-soft">Gastado este mes · sin presupuesto</p>
-      </div>
+      </WalletTile>
 
       <Modal open={open} onClose={() => setOpen(false)} title="Salidas / gastos extras">
         <p className="mb-3 text-sm text-ink-soft num">
@@ -312,6 +320,7 @@ function ExtrasCard({ e, streak, state }) {
 
 function DiaADiaCard({ d, state }) {
   const [open, setOpen] = useState(false);
+  const color = state.groups.find((g) => g.id === d.groupId)?.color || '#A39D90';
 
   const items = useMemo(() => {
     if (!open) return [];
@@ -332,19 +341,13 @@ function DiaADiaCard({ d, state }) {
 
   return (
     <>
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={() => setOpen(true)}
-        onKeyDown={(ev) => (ev.key === 'Enter' || ev.key === ' ') && setOpen(true)}
-        className="cursor-pointer rounded-2xl border border-hair bg-surface p-4 text-left transition active:scale-[0.98] hover:border-ink-faint"
-      >
+      <WalletTile color={color} letter="D" onClick={() => setOpen(true)}>
         <p className="font-display text-[0.95rem] font-medium text-ink">Día a día</p>
         <p className="mt-1.5 font-display text-[1.6rem] font-medium leading-none text-ink num">
           {formatARS(d.spent)}
         </p>
         <p className="mt-2.5 text-xs text-ink-soft">Gastado este mes · sin presupuesto</p>
-      </div>
+      </WalletTile>
 
       <Modal open={open} onClose={() => setOpen(false)} title="Día a día">
         <p className="mb-3 text-sm text-ink-soft num">

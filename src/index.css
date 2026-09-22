@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -13,7 +13,7 @@ html, body, #root {
 
 body {
   margin: 0;
-  font-family: Inter, system-ui, 'Segoe UI', Roboto, sans-serif;
+  font-family: Manrope, system-ui, 'Segoe UI', Roboto, sans-serif;
   font-feature-settings: 'cv05', 'ss01';
   -webkit-font-smoothing: antialiased;
   background: #F6F3EC;

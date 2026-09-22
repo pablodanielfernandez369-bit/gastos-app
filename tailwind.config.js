@@ -20,8 +20,8 @@ export default {
         salidas: '#6D4B8F', // ciruela apagado
       },
       fontFamily: {
-        display: ['Fraunces', 'Georgia', 'serif'],
-        sans: ['Inter', 'system-ui', 'Segoe UI', 'Roboto', 'sans-serif'],
+        display: ['Playfair Display', 'Georgia', 'serif'],
+        sans: ['Manrope', 'system-ui', 'Segoe UI', 'Roboto', 'sans-serif'],
       },
     },
   },
