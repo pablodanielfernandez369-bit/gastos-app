@@ -111,7 +111,7 @@ export default function Asistente({ state }) {
                 <li key={ej}>
                   <button
                     onClick={() => ask(ej.replace(/[¿?]/g, ''))}
-                    className="text-left text-sm text-blue-600 underline"
+                    className="text-left text-sm text-accent underline"
                   >
                     {ej}
                   </button>
