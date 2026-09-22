@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import MonoChip from './MonoChip';
 
 export default function CategoryManager({ state, actions }) {
   const [newGroupName, setNewGroupName] = useState('');
@@ -31,7 +32,10 @@ export default function CategoryManager({ state, actions }) {
     <div className="space-y-4">
       {state.groups.map((g) => (
         <div key={g.id} className="rounded-2xl border border-hair bg-surface p-4">
-          <h3 className="mb-2 text-sm font-semibold" style={{ color: g.color }}>{g.name}</h3>
+          <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-ink">
+            <MonoChip color={g.color} letter={g.name.charAt(0).toUpperCase()} size={24} />
+            {g.name}
+          </h3>
           <ul className="space-y-1">
             {state.subcategories.filter((s) => s.groupId === g.id).map((sub) => (
               <li key={sub.id} className="flex items-center gap-2">

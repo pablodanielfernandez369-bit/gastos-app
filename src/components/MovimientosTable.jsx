@@ -5,7 +5,8 @@ import IncomeFormModal from './IncomeFormModal';
 import ExchangeFormModal from './ExchangeFormModal';
 import { formatARS, formatDate, rangeForPeriod, isInRange } from '../lib/format';
 import { exportMovementsCsv } from '../lib/csv';
-import { todayISO } from '../lib/model';
+import { todayISO, USD_COLOR } from '../lib/model';
+import MonoChip from './MonoChip';
 
 export default function MovimientosTable({ state, actions }) {
   const [period, setPeriod] = useState('mes');
@@ -24,6 +25,7 @@ export default function MovimientosTable({ state, actions }) {
   );
 
   const groupName = (id) => state.groups.find((g) => g.id === id)?.name;
+  const groupColor = (id) => state.groups.find((g) => g.id === id)?.color || '#A39D90';
   const subName = (id) => state.subcategories.find((s) => s.id === id)?.name;
 
   const { movementsArs, movementsUsd } = useMemo(() => {
@@ -164,6 +166,7 @@ export default function MovimientosTable({ state, actions }) {
           sort={sort}
           toggleSort={toggleSort}
           groupName={groupName}
+          groupColor={groupColor}
           subName={subName}
           formatAmount={formatARS}
           onEdit={setEditing}
@@ -181,6 +184,7 @@ export default function MovimientosTable({ state, actions }) {
             sort={sort}
             toggleSort={toggleSort}
             groupName={groupName}
+            groupColor={groupColor}
             subName={subName}
             formatAmount={formatUsd}
             onEdit={setEditing}
@@ -226,7 +230,7 @@ function formatUsd(n) {
   return `US$ ${new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 }).format(n || 0)}`;
 }
 
-function MovementsList({ movements, sort, toggleSort, groupName, subName, formatAmount, onEdit, onDelete }) {
+function MovementsList({ movements, sort, toggleSort, groupName, groupColor, subName, formatAmount, onEdit, onDelete }) {
   return (
     <div className="overflow-x-auto rounded-2xl border border-hair bg-surface">
       <table className="w-full min-w-[560px] text-sm">
@@ -248,16 +252,29 @@ function MovementsList({ movements, sort, toggleSort, groupName, subName, format
             <tr key={m.kind + m.id + m.currency} className="border-b border-hair last:border-0">
               <td className="whitespace-nowrap px-3 py-2 text-ink-soft">{formatDate(m.date)}</td>
               <td className="px-3 py-2 text-ink">
-                {m.kind === 'ingreso' ? (
-                  <span className="text-ok">Ingreso</span>
-                ) : m.kind === 'cambio' ? (
-                  <span className="text-ink-soft">Compra USD</span>
-                ) : (
-                  <>
-                    {groupName(m.groupId) || <span className="text-warn">Sin categorizar</span>}
-                    {m.subcategoryId && <span className="text-ink-faint"> · {subName(m.subcategoryId)}</span>}
-                  </>
-                )}
+                <div className="flex items-center gap-2">
+                  {m.kind === 'ingreso' ? (
+                    <>
+                      <MonoChip color="#5A7D2A" letter="$" size={22} />
+                      <span className="text-ok">Ingreso</span>
+                    </>
+                  ) : m.kind === 'cambio' ? (
+                    <>
+                      <MonoChip color={USD_COLOR} letter="U" size={22} />
+                      <span className="text-ink-soft">Compra USD</span>
+                    </>
+                  ) : m.groupId ? (
+                    <>
+                      <MonoChip color={groupColor(m.groupId)} letter={groupName(m.groupId)?.charAt(0).toUpperCase()} size={22} />
+                      <span>
+                        {groupName(m.groupId)}
+                        {m.subcategoryId && <span className="text-ink-faint"> · {subName(m.subcategoryId)}</span>}
+                      </span>
+                    </>
+                  ) : (
+                    <span className="text-warn">Sin categorizar</span>
+                  )}
+                </div>
               </td>
               <td className="px-3 py-2 text-ink">
                 {m.description}

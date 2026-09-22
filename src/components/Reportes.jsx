@@ -5,6 +5,7 @@ import {
 } from 'recharts';
 import PeriodFilter from './PeriodFilter';
 import PriceAlerts from './PriceAlerts';
+import MonoChip from './MonoChip';
 import { computeTotals, computeMonthlySeries, personNames, personTotal, computeMonthlySeriesForPerson } from '../lib/selectors';
 import { formatARS, rangeForPeriod } from '../lib/format';
 import { todayISO } from '../lib/model';
@@ -15,6 +16,22 @@ const GRID = '#E4DED1';
 
 function formatUsd(n) {
   return `US$ ${new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 }).format(n || 0)}`;
+}
+
+// Referencia de categorías con el mismo chip de color que ya se ve en
+// Billeteras y Movimientos, en vez del legend por defecto de los gráficos.
+function MonoLegend({ data, fmt }) {
+  return (
+    <div className="mt-3 flex flex-wrap gap-2">
+      {data.map((d) => (
+        <div key={d.name} className="flex items-center gap-2 rounded-full border border-hair bg-surface-2 px-2.5 py-1.5 text-xs">
+          <MonoChip color={d.color} letter={d.name.charAt(0).toUpperCase()} size={20} />
+          <span className="font-medium text-ink">{d.name}</span>
+          <span className="font-display text-ink-faint num">{fmt(d.value)}</span>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export default function Reportes({ state }) {
@@ -81,11 +98,11 @@ export default function Reportes({ state }) {
                   {pieData.map((d, idx) => <Cell key={idx} fill={d.color} />)}
                 </Pie>
                 <Tooltip formatter={(v) => formatARS(v)} />
-                <Legend />
               </PieChart>
             </ResponsiveContainer>
           </div>
         )}
+        {pieData.length > 0 && <MonoLegend data={pieData} fmt={formatARS} />}
       </section>
 
       {pieDataUsd.length > 0 && (
@@ -98,10 +115,10 @@ export default function Reportes({ state }) {
                   {pieDataUsd.map((d, idx) => <Cell key={idx} fill={d.color} />)}
                 </Pie>
                 <Tooltip formatter={(v) => formatUsd(v)} />
-                <Legend />
               </PieChart>
             </ResponsiveContainer>
           </div>
+          <MonoLegend data={pieDataUsd} fmt={formatUsd} />
         </section>
       )}
 

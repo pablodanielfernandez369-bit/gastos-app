@@ -1,5 +1,10 @@
 import { v4 as uuid } from 'uuid';
 
+// "Dólares" no es un grupo real (es transversal a toda la moneda, no una
+// categoría de gasto), así que no tiene un color propio en los grupos —
+// se fija acá para que quede igual en Billeteras, Movimientos y Reportes.
+export const USD_COLOR = '#B08A2E';
+
 // ---- Modelo de datos ----
 // Grupo (categoría principal): { id, name, color }
 // Subcategoría: { id, groupId, name }

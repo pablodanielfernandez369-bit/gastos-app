@@ -2,16 +2,14 @@ import { useMemo, useState } from 'react';
 import { computeMonthBudget, computeStreak, computeLocalBalance, computeTotals } from '../lib/selectors';
 import { formatARS, formatDate, monthKey } from '../lib/format';
 import { useDolar, usdRate } from '../lib/useDolar';
+import { USD_COLOR } from '../lib/model';
 import Modal from './Modal';
-
-// "Dólares" no es un grupo real (es transversal a toda la moneda), así que
-// no tiene un color propio en state.groups — se fija acá, a tono con el
-// resto de la paleta (dorado apagado).
-const USD_COLOR = '#B08A2E';
+import MonoChip from './MonoChip';
 
 // La tarjeta de cada billetera: un chip con la inicial + un degradé muy
-// suave del color de esa categoría de fondo. El mismo color se usa en
-// Movimientos/Reportes, así que la billetera queda coherente con el resto.
+// suave del color de esa categoría de fondo. El mismo color (y el mismo
+// chip) se usa en Movimientos/Reportes/Categorías, así que la billetera
+// queda coherente con el resto de la app.
 function WalletTile({ color, letter, onClick, children }) {
   return (
     <div
@@ -22,12 +20,7 @@ function WalletTile({ color, letter, onClick, children }) {
       className="flex cursor-pointer items-center gap-3 rounded-2xl border border-hair p-4 text-left transition active:scale-[0.98] hover:border-ink-faint"
       style={{ background: `linear-gradient(180deg, color-mix(in srgb, ${color} 16%, #FCFAF5) 0%, #FCFAF5 75%)` }}
     >
-      <span
-        className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[9px] font-display text-sm font-semibold text-surface"
-        style={{ background: color }}
-      >
-        {letter}
-      </span>
+      <MonoChip color={color} letter={letter} />
       <div className="min-w-0 flex-1">{children}</div>
     </div>
   );
