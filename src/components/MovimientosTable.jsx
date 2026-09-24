@@ -331,6 +331,8 @@ function toIncomeDraft(i) {
     description: i.description,
     date: i.date,
     fxRate: i.fxRate,
+    groupId: i.groupId,
+    personName: i.personName,
     rawText: null,
   };
 }

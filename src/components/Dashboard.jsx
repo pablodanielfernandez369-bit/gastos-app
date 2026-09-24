@@ -76,7 +76,7 @@ export default function Dashboard({ state, actions }) {
   return (
     <div className="space-y-4">
       <DolarStrip dolar={dolar} manual={state.config?.fxRateManual} />
-      <BudgetGoals state={state} />
+      <BudgetGoals state={state} actions={actions} />
       <RecurringReminders state={state} actions={actions} />
       <PriceAlerts state={state} limit={3} compact />
 

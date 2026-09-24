@@ -1,21 +1,24 @@
 import { useMemo, useState } from 'react';
 import Modal from './Modal';
-import { newIncome, todayISO } from '../lib/model';
+import { newIncome, todayISO, PRESTAMO_GROUP_ID } from '../lib/model';
 import { useDolar, usdRate } from '../lib/useDolar';
 
 // La cotización para convertir un ingreso en USD a su equivalente en ARS
 // (que se usa internamente para la capacidad de ahorro y las metas) se toma
 // sola del dólar blue del día — nunca se le pregunta al usuario.
-export default function IncomeFormModal({ open, onClose, draft, state, actions, editingId }) {
+export default function IncomeFormModal({ open, onClose, draft, state, actions, editingId, defaultGroupId, defaultPersonName }) {
   const [amountRaw, setAmountRaw] = useState(draft?.amountRaw ?? '');
   const [currency, setCurrency] = useState(draft?.currency ?? 'ARS');
   const [description, setDescription] = useState(draft?.description ?? '');
   const [date, setDate] = useState(draft?.date ?? todayISO());
-  const [isLocalReimbursement, setIsLocalReimbursement] = useState(Boolean(draft?.groupId));
+  const [isLocalReimbursement, setIsLocalReimbursement] = useState(
+    Boolean(draft?.groupId) || Boolean(defaultGroupId)
+  );
+  const [personName, setPersonName] = useState(draft?.personName ?? defaultPersonName ?? '');
 
   const dolar = useDolar();
   const rate = usdRate(state?.config, dolar) || draft?.fxRate || null;
-  const localGroup = state?.groups?.find((g) => /^local$/i.test(g.name));
+  const localGroup = state?.groups?.find((g) => g.id === PRESTAMO_GROUP_ID);
 
   const amountFinal = useMemo(() => {
     const n = parseFloat(amountRaw);
@@ -37,6 +40,7 @@ export default function IncomeFormModal({ open, onClose, draft, state, actions, 
       date,
       inputMethod: 'formulario',
       groupId: isLocalReimbursement && localGroup ? localGroup.id : null,
+      personName: isLocalReimbursement ? personName.trim() || null : null,
     };
 
     if (editingId) {
@@ -98,14 +102,27 @@ export default function IncomeFormModal({ open, onClose, draft, state, actions, 
         </div>
 
         {localGroup && (
-          <label className="flex items-center gap-2 rounded-lg border border-hair px-3 py-2.5 text-sm text-ink">
-            <input
-              type="checkbox"
-              checked={isLocalReimbursement}
-              onChange={(e) => setIsLocalReimbursement(e.target.checked)}
-            />
-            Es un reembolso del local (se descuenta de lo gastado ahí)
-          </label>
+          <>
+            <label className="flex items-center gap-2 rounded-lg border border-hair px-3 py-2.5 text-sm text-ink">
+              <input
+                type="checkbox"
+                checked={isLocalReimbursement}
+                onChange={(e) => setIsLocalReimbursement(e.target.checked)}
+              />
+              Es un reembolso de un préstamo (se descuenta de lo que te deben)
+            </label>
+            {isLocalReimbursement && (
+              <div>
+                <label className="block text-xs font-medium text-ink-soft mb-1">¿Quién te repuso?</label>
+                <input
+                  className="w-full rounded-lg border border-hair px-3 py-2"
+                  value={personName}
+                  onChange={(e) => setPersonName(e.target.value)}
+                  placeholder="ej: Juan, Local, Mel"
+                />
+              </div>
+            )}
+          </>
         )}
 
         <div>

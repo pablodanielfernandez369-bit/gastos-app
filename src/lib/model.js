@@ -5,6 +5,12 @@ import { v4 as uuid } from 'uuid';
 // se fija acá para que quede igual en Billeteras, Movimientos y Reportes.
 export const USD_COLOR = '#B08A2E';
 
+// Ids fijos de los grupos que selectors/migraciones necesitan encontrar
+// siempre por id (nunca por nombre, que puede cambiar — ej. "Local" pasó a
+// llamarse "Préstamo" pero sigue siendo el mismo grupo con este id).
+export const PRESTAMO_GROUP_ID = 'local';
+export const FAMILIA_GROUP_ID = 'familia';
+
 // ---- Modelo de datos ----
 // Grupo (categoría principal): { id, name, color }
 // Subcategoría: { id, groupId, name }
@@ -15,23 +21,29 @@ export const USD_COLOR = '#B08A2E';
 //   inputMethod ('texto'|'voz'|'formulario'|'telegram'), createdAt
 // }
 // Ingreso: {
-//   id, amount, description, date, inputMethod, createdAt,
+//   id, amount, description, date, inputMethod, createdAt, personName,
 //   groupId — normalmente null (ingreso personal); si se marca como
-//   reembolso de Local, se le pone el id del grupo "Local" y se descuenta
+//   reembolso de Préstamo, se le pone el id de ese grupo y se descuenta
 //   de lo gastado ahí (ver selectors.computeLocalBalance)
 // }
+// Condonación de deuda (Préstamo): { id, personName, amount, description,
+//   date, createdAt } — cuando te "pagan" un préstamo sin plata de por
+//   medio (un trabajo, un favor). Solo ajusta lo que esa persona te debe,
+//   nunca cuenta como ingreso ni mueve el disponible.
 
 export function defaultState() {
   const viviendaId = 'vivienda';
   const salidasId = 'salidas';
   const diaADiaId = 'diaadia';
-  const localId = 'local';
+  const localId = PRESTAMO_GROUP_ID;
+  const familiaId = FAMILIA_GROUP_ID;
 
   const groups = [
     { id: viviendaId, name: 'Vivienda', color: '#1F5673' },
     { id: salidasId, name: 'Salidas/Ocio', color: '#6D4B8F' },
     { id: diaADiaId, name: 'Día a día', color: '#8A6D3F' },
-    { id: localId, name: 'Local', color: '#3F6E63' },
+    { id: familiaId, name: 'Familia', color: '#8F4B5C' },
+    { id: localId, name: 'Préstamo', color: '#3F6E63' },
   ];
 
   const subcategories = [
@@ -59,6 +71,11 @@ export function defaultState() {
     { id: uuid(), groupId: diaADiaId, name: 'Ferretería' },
     { id: uuid(), groupId: diaADiaId, name: 'Psicólogo' },
     { id: uuid(), groupId: diaADiaId, name: 'Otro' },
+
+    // Familia: plata que se da (no se espera de vuelta), separada de
+    // Préstamo (que sí se espera reponer).
+    { id: uuid(), groupId: familiaId, name: 'Ayuda a papás' },
+    { id: uuid(), groupId: familiaId, name: 'Otro' },
   ];
 
   return {
@@ -69,6 +86,7 @@ export function defaultState() {
     incomes: [],
     exchanges: [], // compras de USD con pesos: { id, date, usd, rate, ars, description }
     recurring: [], // gastos fijos recurrentes: { id, groupId, subcategoryId, description, amount, dayOfMonth }
+    debtSettlements: [], // condonaciones de Préstamo (ver comentario arriba)
     config: {
       fxRate: null, // última cotización USD->ARS usada al cargar un gasto en USD
       fxRateManual: null, // cotización que el usuario fija a mano (pisa al blue)
@@ -136,9 +154,25 @@ export function newIncome(partial) {
     amountOriginal: null,
     fxRate: null,
     description: '',
+    personName: null, // para saber, en un reembolso de Préstamo, quién repuso
     date: todayISO(),
     inputMethod: 'formulario',
     groupId: null,
+    createdAt: Date.now(),
+    ...partial,
+  };
+}
+
+// Condonar un préstamo sin que entre plata (te lo "pagaron" con un trabajo,
+// un favor, etc.): baja lo que esa persona te debe pero no toca el
+// disponible ni cuenta como ingreso, a diferencia de un reembolso real.
+export function newDebtSettlement(partial) {
+  return {
+    id: uuid(),
+    personName: '',
+    amount: 0,
+    description: '',
+    date: todayISO(),
     createdAt: Date.now(),
     ...partial,
   };

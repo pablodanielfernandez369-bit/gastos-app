@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { v4 as uuid } from 'uuid';
 import { loadState, persistState, fetchServerState, pushServerState } from './storage';
-import { defaultState } from './model';
+import { defaultState, FAMILIA_GROUP_ID, PRESTAMO_GROUP_ID } from './model';
 
 // Migra estados guardados de versiones anteriores para que tengan las claves
 // nuevas (config de metas, grupo de "Salidas/Ocio") sin perder datos.
@@ -124,12 +124,58 @@ function migrateState(saved) {
     RECOLOR[g.color] ? { ...g, color: RECOLOR[g.color] } : g
   );
 
-  // Grupo "Local": gastos del local de Pablo, separados de los personales.
-  // Un ingreso puede marcarse como reembolso de Local (groupId del ingreso
-  // = id de este grupo) para descontarlo de lo gastado — ver
-  // selectors.computeLocalBalance, que es acumulado, no mensual.
-  if (!s.groups.some((g) => /^local$/i.test(g.name))) {
-    s.groups = [...s.groups, { id: 'local', name: 'Local', color: '#3F6E63' }];
+  // Billetera "Préstamo" (antes "Local"): plata que se le presta a alguien
+  // y se espera que devuelvan, en efectivo o condonada — "Local" (el
+  // negocio de Pablo) es una persona más ahí adentro, no un caso aparte.
+  // Se busca y crea SIEMPRE por id, nunca por nombre: el nombre cambió,
+  // el grupo (y su historial) sigue siendo el mismo.
+  let prestamo = s.groups?.find((g) => g.id === PRESTAMO_GROUP_ID);
+  if (!prestamo) {
+    prestamo = { id: PRESTAMO_GROUP_ID, name: 'Préstamo', color: '#3F6E63' };
+    s.groups = [...s.groups, prestamo];
+  } else if (prestamo.name !== 'Préstamo') {
+    s.groups = s.groups.map((g) => (g.id === PRESTAMO_GROUP_ID ? { ...g, name: 'Préstamo' } : g));
+  }
+  s.debtSettlements = Array.isArray(s.debtSettlements) ? s.debtSettlements : [];
+  // Lo cargado en Préstamo antes de que existiera el desglose por persona
+  // no tenía personName — en la práctica era siempre el negocio ("Local"),
+  // así que se le pone ese nombre para que no se pierda en "Sin nombre".
+  s.expenses = s.expenses.map((e) =>
+    e.groupId === PRESTAMO_GROUP_ID && !e.personName ? { ...e, personName: 'Local' } : e
+  );
+  s.incomes = s.incomes.map((i) =>
+    i.groupId === PRESTAMO_GROUP_ID && !i.personName ? { ...i, personName: 'Local' } : i
+  );
+
+  // Grupo "Familia": plata que se le da a la familia sin esperar que la
+  // devuelvan (ej. "ayuda a papás"), separada de Préstamo.
+  let familia = s.groups?.find((g) => g.id === FAMILIA_GROUP_ID);
+  if (!familia) {
+    familia = { id: FAMILIA_GROUP_ID, name: 'Familia', color: '#8F4B5C' };
+    s.groups = [...s.groups, familia];
+    s.subcategories = [
+      ...s.subcategories,
+      { id: uuid(), groupId: familia.id, name: 'Ayuda a papás' },
+      { id: uuid(), groupId: familia.id, name: 'Otro' },
+    ];
+  }
+  // "Ayuda a papás" pudo haber quedado antes en otro grupo (ej. Día a día):
+  // si tiene gastos cargados, se muda entera a Familia con su historial.
+  // Idempotente (se detecta por tener gastos, no por existir nomás).
+  const ayudaPapasVieja = s.subcategories.find(
+    (sc) =>
+      sc.groupId !== familia.id &&
+      /^ayuda a pap[aá]s$/i.test(sc.name) &&
+      s.expenses.some((e) => e.subcategoryId === sc.id)
+  );
+  if (ayudaPapasVieja) {
+    const destino = s.subcategories.find((sc) => sc.groupId === familia.id && /^ayuda a pap[aá]s$/i.test(sc.name));
+    if (destino) {
+      s.expenses = s.expenses.map((e) =>
+        e.subcategoryId === ayudaPapasVieja.id ? { ...e, groupId: familia.id, subcategoryId: destino.id } : e
+      );
+      s.subcategories = s.subcategories.filter((sc) => sc.id !== ayudaPapasVieja.id);
+    }
   }
 
   return s;
@@ -250,6 +296,19 @@ export function useAppState() {
     },
     deleteExchange(id) {
       setState((s) => ({ ...s, exchanges: (s.exchanges || []).filter((x) => x.id !== id) }));
+    },
+
+    addDebtSettlement(settlement) {
+      setState((s) => ({ ...s, debtSettlements: [...(s.debtSettlements || []), settlement] }));
+    },
+    updateDebtSettlement(id, patch) {
+      setState((s) => ({
+        ...s,
+        debtSettlements: (s.debtSettlements || []).map((d) => (d.id === id ? { ...d, ...patch } : d)),
+      }));
+    },
+    deleteDebtSettlement(id) {
+      setState((s) => ({ ...s, debtSettlements: (s.debtSettlements || []).filter((d) => d.id !== id) }));
     },
 
     addGroup(name) {

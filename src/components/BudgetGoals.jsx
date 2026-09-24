@@ -5,6 +5,9 @@ import { useDolar, usdRate } from '../lib/useDolar';
 import { USD_COLOR } from '../lib/model';
 import Modal from './Modal';
 import MonoChip from './MonoChip';
+import ExpenseFormModal from './ExpenseFormModal';
+import IncomeFormModal from './IncomeFormModal';
+import DebtSettlementModal from './DebtSettlementModal';
 
 // La tarjeta de cada billetera: un chip con la inicial + un degradé muy
 // suave del color de esa categoría de fondo. El mismo color (y el mismo
@@ -26,15 +29,15 @@ function WalletTile({ color, letter, onClick, children }) {
   );
 }
 
-// Las billeteras: Vivienda, Día a día, Salidas/Ocio, Dólares y Local, todas
-// ancho completo (una debajo de otra), sin presupuesto ni mensajes de
-// ritmo/proyección — solo el nombre, el gastado del mes (o el saldo, según
-// la billetera) y el detalle de movimientos al tocarla.
-export default function BudgetGoals({ state }) {
+// Las billeteras: Vivienda, Día a día, Salidas/Ocio, Familia, Dólares y
+// Préstamo, todas ancho completo (una debajo de otra), sin presupuesto ni
+// mensajes de ritmo/proyección — solo el nombre, el gastado del mes (o el
+// saldo, según la billetera) y el detalle de movimientos al tocarla.
+export default function BudgetGoals({ state, actions }) {
   const b = useMemo(() => computeMonthBudget(state), [state]);
   const streak = useMemo(() => computeStreak(state), [state]);
   const local = useMemo(() => computeLocalBalance(state), [state]);
-  const hasLocalActivity = Boolean(local && (local.spent > 0 || local.reimbursed > 0));
+  const hasLocalActivity = Boolean(local && (local.spent > 0 || local.reimbursed > 0 || local.settled > 0));
   // Ahorro en USD acumulado (todo el historial, no el mes): es lo que
   // muestra la billetera "Dólares" — mismo dato que ya se ve en el
   // Dashboard como "de ahorro en dólares", nada nuevo se calcula.
@@ -51,14 +54,76 @@ export default function BudgetGoals({ state }) {
         {b.vivienda && <ViviendaCard v={b.vivienda} state={state} />}
         {b.diaADia && <DiaADiaCard d={b.diaADia} state={state} />}
         {b.extras && <ExtrasCard e={b.extras} streak={streak} state={state} />}
+        {b.familia && <FamiliaCard f={b.familia} state={state} />}
         <DolaresCard
           usd={allTime.savingsByCurrency.usd + (allTime.swaps?.usd || 0)}
           rate={usdToArs}
           state={state}
         />
-        {hasLocalActivity && <LocalBalanceCard l={local} state={state} />}
+        {hasLocalActivity && <PrestamoCard l={local} state={state} actions={actions} />}
       </div>
     </div>
+  );
+}
+
+function FamiliaCard({ f, state }) {
+  const [open, setOpen] = useState(false);
+  const color = state.groups.find((g) => g.id === f.groupId)?.color || '#A39D90';
+
+  const items = useMemo(() => {
+    if (!open) return [];
+    const currKey = monthKey(new Date().toISOString());
+    return state.expenses
+      .filter((ex) => monthKey(ex.date) === currKey && ex.groupId === f.groupId)
+      .slice()
+      .sort((a, b) => (a.date < b.date ? 1 : -1))
+      .map((ex) => ({
+        id: ex.id,
+        date: ex.date,
+        label: ex.description || state.subcategories.find((s) => s.id === ex.subcategoryId)?.name || 'Familia',
+        sub: ex.description ? state.subcategories.find((s) => s.id === ex.subcategoryId)?.name : null,
+        amount: ex.currency === 'USD' ? ex.amountOriginal : ex.amount,
+        usd: ex.currency === 'USD',
+      }));
+  }, [open, state, f.groupId]);
+
+  return (
+    <>
+      <WalletTile color={color} letter="F" onClick={() => setOpen(true)}>
+        <p className="font-display text-[0.95rem] font-medium text-ink">Familia</p>
+        <p className="mt-1.5 font-numeral text-[1.6rem] font-medium leading-none text-ink num">
+          {formatARS(f.spent)}
+        </p>
+        <p className="mt-2.5 text-xs text-ink-soft">Gastado este mes · sin presupuesto</p>
+      </WalletTile>
+
+      <Modal open={open} onClose={() => setOpen(false)} title="Familia">
+        <p className="mb-3 text-sm text-ink-soft num">
+          Total del mes: <span className="font-semibold text-ink">{formatARS(f.spent)}</span>
+        </p>
+        {items.length === 0 ? (
+          <p className="py-4 text-center text-sm text-ink-faint">Sin movimientos este mes.</p>
+        ) : (
+          <ul className="divide-y divide-hair">
+            {items.map((it) => (
+              <li key={it.id} className="flex items-center gap-3 py-2.5">
+                <MonoChip color={color} letter={it.label.charAt(0).toUpperCase()} size={26} />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-ink">{it.label}</p>
+                  <p className="text-xs text-ink-faint">
+                    {formatDate(it.date)}
+                    {it.sub ? ` · ${it.sub}` : ''}
+                  </p>
+                </div>
+                <p className="shrink-0 font-numeral text-sm font-semibold text-ink num">
+                  {it.usd ? formatUsdNum(it.amount) : formatARS(it.amount)}
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Modal>
+    </>
   );
 }
 
@@ -204,65 +269,203 @@ function formatUsdNum(n) {
   return `US$ ${new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 }).format(n || 0)}`;
 }
 
-function LocalBalanceCard({ l, state }) {
-  const owed = l.balance > 0;
+// "Préstamo": plata que se le da a alguien esperando que la devuelva.
+// "Local" (el negocio de Pablo) es una persona más ahí adentro, no un caso
+// aparte. Tres niveles: la tarjeta (saldo total), la lista de personas al
+// tocarla, y el detalle de una persona con su historial + las 3 acciones
+// (prestar, reponer en efectivo, o saldar sin plata de por medio).
+function PrestamoCard({ l, state, actions }) {
   const [open, setOpen] = useState(false);
+  const [selectedPerson, setSelectedPerson] = useState(null);
+  const [showExpense, setShowExpense] = useState(false);
+  const [showIncome, setShowIncome] = useState(false);
+  const [showSettle, setShowSettle] = useState(false);
+  const owed = l.balance > 0;
   const color = state.groups.find((g) => g.id === l.groupId)?.color || '#A39D90';
+  const owedCount = l.people.filter((p) => p.balance > 0).length;
+
+  function closeAll() {
+    setOpen(false);
+    setSelectedPerson(null);
+  }
 
   const items = useMemo(() => {
-    if (!open) return [];
+    if (!selectedPerson) return [];
     const gastos = state.expenses
-      .filter((e) => e.groupId === l.groupId)
-      .map((e) => ({ id: e.id, date: e.date, label: e.description || 'Gasto', amount: -e.amount }));
+      .filter((e) => e.groupId === l.groupId && (e.personName || 'Sin nombre') === selectedPerson)
+      .map((e) => ({ id: 'e' + e.id, date: e.date, label: e.description || 'Préstamo', amount: -e.amount }));
     const reembolsos = state.incomes
-      .filter((i) => i.groupId === l.groupId)
-      .map((i) => ({ id: i.id, date: i.date, label: i.description || 'Reembolso', amount: i.amount }));
-    return [...gastos, ...reembolsos].sort((a, b) => (a.date < b.date ? 1 : -1));
-  }, [open, state, l.groupId]);
+      .filter((i) => i.groupId === l.groupId && (i.personName || 'Sin nombre') === selectedPerson)
+      .map((i) => ({ id: 'i' + i.id, date: i.date, label: i.description || 'Reembolso', amount: i.amount }));
+    const saldos = (state.debtSettlements || [])
+      .filter((s) => (s.personName || 'Sin nombre') === selectedPerson)
+      .map((s) => ({
+        id: 's' + s.id,
+        date: s.date,
+        label: s.description ? `Saldado de otra forma · ${s.description}` : 'Saldado de otra forma',
+        amount: s.amount,
+        settled: true,
+      }));
+    return [...gastos, ...reembolsos, ...saldos].sort((a, b) => (a.date < b.date ? 1 : -1));
+  }, [selectedPerson, state, l.groupId]);
+
+  const selectedBalance = selectedPerson ? l.people.find((p) => p.personName === selectedPerson)?.balance ?? 0 : 0;
 
   return (
     <>
-      <WalletTile color={color} letter="L" onClick={() => setOpen(true)}>
-        <p className="font-display text-[0.95rem] font-medium text-ink">Local</p>
+      <WalletTile color={color} letter="P" onClick={() => setOpen(true)}>
+        <p className="font-display text-[0.95rem] font-medium text-ink">Préstamo</p>
         <p className={`mt-1.5 font-numeral text-[1.6rem] font-medium leading-none num ${owed ? 'text-caution' : 'text-ok'}`}>
           {formatARS(Math.abs(l.balance))}
         </p>
         <p className="mt-2.5 text-xs text-ink-soft num">
-          {owed ? 'te deben' : l.balance < 0 ? 'repusiste de más' : 'al día'}
+          {owed
+            ? `te deben, entre ${owedCount} persona${owedCount === 1 ? '' : 's'}`
+            : l.balance < 0 ? 'repusiste de más' : 'al día'}
         </p>
       </WalletTile>
 
-      <Modal open={open} onClose={() => setOpen(false)} title="Local">
-        <p className="mb-3 text-sm text-ink-soft num">
-          {formatARS(l.spent)} gastado − {formatARS(l.reimbursed)} repuesto ={' '}
-          <span className="font-semibold text-ink">{formatARS(l.balance)}</span>
-        </p>
-        {items.length === 0 ? (
-          <p className="py-4 text-center text-sm text-ink-faint">Sin movimientos.</p>
+      <Modal open={open} onClose={closeAll} title={selectedPerson || 'Préstamo'}>
+        {!selectedPerson ? (
+          <>
+            <p className="mb-3 text-sm text-ink-soft num">
+              Te deben en total: <span className="font-semibold text-ink">{formatARS(Math.max(0, l.balance))}</span>
+            </p>
+            {l.people.length === 0 ? (
+              <p className="py-4 text-center text-sm text-ink-faint">Sin préstamos todavía.</p>
+            ) : (
+              <ul className="divide-y divide-hair">
+                {l.people.map((p) => (
+                  <li key={p.personName}>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedPerson(p.personName)}
+                      className="flex w-full items-center gap-3 py-2.5 text-left"
+                    >
+                      <MonoChip color={color} letter={p.personName.charAt(0).toUpperCase()} size={26} />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-ink">{p.personName}</p>
+                        <p className="text-xs text-ink-faint">
+                          {p.balance > 0
+                            ? 'te debe'
+                            : p.settled > 0
+                              ? 'saldado de otra forma'
+                              : p.reimbursed > 0
+                                ? 'te repuso'
+                                : 'al día'}
+                        </p>
+                      </div>
+                      <p className={`shrink-0 font-numeral text-sm font-semibold num ${p.balance > 0 ? 'text-caution' : 'text-ok'}`}>
+                        {formatARS(Math.abs(p.balance))}
+                      </p>
+                      <span className="text-ink-faint">›</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="mt-4 flex gap-2">
+              <button
+                onClick={() => setShowExpense(true)}
+                className="flex-1 rounded-lg bg-accent py-2.5 text-sm font-medium text-paper"
+              >
+                + Presté
+              </button>
+              <button
+                onClick={() => setShowIncome(true)}
+                className="flex-1 rounded-lg border border-ok/25 bg-ok/10 py-2.5 text-sm font-medium text-ok"
+              >
+                + Me repusieron
+              </button>
+            </div>
+          </>
         ) : (
-          <ul className="divide-y divide-hair">
-            {items.map((it) => {
-              const isReembolso = it.amount >= 0;
-              return (
-                <li key={it.id} className="flex items-center gap-3 py-2.5">
-                  <MonoChip
-                    color={isReembolso ? '#5A7D2A' : color}
-                    letter={isReembolso ? '$' : it.label.charAt(0).toUpperCase()}
-                    size={26}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-ink">{it.label}</p>
-                    <p className="text-xs text-ink-faint">{formatDate(it.date)}</p>
-                  </div>
-                  <p className={`shrink-0 font-numeral text-sm font-semibold num ${it.amount < 0 ? 'text-ink' : 'text-ok'}`}>
-                    {it.amount < 0 ? '−' : '+'}{formatARS(Math.abs(it.amount))}
-                  </p>
-                </li>
-              );
-            })}
-          </ul>
+          <>
+            <button
+              type="button"
+              onClick={() => setSelectedPerson(null)}
+              className="mb-2 text-sm font-medium text-accent"
+            >
+              ‹ Préstamo
+            </button>
+            <p className="mb-3 text-sm text-ink-soft num">
+              {selectedBalance > 0 ? 'Te debe' : 'Balance'}:{' '}
+              <span className="font-semibold text-ink">{formatARS(Math.abs(selectedBalance))}</span>
+            </p>
+            {items.length === 0 ? (
+              <p className="py-4 text-center text-sm text-ink-faint">Sin movimientos.</p>
+            ) : (
+              <ul className="divide-y divide-hair">
+                {items.map((it) => (
+                  <li key={it.id} className="flex items-center gap-3 py-2.5">
+                    <MonoChip
+                      color={it.settled ? '#A39D90' : it.amount < 0 ? color : '#5A7D2A'}
+                      letter={it.settled ? '✓' : it.amount < 0 ? 'P' : '$'}
+                      size={26}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-ink">{it.label}</p>
+                      <p className="text-xs text-ink-faint">{formatDate(it.date)}</p>
+                    </div>
+                    <p className={`shrink-0 font-numeral text-sm font-semibold num ${it.amount < 0 ? 'text-ink' : it.settled ? 'text-ink-faint' : 'text-ok'}`}>
+                      {it.amount < 0 ? '−' : '+'}{formatARS(Math.abs(it.amount))}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="mt-4 flex gap-2">
+              <button
+                onClick={() => setShowExpense(true)}
+                className="flex-1 rounded-lg bg-accent py-2.5 text-sm font-medium text-paper"
+              >
+                + Presté
+              </button>
+              <button
+                onClick={() => setShowIncome(true)}
+                className="flex-1 rounded-lg border border-ok/25 bg-ok/10 py-2.5 text-sm font-medium text-ok"
+              >
+                + Efectivo
+              </button>
+            </div>
+            <button
+              onClick={() => setShowSettle(true)}
+              className="mt-2 w-full rounded-lg border border-dashed border-hair py-2.5 text-xs font-medium text-ink-soft"
+            >
+              ✓ Lo saldó de otra forma
+            </button>
+          </>
         )}
       </Modal>
+
+      {showExpense && (
+        <ExpenseFormModal
+          open
+          onClose={() => setShowExpense(false)}
+          draft={{ groupId: l.groupId, personName: selectedPerson || '' }}
+          state={state}
+          actions={actions}
+        />
+      )}
+      {showIncome && (
+        <IncomeFormModal
+          open
+          onClose={() => setShowIncome(false)}
+          defaultGroupId={l.groupId}
+          defaultPersonName={selectedPerson || ''}
+          state={state}
+          actions={actions}
+        />
+      )}
+      {showSettle && selectedPerson && (
+        <DebtSettlementModal
+          open
+          onClose={() => setShowSettle(false)}
+          personName={selectedPerson}
+          maxAmount={Math.max(0, selectedBalance)}
+          actions={actions}
+        />
+      )}
     </>
   );
 }

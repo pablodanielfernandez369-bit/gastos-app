@@ -1,5 +1,6 @@
 import { isInRange, monthKey, formatMonthLabel } from './format';
 import { pendingRecurring } from './recurring';
+import { FAMILIA_GROUP_ID, PRESTAMO_GROUP_ID } from './model';
 
 // Monto en su moneda original (ARS o USD), sin convertir. Se usa en todos
 // lados donde pesos y dólares se cuentan por separado.
@@ -303,11 +304,17 @@ export function computeMonthBudget(rawState, now = new Date()) {
     .filter((e) => e.groupId === extrasGroupId)
     .reduce((sum, e) => sum + e.amount, 0);
 
-  // Vivienda no tiene presupuesto (es lo fijo/inevitable), pero para la
-  // billetera igual se muestra cuánto se lleva gastado este mes.
+  // Vivienda y Familia no tienen presupuesto (Vivienda es lo fijo/
+  // inevitable, Familia es plata que se da sin esperar nada de vuelta),
+  // pero igual se muestra cuánto se lleva gastado este mes en cada una.
   const viviendaGroup = state.groups.find((g) => /^vivienda$/i.test(g.name));
   const viviendaSpent = viviendaGroup
     ? monthExpenses.filter((e) => e.groupId === viviendaGroup.id).reduce((sum, e) => sum + e.amount, 0)
+    : 0;
+
+  const familiaGroup = state.groups.find((g) => g.id === FAMILIA_GROUP_ID);
+  const familiaSpent = familiaGroup
+    ? monthExpenses.filter((e) => e.groupId === familiaGroup.id).reduce((sum, e) => sum + e.amount, 0)
     : 0;
 
   // Para la proyección solo extrapolamos el gasto de "salidas/ocio" (lo que
@@ -418,6 +425,7 @@ export function computeMonthBudget(rawState, now = new Date()) {
     extras,
     diaADia,
     vivienda: viviendaGroup ? { groupId: viviendaGroup.id, spent: viviendaSpent } : null,
+    familia: familiaGroup ? { groupId: familiaGroup.id, spent: familiaSpent } : null,
     savings,
     coherence,
     disponible,
@@ -458,22 +466,48 @@ export function computeStreak(state, now = new Date()) {
   return { streak, dailyAllotment, todaySpent, onTrackToday: todaySpent <= dailyAllotment };
 }
 
-// Balance acumulado (no mensual) del grupo "Local": cuánto se gastó ahí
-// contra cuánto se repuso (ingresos marcados con groupId = Local). No se
-// reinicia cada mes — es plata adelantada por Pablo hasta que se la
-// devuelvan, no un presupuesto.
+// Balance acumulado (no mensual) de la billetera "Préstamo": cuánto se
+// prestó contra cuánto repusieron en efectivo (ingresos marcados con
+// groupId = Préstamo) y cuánto se condonó sin plata de por medio
+// (debtSettlements). No se reinicia cada mes — es plata adelantada hasta
+// que la devuelvan, no un presupuesto. "Local" (el negocio) es una
+// persona más acá adentro, no un caso aparte.
 export function computeLocalBalance(state) {
-  const local = state.groups.find((g) => /^local$/i.test(g.name));
+  const local = state.groups.find((g) => g.id === PRESTAMO_GROUP_ID);
   if (!local) return null;
 
-  const spent = state.expenses
-    .filter((e) => e.groupId === local.id)
-    .reduce((sum, e) => sum + e.amount, 0);
-  const reimbursed = state.incomes
-    .filter((i) => i.groupId === local.id)
-    .reduce((sum, i) => sum + i.amount, 0);
+  const byPerson = {};
+  const bucket = (name) => {
+    const key = name || 'Sin nombre';
+    if (!byPerson[key]) byPerson[key] = { personName: key, spent: 0, reimbursed: 0, settled: 0 };
+    return byPerson[key];
+  };
 
-  return { groupId: local.id, spent, reimbursed, balance: spent - reimbursed };
+  const loans = state.expenses.filter((e) => e.groupId === local.id);
+  for (const e of loans) bucket(e.personName).spent += e.amount;
+
+  const cashBack = state.incomes.filter((i) => i.groupId === local.id);
+  for (const i of cashBack) bucket(i.personName).reimbursed += i.amount;
+
+  const settlements = state.debtSettlements || [];
+  for (const s of settlements) bucket(s.personName).settled += s.amount;
+
+  const spent = loans.reduce((sum, e) => sum + e.amount, 0);
+  const reimbursed = cashBack.reduce((sum, i) => sum + i.amount, 0);
+  const settled = settlements.reduce((sum, s) => sum + s.amount, 0);
+
+  const people = Object.values(byPerson)
+    .map((p) => ({ ...p, balance: p.spent - p.reimbursed - p.settled }))
+    .sort((a, b) => b.balance - a.balance);
+
+  return {
+    groupId: local.id,
+    spent,
+    reimbursed,
+    settled,
+    balance: spent - reimbursed - settled,
+    people,
+  };
 }
 
 // verde si va y proyecta bien; rojo si ya pasó el 90% o proyecta pasarse;
