@@ -19,6 +19,7 @@ import Reportes from './components/Reportes';
 import Ajustes from './components/Ajustes';
 import Asistente from './components/Asistente';
 import NavIcon from './components/NavIcons';
+import PrintWallets from './components/PrintWallets';
 
 const TABS = [
   { id: 'dashboard', label: 'Ahorro' },
@@ -80,7 +81,8 @@ export default function App() {
   // ocupan su alto natural y quedan siempre visibles, y <main> es la ÚNICA
   // zona que scrollea, en el espacio que sobra.
   return (
-    <div className={`mx-auto flex h-dvh flex-col ${WIDTH} bg-paper`}>
+    <>
+    <div className={`app-shell mx-auto flex h-dvh flex-col ${WIDTH} bg-paper`}>
       <header className="shrink-0 px-4 pb-3 pt-[max(1.75rem,env(safe-area-inset-top))]">
         <h1 className="font-display text-[1.7rem] font-medium leading-none tracking-tight text-ink">
           Mis gastos y ahorro
@@ -162,6 +164,8 @@ export default function App() {
         />
       )}
     </div>
+    <PrintWallets state={state} />
+    </>
   );
 }
 

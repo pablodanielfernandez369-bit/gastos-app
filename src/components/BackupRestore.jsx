@@ -89,6 +89,13 @@ export default function BackupRestore({ state, actions }) {
       {tgStatus === 'error' && (
         <p className="mt-1 text-sm text-warn">No se pudo enviar a Telegram (¿está configurado el bot?).</p>
       )}
+
+      <button
+        onClick={() => window.print()}
+        className="mt-2 w-full rounded-lg border border-hair py-2.5 text-sm font-medium text-ink-soft"
+      >
+        🖨 Imprimir billeteras
+      </button>
       <input
         ref={fileInputRef}
         type="file"

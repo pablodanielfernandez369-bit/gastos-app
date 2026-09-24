@@ -33,3 +33,52 @@ input, select, textarea {
   background-color: #FCFAF5;
   color: #211E1A;
 }
+
+/* Hojas de impresión de las billeteras (PrintWallets.jsx): invisibles en
+   pantalla, una hoja por billetera con salto de página al imprimir. */
+.print-only {
+  display: none;
+}
+
+@media print {
+  .app-shell {
+    display: none;
+  }
+  .print-only {
+    display: block;
+  }
+  .print-page {
+    page-break-after: always;
+  }
+  .print-page h1 {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 20px;
+    margin: 0 0 4px;
+  }
+  .print-sub {
+    font-size: 12px;
+    color: #444;
+    margin: 0 0 14px;
+  }
+  .print-person {
+    margin-top: 18px;
+  }
+  .print-person h2 {
+    font-size: 14px;
+    margin: 0 0 6px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    margin-bottom: 10px;
+  }
+  th, td {
+    text-align: left;
+    padding: 4px 8px;
+    border-bottom: 1px solid #ccc;
+  }
+  th.num, td.num {
+    text-align: right;
+  }
+}
