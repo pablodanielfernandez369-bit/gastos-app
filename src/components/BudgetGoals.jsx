@@ -1,12 +1,12 @@
 import { useMemo, useState } from 'react';
-import { computeMonthBudget, computeStreak, computeLocalBalance, computeTotals } from '../lib/selectors';
+import { computeMonthBudget, computeStreak, computeLocalBalance, computeTotals, normalizePersonKey } from '../lib/selectors';
 import { formatARS, formatDate, monthKey } from '../lib/format';
 import { useDolar, usdRate } from '../lib/useDolar';
 import { USD_COLOR } from '../lib/model';
 import Modal from './Modal';
 import MonoChip from './MonoChip';
-import ExpenseFormModal from './ExpenseFormModal';
-import IncomeFormModal from './IncomeFormModal';
+import PrestamoLoanModal from './PrestamoLoanModal';
+import PrestamoReembolsoModal from './PrestamoReembolsoModal';
 import DebtSettlementModal from './DebtSettlementModal';
 
 // La tarjeta de cada billetera: un chip con la inicial + un degradé muy
@@ -291,14 +291,15 @@ function PrestamoCard({ l, state, actions }) {
 
   const items = useMemo(() => {
     if (!selectedPerson) return [];
+    const key = normalizePersonKey(selectedPerson);
     const gastos = state.expenses
-      .filter((e) => e.groupId === l.groupId && (e.personName || 'Sin nombre') === selectedPerson)
+      .filter((e) => e.groupId === l.groupId && normalizePersonKey(e.personName) === key)
       .map((e) => ({ id: 'e' + e.id, date: e.date, label: e.description || 'Préstamo', amount: -e.amount }));
     const reembolsos = state.incomes
-      .filter((i) => i.groupId === l.groupId && (i.personName || 'Sin nombre') === selectedPerson)
+      .filter((i) => i.groupId === l.groupId && normalizePersonKey(i.personName) === key)
       .map((i) => ({ id: 'i' + i.id, date: i.date, label: i.description || 'Reembolso', amount: i.amount }));
     const saldos = (state.debtSettlements || [])
-      .filter((s) => (s.personName || 'Sin nombre') === selectedPerson)
+      .filter((s) => normalizePersonKey(s.personName) === key)
       .map((s) => ({
         id: 's' + s.id,
         date: s.date,
@@ -439,21 +440,22 @@ function PrestamoCard({ l, state, actions }) {
       </Modal>
 
       {showExpense && (
-        <ExpenseFormModal
+        <PrestamoLoanModal
           open
           onClose={() => setShowExpense(false)}
-          draft={{ groupId: l.groupId, personName: selectedPerson || '' }}
-          state={state}
+          groupId={l.groupId}
+          personName={selectedPerson}
+          knownPeople={l.people.map((p) => p.personName)}
           actions={actions}
         />
       )}
       {showIncome && (
-        <IncomeFormModal
+        <PrestamoReembolsoModal
           open
           onClose={() => setShowIncome(false)}
-          defaultGroupId={l.groupId}
-          defaultPersonName={selectedPerson || ''}
-          state={state}
+          groupId={l.groupId}
+          personName={selectedPerson}
+          knownPeople={l.people.map((p) => p.personName)}
           actions={actions}
         />
       )}

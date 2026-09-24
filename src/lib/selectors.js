@@ -466,6 +466,18 @@ export function computeStreak(state, now = new Date()) {
   return { streak, dailyAllotment, todaySpent, onTrackToday: todaySpent <= dailyAllotment };
 }
 
+// "Matías" y "matias" (sin tilde, el bot de Telegram a veces la omite) son
+// la misma persona: se agrupan por esta clave normalizada (sin mayúsculas
+// ni acentos), aunque el nombre que se muestra respeta cómo se escribió la
+// primera vez.
+export function normalizePersonKey(name) {
+  return (name || 'Sin nombre')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '') || 'sin nombre';
+}
+
 // Balance acumulado (no mensual) de la billetera "Préstamo": cuánto se
 // prestó contra cuánto repusieron en efectivo (ingresos marcados con
 // groupId = Préstamo) y cuánto se condonó sin plata de por medio
@@ -477,9 +489,10 @@ export function computeLocalBalance(state) {
   if (!local) return null;
 
   const byPerson = {};
-  const bucket = (name) => {
-    const key = name || 'Sin nombre';
-    if (!byPerson[key]) byPerson[key] = { personName: key, spent: 0, reimbursed: 0, settled: 0 };
+  const bucket = (rawName) => {
+    const display = (rawName || 'Sin nombre').trim() || 'Sin nombre';
+    const key = normalizePersonKey(display);
+    if (!byPerson[key]) byPerson[key] = { personName: display, spent: 0, reimbursed: 0, settled: 0 };
     return byPerson[key];
   };
 
