@@ -308,6 +308,21 @@ export function useAppState() {
       setState((s) => ({ ...s, exchanges: (s.exchanges || []).filter((x) => x.id !== id) }));
     },
 
+    // Descuento de USD ligado a un gasto puntual (checkbox "Pagué esto
+    // vendiendo dólares" en el formulario): a diferencia del cron nocturno
+    // (que mira el mes completo y puede agarrar datos a mitad de carga), esto
+    // es explícito por Pablo y usa la cotización del momento exacto en que
+    // carga el gasto.
+    addAutoDeduction(deduction) {
+      setState((s) => ({ ...s, autoDeductions: [...(s.autoDeductions || []), deduction] }));
+    },
+    deleteAutoDeduction(id) {
+      setState((s) => ({
+        ...s,
+        autoDeductions: (s.autoDeductions || []).filter((d) => d.id !== id),
+      }));
+    },
+
     addDebtSettlement(settlement) {
       setState((s) => ({ ...s, debtSettlements: [...(s.debtSettlements || []), settlement] }));
     },

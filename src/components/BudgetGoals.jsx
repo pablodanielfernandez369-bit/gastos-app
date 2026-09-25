@@ -313,7 +313,7 @@ function DolaresCard({ usd, rate, state }) {
       rows.push({
         id: 'd' + d.id,
         date: d.date,
-        label: `Descuento automático (gastaste ${formatARS(d.ars)} de más)`,
+        label: d.note || `Descuento automático (gastaste ${formatARS(d.ars)} de más)`,
         amount: d.usd,
         sign: -1,
         kind: 'descuento',
