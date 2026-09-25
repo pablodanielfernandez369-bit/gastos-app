@@ -122,7 +122,7 @@ export default function ExchangeFormModal({ open, onClose, draft, actions, editi
           {u > 0 && a > 0 && (
             <p className="mt-1 text-xs text-ink-faint">
               {isVenta
-                ? `Se suman ${formatARS(a)} a tu disponible en pesos y se restan US$ ${u} de tus dólares.`
+                ? `Se restan US$ ${u} de tus dólares acumulados (el disponible en pesos no cambia).`
                 : `Se restan ${formatARS(a)} de tus pesos y se suman US$ ${u} a tus dólares.`}
             </p>
           )}

@@ -481,20 +481,16 @@ export function computeMonthBudget(rawState, now = new Date()) {
   // mes): no proyecta nada, solo resta de lo que YA entró lo que ya se
   // gastó, la meta de ahorro (se aparta entera, no prorrateada) y los
   // recurrentes que todavía falten pagar este mes. Sube cuando cobrás,
-  // baja cuando cargás un gasto.
-  // Una "venta de dólares" este mes son pesos reales que entraron a cubrir
-  // gasto — se suman acá (una "compra" no resta: sigue siendo ahorro, solo
-  // cambió de forma, ver newExchange en model.js).
-  const ventasArsMes = (state.exchanges || [])
-    .filter((x) => x.kind === 'venta' && inMonth(x.date))
-    .reduce((sum, x) => sum + (x.ars || 0), 0);
+  // baja cuando cargás un gasto. Comprar/vender dólares NO lo toca (ni
+  // compra ni venta): son conversiones entre el pool de pesos y el de
+  // dólares, no ingreso ni gasto nuevo — el efecto de vender dólares se ve
+  // solo en el pool de USD (ver exchangeTotals), nunca acá.
   const disponible = {
-    value: incomeTotal - expenseTotal - (savingsGoal || 0) - pendingRecurringTotal + ventasArsMes,
+    value: incomeTotal - expenseTotal - (savingsGoal || 0) - pendingRecurringTotal,
     incomeTotal,
     expenseTotal,
     savingsGoal: savingsGoal || 0,
     pendingRecurringTotal,
-    ventasArsMes,
   };
 
   return {

@@ -147,10 +147,10 @@ export function newRecurring(partial) {
 // Compra o venta de dólares. `kind: 'compra'` (default, plata de pesos a
 // dólares) o `kind: 'venta'` (al revés: se venden dólares y entran pesos —
 // ej. "vendí USD para cubrir un gasto"). `usd`/`ars` son siempre montos
-// positivos; el signo con que cuentan en cada pool lo decide `kind`
-// (ver selectors.exchangeTotals). Una venta SÍ suma al disponible del mes
-// en pesos (son pesos reales que entraron y se pueden gastar); una compra
-// no resta (sigue siendo "tu ahorro", solo cambió de forma).
+// positivos; el signo con que cuentan en el pool de USD lo decide `kind`
+// (ver selectors.exchangeTotals). Ninguna de las dos toca el "disponible"
+// en pesos (comparación directa ingresos-gastos del mes) — son
+// conversiones entre pools, no ingreso ni gasto nuevo.
 export function newExchange(partial) {
   return {
     id: uuid(),
