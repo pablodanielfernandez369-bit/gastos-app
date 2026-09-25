@@ -35,7 +35,8 @@ input, select, textarea {
 }
 
 /* Hojas de impresión de las billeteras (PrintWallets.jsx): invisibles en
-   pantalla, una hoja por billetera con salto de página al imprimir. */
+   pantalla, todas las billeteras seguidas (sin salto de hoja forzado
+   entre una y otra), agrupadas por categoría dentro de cada una. */
 .print-only {
   display: none;
 }
@@ -47,10 +48,15 @@ input, select, textarea {
   .print-only {
     display: block;
   }
-  .print-page {
-    page-break-after: always;
+  .print-section {
+    margin-bottom: 22px;
+    padding-bottom: 14px;
+    border-bottom: 2px solid #999;
   }
-  .print-page h1 {
+  .print-section:last-child {
+    border-bottom: none;
+  }
+  .print-section h1 {
     font-family: 'Playfair Display', Georgia, serif;
     font-size: 20px;
     margin: 0 0 4px;
@@ -58,7 +64,15 @@ input, select, textarea {
   .print-sub {
     font-size: 12px;
     color: #444;
-    margin: 0 0 14px;
+    margin: 0 0 12px;
+  }
+  .print-group {
+    margin-top: 10px;
+  }
+  .print-group h2 {
+    font-size: 13px;
+    margin: 0 0 4px;
+    font-weight: 600;
   }
   .print-person {
     margin-top: 18px;
@@ -71,12 +85,12 @@ input, select, textarea {
     width: 100%;
     border-collapse: collapse;
     font-size: 12px;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
   }
   th, td {
     text-align: left;
-    padding: 4px 8px;
-    border-bottom: 1px solid #ccc;
+    padding: 3px 8px;
+    border-bottom: 1px solid #ddd;
   }
   th.num, td.num {
     text-align: right;

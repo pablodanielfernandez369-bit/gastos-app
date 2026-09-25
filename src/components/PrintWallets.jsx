@@ -6,89 +6,99 @@ function formatUsd(n) {
   return `US$ ${new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 }).format(n || 0)}`;
 }
 
+// Agrupa las filas por categoría (ej. "Súper", "Verdulería", "Nafta mel")
+// en vez de por fecha: cada subcategoría real (subcategoryId) sale junta,
+// con su propio subtotal — nunca se mezclan dos subcategorías distintas
+// bajo un mismo título. Se ordena por lo que más se gastó primero.
+function groupRows(rows) {
+  const groups = {};
+  for (const r of rows) {
+    const key = r.group || 'Sin categorizar';
+    if (!groups[key]) groups[key] = { name: key, items: [], total: 0 };
+    groups[key].items.push(r);
+    groups[key].total += r.rawAmount;
+  }
+  return Object.values(groups)
+    .map((g) => ({ ...g, items: g.items.slice().sort((a, b) => (a.date < b.date ? -1 : 1)) }))
+    .sort((a, b) => b.total - a.total);
+}
+
 // Oculto en pantalla, visible solo al imprimir (ver la regla @media print
-// en index.css). Una hoja por billetera, con los mismos movimientos que ya
-// se ven al tocar cada una en la app — solo que en texto plano para papel,
-// sin colores ni chips (ahorra tinta).
+// en index.css). Una billetera debajo de la otra (sin salto de hoja
+// forzado), con los movimientos agrupados por categoría — solo texto
+// plano para papel, sin colores ni chips (ahorra tinta).
 export default function PrintWallets({ state }) {
   const b = useMemo(() => computeMonthBudget(state), [state]);
   const prestamo = useMemo(() => computeLocalBalance(state), [state]);
   const allTime = useMemo(() => computeTotals(state, null, null), [state]);
 
   const currKey = monthKey(new Date().toISOString());
-  const subName = (id) => state.subcategories.find((s) => s.id === id)?.name || '';
+  const subName = (id) => state.subcategories.find((s) => s.id === id)?.name || 'Sin categorizar';
 
   function monthExpenseRows(groupId) {
     return state.expenses
       .filter((e) => e.groupId === groupId && monthKey(e.date) === currKey)
-      .slice()
-      .sort((a, c) => (a.date < c.date ? -1 : 1))
-      .map((e) => ({
-        date: e.date,
-        label: e.description || subName(e.subcategoryId) || '—',
-        sub: subName(e.subcategoryId),
-        amount: e.currency === 'USD' ? formatUsd(e.amountOriginal) : formatARS(e.amount),
-      }));
+      .map((e) => {
+        const rawAmount = e.currency === 'USD' ? e.amountOriginal : e.amount;
+        return {
+          date: e.date,
+          label: e.description || '—', // la categoría ya es el título del grupo, no hace falta repetirla
+          group: subName(e.subcategoryId),
+          rawAmount,
+          amount: e.currency === 'USD' ? formatUsd(rawAmount) : formatARS(rawAmount),
+        };
+      });
   }
 
   const dolaresRows = useMemo(() => {
     const rows = [];
     for (const i of state.incomes) {
-      if (i.currency === 'USD') rows.push({ date: i.date, label: i.description || 'Ingreso', tipo: 'Ingreso', amount: formatUsd(i.amountOriginal) });
+      if (i.currency === 'USD') rows.push({ date: i.date, label: i.description || 'Ingreso', group: 'Ingreso', rawAmount: i.amountOriginal, amount: formatUsd(i.amountOriginal) });
     }
     for (const e of state.expenses) {
-      if (e.currency === 'USD') rows.push({ date: e.date, label: e.description || 'Gasto', tipo: 'Gasto', amount: formatUsd(e.amountOriginal) });
+      if (e.currency === 'USD') rows.push({ date: e.date, label: e.description || 'Gasto', group: 'Gasto', rawAmount: e.amountOriginal, amount: formatUsd(e.amountOriginal) });
     }
     for (const x of state.exchanges || []) {
-      rows.push({ date: x.date, label: x.description || 'Compra de dólares', tipo: 'Compra', amount: formatUsd(x.usd) });
+      rows.push({ date: x.date, label: x.description || 'Compra de dólares', group: 'Compra', rawAmount: x.usd, amount: formatUsd(x.usd) });
     }
-    return rows.sort((a, c) => (a.date < c.date ? -1 : 1));
+    return rows;
   }, [state]);
 
   return (
     <div className="print-only">
       <WalletSheet
         title="Vivienda"
-        subtitle="Movimientos de este mes"
+        subtitle="Movimientos de este mes, agrupados por categoría"
         total={b.vivienda ? formatARS(b.vivienda.spent) : formatARS(0)}
         rows={b.vivienda ? monthExpenseRows(b.vivienda.groupId) : []}
-        columns={['Fecha', 'Descripción', 'Subcategoría', 'Monto']}
       />
-
       <WalletSheet
         title="Día a día"
-        subtitle="Movimientos de este mes"
+        subtitle="Movimientos de este mes, agrupados por categoría"
         total={b.diaADia ? formatARS(b.diaADia.spent) : formatARS(0)}
         rows={b.diaADia ? monthExpenseRows(b.diaADia.groupId) : []}
-        columns={['Fecha', 'Descripción', 'Subcategoría', 'Monto']}
       />
-
       <WalletSheet
         title="Salidas / gastos extras"
-        subtitle="Movimientos de este mes"
+        subtitle="Movimientos de este mes, agrupados por categoría"
         total={b.extras ? formatARS(b.extras.spent) : formatARS(0)}
         rows={b.extras ? monthExpenseRows(b.extras.groupId) : []}
-        columns={['Fecha', 'Descripción', 'Subcategoría', 'Monto']}
       />
-
       <WalletSheet
         title="Familia"
-        subtitle="Movimientos de este mes"
+        subtitle="Movimientos de este mes, agrupados por categoría"
         total={b.familia ? formatARS(b.familia.spent) : formatARS(0)}
         rows={b.familia ? monthExpenseRows(b.familia.groupId) : []}
-        columns={['Fecha', 'Descripción', 'Subcategoría', 'Monto']}
       />
-
       <WalletSheet
         title="Dólares"
-        subtitle="Todo el historial en esta moneda"
+        subtitle="Todo el historial en esta moneda, agrupado por tipo"
         total={formatUsd(allTime.savingsByCurrency.usd + (allTime.swaps?.usd || 0))}
-        rows={dolaresRows.map((r) => ({ date: r.date, label: r.label, sub: r.tipo, amount: r.amount }))}
-        columns={['Fecha', 'Descripción', 'Tipo', 'Monto']}
+        rows={dolaresRows}
       />
 
       {prestamo && (
-        <section className="print-page">
+        <section className="print-section">
           <h1>Préstamo</h1>
           <p className="print-sub">Te deben en total: {formatARS(Math.max(0, prestamo.balance))}</p>
           {prestamo.people.length === 0 ? (
@@ -129,29 +139,34 @@ export default function PrintWallets({ state }) {
   );
 }
 
-function WalletSheet({ title, subtitle, total, rows, columns }) {
+function WalletSheet({ title, subtitle, total, rows }) {
+  const groups = groupRows(rows);
   return (
-    <section className="print-page">
+    <section className="print-section">
       <h1>{title}</h1>
       <p className="print-sub">{subtitle} · Total: {total}</p>
-      {rows.length === 0 ? (
+      {groups.length === 0 ? (
         <p>Sin movimientos.</p>
       ) : (
-        <table>
-          <thead>
-            <tr>{columns.map((c) => <th key={c} className={c === 'Monto' ? 'num' : ''}>{c}</th>)}</tr>
-          </thead>
-          <tbody>
-            {rows.map((r, i) => (
-              <tr key={i}>
-                <td>{formatDate(r.date)}</td>
-                <td>{r.label}</td>
-                <td>{r.sub}</td>
-                <td className="num">{r.amount}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        groups.map((g) => (
+          <div key={g.name} className="print-group">
+            <h2>{g.name} <span className="num">— {formatARS(g.total)}</span></h2>
+            <table>
+              <thead>
+                <tr><th>Fecha</th><th>Descripción</th><th className="num">Monto</th></tr>
+              </thead>
+              <tbody>
+                {g.items.map((r, i) => (
+                  <tr key={i}>
+                    <td>{formatDate(r.date)}</td>
+                    <td>{r.label}</td>
+                    <td className="num">{r.amount}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ))
       )}
     </section>
   );
