@@ -65,9 +65,9 @@ function BudgetProgress({ b }) {
 // Préstamo, todas ancho completo (una debajo de otra) — solo el nombre, el
 // gastado del mes (o el saldo, según la billetera), el % y la barra si
 // tiene presupuesto puesto, y el detalle de movimientos al tocarla.
-export default function BudgetGoals({ state, actions }) {
-  const b = useMemo(() => computeMonthBudget(state), [state]);
-  const streak = useMemo(() => computeStreak(state), [state]);
+export default function BudgetGoals({ state, actions, now = new Date() }) {
+  const b = useMemo(() => computeMonthBudget(state, now), [state, now]);
+  const streak = useMemo(() => computeStreak(state, now), [state, now]);
   const local = useMemo(() => computeLocalBalance(state), [state]);
   const hasLocalActivity = Boolean(local && (local.spent > 0 || local.reimbursed > 0 || local.settled > 0));
   // Ahorro en USD acumulado (todo el historial, no el mes): es lo que
@@ -83,10 +83,10 @@ export default function BudgetGoals({ state, actions }) {
         Billeteras
       </p>
       <div className="flex flex-col gap-3">
-        {b.vivienda && <ViviendaCard v={b.vivienda} state={state} />}
-        {b.diaADia && <DiaADiaCard d={b.diaADia} state={state} />}
-        {b.extras && <ExtrasCard e={b.extras} streak={streak} state={state} />}
-        {b.familia && <FamiliaCard f={b.familia} state={state} />}
+        {b.vivienda && <ViviendaCard v={b.vivienda} state={state} now={now} />}
+        {b.diaADia && <DiaADiaCard d={b.diaADia} state={state} now={now} />}
+        {b.extras && <ExtrasCard e={b.extras} streak={streak} state={state} now={now} />}
+        {b.familia && <FamiliaCard f={b.familia} state={state} now={now} />}
         <DolaresCard
           usd={allTime.savingsByCurrency.usd + (allTime.swaps?.usd || 0)}
           rate={usdToArs}
@@ -98,13 +98,13 @@ export default function BudgetGoals({ state, actions }) {
   );
 }
 
-function FamiliaCard({ f, state }) {
+function FamiliaCard({ f, state, now }) {
   const [open, setOpen] = useState(false);
   const color = state.groups.find((g) => g.id === f.groupId)?.color || '#A39D90';
 
   const items = useMemo(() => {
     if (!open) return [];
-    const currKey = monthKey(new Date().toISOString());
+    const currKey = monthKey(now.toISOString());
     return state.expenses
       .filter((ex) => monthKey(ex.date) === currKey && ex.groupId === f.groupId)
       .slice()
@@ -117,7 +117,7 @@ function FamiliaCard({ f, state }) {
         amount: ex.currency === 'USD' ? ex.amountOriginal : ex.amount,
         usd: ex.currency === 'USD',
       }));
-  }, [open, state, f.groupId]);
+  }, [open, state, f.groupId, now]);
 
   return (
     <>
@@ -159,13 +159,13 @@ function FamiliaCard({ f, state }) {
   );
 }
 
-function ViviendaCard({ v, state }) {
+function ViviendaCard({ v, state, now }) {
   const [open, setOpen] = useState(false);
   const color = state.groups.find((g) => g.id === v.groupId)?.color || '#A39D90';
 
   const items = useMemo(() => {
     if (!open) return [];
-    const currKey = monthKey(new Date().toISOString());
+    const currKey = monthKey(now.toISOString());
     return state.expenses
       .filter((ex) => monthKey(ex.date) === currKey && ex.groupId === v.groupId)
       .slice()
@@ -178,7 +178,7 @@ function ViviendaCard({ v, state }) {
         amount: ex.currency === 'USD' ? ex.amountOriginal : ex.amount,
         usd: ex.currency === 'USD',
       }));
-  }, [open, state, v.groupId]);
+  }, [open, state, v.groupId, now]);
 
   return (
     <>
@@ -504,13 +504,13 @@ function PrestamoCard({ l, state, actions }) {
   );
 }
 
-function ExtrasCard({ e, streak, state }) {
+function ExtrasCard({ e, streak, state, now }) {
   const [open, setOpen] = useState(false);
   const color = state.groups.find((g) => g.id === e.groupId)?.color || '#A39D90';
 
   const items = useMemo(() => {
     if (!open) return [];
-    const currKey = monthKey(new Date().toISOString());
+    const currKey = monthKey(now.toISOString());
     const extrasGroupId = state.config?.extrasGroupId;
     return state.expenses
       .filter((ex) => monthKey(ex.date) === currKey && ex.groupId === extrasGroupId)
@@ -523,7 +523,7 @@ function ExtrasCard({ e, streak, state }) {
         sub: ex.description ? state.subcategories.find((s) => s.id === ex.subcategoryId)?.name : null,
         amount: ex.amount,
       }));
-  }, [open, state]);
+  }, [open, state, now]);
 
   return (
     <>
@@ -568,13 +568,13 @@ function ExtrasCard({ e, streak, state }) {
   );
 }
 
-function DiaADiaCard({ d, state }) {
+function DiaADiaCard({ d, state, now }) {
   const [open, setOpen] = useState(false);
   const color = state.groups.find((g) => g.id === d.groupId)?.color || '#A39D90';
 
   const items = useMemo(() => {
     if (!open) return [];
-    const currKey = monthKey(new Date().toISOString());
+    const currKey = monthKey(now.toISOString());
     const diaADiaGroupId = state.config?.diaADiaGroupId;
     return state.expenses
       .filter((ex) => monthKey(ex.date) === currKey && ex.groupId === diaADiaGroupId)
@@ -587,7 +587,7 @@ function DiaADiaCard({ d, state }) {
         sub: ex.description ? state.subcategories.find((s) => s.id === ex.subcategoryId)?.name : null,
         amount: ex.amount,
       }));
-  }, [open, state]);
+  }, [open, state, now]);
 
   return (
     <>

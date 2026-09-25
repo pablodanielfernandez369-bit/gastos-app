@@ -14,6 +14,13 @@ export default function Dashboard({ state, actions }) {
   const [customFrom, setCustomFrom] = useState(todayISO());
   const [customTo, setCustomTo] = useState(todayISO());
   const [detail, setDetail] = useState(null); // { title, kind: 'income'|'expense', groupId? }
+  // Mes que se está mirando en Billeteras (independiente del PeriodFilter de
+  // más abajo, que es para Capacidad de ahorro/Ingresos/Gastos). Empieza en
+  // el mes real de hoy; navegar no cambia la fecha real, solo qué mes se ve.
+  const [viewMonth, setViewMonth] = useState(() => {
+    const n = new Date();
+    return new Date(n.getFullYear(), n.getMonth(), 1);
+  });
 
   const [from, to] = useMemo(
     () => rangeForPeriod(period, customFrom, customTo),
@@ -76,7 +83,8 @@ export default function Dashboard({ state, actions }) {
   return (
     <div className="space-y-4">
       <DolarStrip dolar={dolar} manual={state.config?.fxRateManual} />
-      <BudgetGoals state={state} actions={actions} />
+      <MonthNav viewMonth={viewMonth} onChange={setViewMonth} />
+      <BudgetGoals state={state} actions={actions} now={viewMonth} />
       <RecurringReminders state={state} actions={actions} />
       <PriceAlerts state={state} limit={3} compact />
 
@@ -254,6 +262,76 @@ function DolarStrip({ dolar, manual }) {
         {manual && <span className="ml-2 text-xs text-ink-faint">fijado</span>}
       </span>
     </a>
+  );
+}
+
+// Mes que se muestra en Billeteras: flechas para ir al mes anterior/
+// siguiente, o tocar el nombre para elegir cualquier otro de una lista.
+// Los meses sin datos (futuros, o anteriores a que Pablo empezara a usar
+// la app) simplemente se ven en $0 — las billeteras ya filtran por mes,
+// no hace falta ningún caso especial para eso.
+function MonthNav({ viewMonth, onChange }) {
+  const [open, setOpen] = useState(false);
+  const label = viewMonth.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
+
+  const months = useMemo(() => {
+    const real = new Date();
+    const list = [];
+    for (let i = 3; i >= -14; i--) {
+      list.push(new Date(real.getFullYear(), real.getMonth() + i, 1));
+    }
+    return list;
+  }, []);
+
+  function shift(delta) {
+    onChange(new Date(viewMonth.getFullYear(), viewMonth.getMonth() + delta, 1));
+  }
+
+  return (
+    <div className="flex items-center justify-between px-1">
+      <button
+        type="button"
+        onClick={() => shift(-1)}
+        aria-label="Mes anterior"
+        className="px-2 py-1 text-lg text-ink-faint"
+      >
+        ‹
+      </button>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="font-display text-[1rem] font-medium capitalize text-ink"
+      >
+        {label}
+      </button>
+      <button
+        type="button"
+        onClick={() => shift(1)}
+        aria-label="Mes siguiente"
+        className="px-2 py-1 text-lg text-ink-faint"
+      >
+        ›
+      </button>
+
+      <Modal open={open} onClose={() => setOpen(false)} title="Elegir mes">
+        <ul className="divide-y divide-hair">
+          {months.map((m) => {
+            const isSelected = m.getFullYear() === viewMonth.getFullYear() && m.getMonth() === viewMonth.getMonth();
+            return (
+              <li key={m.toISOString()}>
+                <button
+                  type="button"
+                  onClick={() => { onChange(m); setOpen(false); }}
+                  className={`w-full py-2.5 text-left text-sm capitalize ${isSelected ? 'font-semibold text-accent' : 'text-ink'}`}
+                >
+                  {m.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' })}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </Modal>
+    </div>
   );
 }
 
