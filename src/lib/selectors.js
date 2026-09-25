@@ -304,18 +304,21 @@ export function computeMonthBudget(rawState, now = new Date()) {
     .filter((e) => e.groupId === extrasGroupId)
     .reduce((sum, e) => sum + e.amount, 0);
 
-  // Vivienda y Familia no tienen presupuesto (Vivienda es lo fijo/
-  // inevitable, Familia es plata que se da sin esperar nada de vuelta),
-  // pero igual se muestra cuánto se lleva gastado este mes en cada una.
+  // Vivienda y Familia: presupuesto opcional (campo fijo en config, sin
+  // selector de categoría porque el grupo ya está fijo). Igual que
+  // extras/día a día, la billetera se muestra siempre que exista el
+  // grupo, tenga o no presupuesto puesto.
   const viviendaGroup = state.groups.find((g) => /^vivienda$/i.test(g.name));
   const viviendaSpent = viviendaGroup
     ? monthExpenses.filter((e) => e.groupId === viviendaGroup.id).reduce((sum, e) => sum + e.amount, 0)
     : 0;
+  const viviendaBudget = cfg.viviendaBudget || null;
 
   const familiaGroup = state.groups.find((g) => g.id === FAMILIA_GROUP_ID);
   const familiaSpent = familiaGroup
     ? monthExpenses.filter((e) => e.groupId === familiaGroup.id).reduce((sum, e) => sum + e.amount, 0)
     : 0;
+  const familiaBudget = cfg.familiaBudget || null;
 
   // Para la proyección solo extrapolamos el gasto de "salidas/ocio" (lo que
   // realmente se acumula día a día). El resto — alquiler, super, servicios —
@@ -366,6 +369,42 @@ export function computeMonthBudget(rawState, now = new Date()) {
       perDayLeft: daysLeft > 0 ? Math.max(0, remaining) / daysLeft : Math.max(0, remaining),
       daysLeft,
       status: statusFor(diaADiaSpent / diaADiaBudget, projReliable ? projected / diaADiaBudget : 0),
+    };
+  }
+
+  // --- Presupuesto de Vivienda (opcional) ---
+  let vivienda = viviendaGroup ? { groupId: viviendaGroup.id, spent: viviendaSpent, budget: null } : null;
+  if (vivienda && viviendaBudget) {
+    const remaining = viviendaBudget - viviendaSpent;
+    const projected = project(viviendaSpent);
+    vivienda = {
+      ...vivienda,
+      budget: viviendaBudget,
+      remaining,
+      pct: viviendaSpent / viviendaBudget,
+      projected,
+      projectedPct: projected / viviendaBudget,
+      perDayLeft: daysLeft > 0 ? Math.max(0, remaining) / daysLeft : Math.max(0, remaining),
+      daysLeft,
+      status: statusFor(viviendaSpent / viviendaBudget, projReliable ? projected / viviendaBudget : 0),
+    };
+  }
+
+  // --- Presupuesto de Familia (opcional) ---
+  let familia = familiaGroup ? { groupId: familiaGroup.id, spent: familiaSpent, budget: null } : null;
+  if (familia && familiaBudget) {
+    const remaining = familiaBudget - familiaSpent;
+    const projected = project(familiaSpent);
+    familia = {
+      ...familia,
+      budget: familiaBudget,
+      remaining,
+      pct: familiaSpent / familiaBudget,
+      projected,
+      projectedPct: projected / familiaBudget,
+      perDayLeft: daysLeft > 0 ? Math.max(0, remaining) / daysLeft : Math.max(0, remaining),
+      daysLeft,
+      status: statusFor(familiaSpent / familiaBudget, projReliable ? projected / familiaBudget : 0),
     };
   }
 
@@ -424,12 +463,12 @@ export function computeMonthBudget(rawState, now = new Date()) {
     expenseTotal,
     extras,
     diaADia,
-    vivienda: viviendaGroup ? { groupId: viviendaGroup.id, spent: viviendaSpent } : null,
-    familia: familiaGroup ? { groupId: familiaGroup.id, spent: familiaSpent } : null,
+    vivienda,
+    familia,
     savings,
     coherence,
     disponible,
-    hasAnyGoal: Boolean(extrasBudget || savingsGoal || diaADiaBudget),
+    hasAnyGoal: Boolean(extrasBudget || savingsGoal || diaADiaBudget || viviendaBudget || familiaBudget),
   };
 }
 

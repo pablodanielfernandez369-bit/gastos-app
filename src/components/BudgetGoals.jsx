@@ -29,10 +29,42 @@ function WalletTile({ color, letter, onClick, children }) {
   );
 }
 
+const STATUS = {
+  verde: { bar: 'bg-ok', text: 'text-ok' },
+  amarillo: { bar: 'bg-caution', text: 'text-caution' },
+  rojo: { bar: 'bg-warn', text: 'text-warn' },
+};
+function toPct(x) {
+  return `${Math.round((x || 0) * 100)}%`;
+}
+function clampPct(x) {
+  return Math.max(0, Math.min(100, (x || 0) * 100));
+}
+
+// Vivienda, Día a día, Salidas y Familia pueden tener un presupuesto
+// puesto en Ajustes → Metas del mes (opcional) — si lo tienen, se ve el %
+// y la barra; si no, solo "gastado este mes", como antes.
+function BudgetProgress({ b }) {
+  if (!b.budget) {
+    return <p className="mt-2.5 text-xs text-ink-soft">Gastado este mes · sin presupuesto</p>;
+  }
+  const st = STATUS[b.status] || STATUS.verde;
+  return (
+    <>
+      <p className="mt-1 text-xs text-ink-soft">
+        de {formatARS(b.budget)} · <span className={`font-semibold ${st.text}`}>{toPct(b.pct)}</span>
+      </p>
+      <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-surface-2">
+        <div className={`h-full rounded-full ${st.bar}`} style={{ width: `${clampPct(b.pct)}%` }} />
+      </div>
+    </>
+  );
+}
+
 // Las billeteras: Vivienda, Día a día, Salidas/Ocio, Familia, Dólares y
-// Préstamo, todas ancho completo (una debajo de otra), sin presupuesto ni
-// mensajes de ritmo/proyección — solo el nombre, el gastado del mes (o el
-// saldo, según la billetera) y el detalle de movimientos al tocarla.
+// Préstamo, todas ancho completo (una debajo de otra) — solo el nombre, el
+// gastado del mes (o el saldo, según la billetera), el % y la barra si
+// tiene presupuesto puesto, y el detalle de movimientos al tocarla.
 export default function BudgetGoals({ state, actions }) {
   const b = useMemo(() => computeMonthBudget(state), [state]);
   const streak = useMemo(() => computeStreak(state), [state]);
@@ -94,7 +126,7 @@ function FamiliaCard({ f, state }) {
         <p className="mt-1.5 font-numeral text-[1.6rem] font-medium leading-none text-ink num">
           {formatARS(f.spent)}
         </p>
-        <p className="mt-2.5 text-xs text-ink-soft">Gastado este mes · sin presupuesto</p>
+        <BudgetProgress b={f} />
       </WalletTile>
 
       <Modal open={open} onClose={() => setOpen(false)} title="Familia">
@@ -155,7 +187,7 @@ function ViviendaCard({ v, state }) {
         <p className="mt-1.5 font-numeral text-[1.6rem] font-medium leading-none text-ink num">
           {formatARS(v.spent)}
         </p>
-        <p className="mt-2.5 text-xs text-ink-soft">Gastado este mes · sin presupuesto</p>
+        <BudgetProgress b={v} />
       </WalletTile>
 
       <Modal open={open} onClose={() => setOpen(false)} title="Vivienda">
@@ -505,7 +537,7 @@ function ExtrasCard({ e, streak, state }) {
         <p className="mt-1.5 font-numeral text-[1.6rem] font-medium leading-none text-ink num">
           {formatARS(e.spent)}
         </p>
-        <p className="mt-2.5 text-xs text-ink-soft">Gastado este mes · sin presupuesto</p>
+        <BudgetProgress b={e} />
       </WalletTile>
 
       <Modal open={open} onClose={() => setOpen(false)} title="Salidas / gastos extras">
@@ -564,7 +596,7 @@ function DiaADiaCard({ d, state }) {
         <p className="mt-1.5 font-numeral text-[1.6rem] font-medium leading-none text-ink num">
           {formatARS(d.spent)}
         </p>
-        <p className="mt-2.5 text-xs text-ink-soft">Gastado este mes · sin presupuesto</p>
+        <BudgetProgress b={d} />
       </WalletTile>
 
       <Modal open={open} onClose={() => setOpen(false)} title="Día a día">

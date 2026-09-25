@@ -95,6 +95,8 @@ export function defaultState() {
       extrasGroupId: salidasId, // qué grupo cuenta como "extras" para el presupuesto
       diaADiaBudget: null, // presupuesto mensual para gastos variables del día a día en ARS
       diaADiaGroupId: diaADiaId, // qué grupo cuenta como "día a día" para el presupuesto
+      viviendaBudget: null, // presupuesto mensual de Vivienda en ARS (grupo fijo, sin selector)
+      familiaBudget: null, // presupuesto mensual de Familia en ARS (grupo fijo, sin selector)
     },
   };
 }

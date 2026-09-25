@@ -18,6 +18,18 @@ export default function GoalsManager({ state, actions }) {
         placeholder="300000"
       />
       <MoneyField
+        label="Presupuesto de Vivienda"
+        value={cfg.viviendaBudget}
+        onChange={actions.setViviendaBudget}
+        placeholder="900000"
+      />
+      <MoneyField
+        label="Presupuesto de Familia"
+        value={cfg.familiaBudget}
+        onChange={actions.setFamiliaBudget}
+        placeholder="100000"
+      />
+      <MoneyField
         label="Presupuesto de gastos extras / salidas"
         value={cfg.extrasBudget}
         onChange={actions.setExtrasBudget}

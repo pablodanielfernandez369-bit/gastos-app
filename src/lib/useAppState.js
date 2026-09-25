@@ -14,6 +14,7 @@ function migrateState(saved) {
     fxRate: null, savingsGoal: null,
     extrasBudget: null, extrasGroupId: null,
     diaADiaBudget: null, diaADiaGroupId: null,
+    viviendaBudget: null, familiaBudget: null,
     ...s.config,
   };
 
@@ -363,6 +364,12 @@ export function useAppState() {
     },
     setDiaADiaGroupId(groupId) {
       setState((s) => ({ ...s, config: { ...s.config, diaADiaGroupId: groupId } }));
+    },
+    setViviendaBudget(amount) {
+      setState((s) => ({ ...s, config: { ...s.config, viviendaBudget: amount } }));
+    },
+    setFamiliaBudget(amount) {
+      setState((s) => ({ ...s, config: { ...s.config, familiaBudget: amount } }));
     },
 
     addRecurring(recurring) {
