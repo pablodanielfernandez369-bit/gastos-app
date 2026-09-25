@@ -10,6 +10,7 @@ export const USD_COLOR = '#B08A2E';
 // llamarse "Préstamo" pero sigue siendo el mismo grupo con este id).
 export const PRESTAMO_GROUP_ID = 'local';
 export const FAMILIA_GROUP_ID = 'familia';
+export const TARJETAS_GROUP_ID = 'tarjetas';
 
 // ---- Modelo de datos ----
 // Grupo (categoría principal): { id, name, color }
@@ -37,12 +38,14 @@ export function defaultState() {
   const diaADiaId = 'diaadia';
   const localId = PRESTAMO_GROUP_ID;
   const familiaId = FAMILIA_GROUP_ID;
+  const tarjetasId = TARJETAS_GROUP_ID;
 
   const groups = [
     { id: viviendaId, name: 'Vivienda', color: '#1F5673' },
     { id: salidasId, name: 'Salidas/Ocio', color: '#6D4B8F' },
     { id: diaADiaId, name: 'Día a día', color: '#8A6D3F' },
     { id: familiaId, name: 'Familia', color: '#8F4B5C' },
+    { id: tarjetasId, name: 'Tarjetas', color: '#55606E' },
     { id: localId, name: 'Préstamo', color: '#3F6E63' },
   ];
 
@@ -76,6 +79,10 @@ export function defaultState() {
     // Préstamo (que sí se espera reponer).
     { id: uuid(), groupId: familiaId, name: 'Ayuda a papás' },
     { id: uuid(), groupId: familiaId, name: 'Otro' },
+
+    // Tarjetas: consumos con tarjeta, separados del resto para verlos
+    // aparte (y presupuestarlos aparte, si hace falta).
+    { id: uuid(), groupId: tarjetasId, name: 'Otro' },
   ];
 
   return {
@@ -87,6 +94,8 @@ export function defaultState() {
     exchanges: [], // compras de USD con pesos: { id, date, usd, rate, ars, description }
     recurring: [], // gastos fijos recurrentes: { id, groupId, subcategoryId, description, amount, dayOfMonth }
     debtSettlements: [], // condonaciones de Préstamo (ver comentario arriba)
+    dolarHistory: {}, // cotización blue guardada por día, { 'YYYY-MM-DD': promedio } — la registra sola el cron del servidor, un valor por día
+    autoDeductions: [], // descuentos automáticos de USD por gastar de más (ver server.js /api/auto-deduct-cron): { id, date, ars, usd, rate, createdAt }
     config: {
       fxRate: null, // última cotización USD->ARS usada al cargar un gasto en USD
       fxRateManual: null, // cotización que el usuario fija a mano (pisa al blue)
@@ -97,6 +106,7 @@ export function defaultState() {
       diaADiaGroupId: diaADiaId, // qué grupo cuenta como "día a día" para el presupuesto
       viviendaBudget: null, // presupuesto mensual de Vivienda en ARS (grupo fijo, sin selector)
       familiaBudget: null, // presupuesto mensual de Familia en ARS (grupo fijo, sin selector)
+      tarjetasBudget: null, // presupuesto mensual de Tarjetas en ARS (grupo fijo, sin selector)
     },
   };
 }
@@ -129,6 +139,7 @@ export function newRecurring(partial) {
     description: '',
     amount: 0,
     dayOfMonth: 10,
+    dismissedMonths: [], // meses ('YYYY-MM') marcados "ya lo cargué" sin pasar por "Cargar ahora"
     ...partial,
   };
 }

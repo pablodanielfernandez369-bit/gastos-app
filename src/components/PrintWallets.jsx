@@ -91,6 +91,12 @@ export default function PrintWallets({ state }) {
         rows={b.familia ? monthExpenseRows(b.familia.groupId) : []}
       />
       <WalletSheet
+        title="Tarjetas"
+        subtitle="Movimientos de este mes, agrupados por categoría"
+        total={b.tarjetas ? formatARS(b.tarjetas.spent) : formatARS(0)}
+        rows={b.tarjetas ? monthExpenseRows(b.tarjetas.groupId) : []}
+      />
+      <WalletSheet
         title="Dólares"
         subtitle="Todo el historial en esta moneda, agrupado por tipo"
         total={formatUsd(allTime.savingsByCurrency.usd + (allTime.swaps?.usd || 0))}

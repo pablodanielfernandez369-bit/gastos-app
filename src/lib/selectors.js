@@ -1,6 +1,6 @@
 import { isInRange, monthKey, formatMonthLabel } from './format';
 import { pendingRecurring } from './recurring';
-import { FAMILIA_GROUP_ID, PRESTAMO_GROUP_ID } from './model';
+import { FAMILIA_GROUP_ID, PRESTAMO_GROUP_ID, TARJETAS_GROUP_ID } from './model';
 
 // Monto en su moneda original (ARS o USD), sin convertir. Se usa en todos
 // lados donde pesos y dólares se cuentan por separado.
@@ -78,9 +78,22 @@ export function exchangeTotals(exchanges) {
   );
 }
 
+// Descuentos automáticos de USD por gastar de más en el mes (ver server.js
+// /api/auto-deduct-cron): mismo cálculo que exchangeTotals, pero restan en
+// vez de sumar dólares — se le "vende" un poquito de ahorro en dólares al
+// mes para cubrir el sobregasto en pesos, al valor del día que se guardó
+// en dolarHistory.
+export function autoDeductionTotals(deductions) {
+  return (deductions || []).reduce(
+    (acc, d) => ({ ars: acc.ars + (d.ars || 0), usd: acc.usd + (d.usd || 0) }),
+    { ars: 0, usd: 0 }
+  );
+}
+
 export function computeTotals(rawState, from, to) {
   const state = netReimbursements(rawState);
   const swaps = exchangeTotals(exchangesInRange(state, from, to));
+  const autoDeducted = autoDeductionTotals((state.autoDeductions || []).filter((d) => isInRange(d.date, from, to)));
   const expenses = expensesInRange(state, from, to);
   const incomes = incomesInRange(state, from, to);
 
@@ -128,6 +141,7 @@ export function computeTotals(rawState, from, to) {
     expenseByCurrency,
     savingsByCurrency,
     swaps,
+    autoDeducted,
     expenseByGroup,
     expenseBySubcategory,
     savings,
@@ -320,6 +334,12 @@ export function computeMonthBudget(rawState, now = new Date()) {
     : 0;
   const familiaBudget = cfg.familiaBudget || null;
 
+  const tarjetasGroup = state.groups.find((g) => g.id === TARJETAS_GROUP_ID);
+  const tarjetasSpent = tarjetasGroup
+    ? monthExpenses.filter((e) => e.groupId === tarjetasGroup.id).reduce((sum, e) => sum + e.amount, 0)
+    : 0;
+  const tarjetasBudget = cfg.tarjetasBudget || null;
+
   // Para la proyección solo extrapolamos el gasto de "salidas/ocio" (lo que
   // realmente se acumula día a día). El resto — alquiler, super, servicios —
   // se toma como ya gastado del mes: no se multiplica. Se suman los
@@ -408,6 +428,24 @@ export function computeMonthBudget(rawState, now = new Date()) {
     };
   }
 
+  // --- Presupuesto de Tarjetas (opcional) ---
+  let tarjetas = tarjetasGroup ? { groupId: tarjetasGroup.id, spent: tarjetasSpent, budget: null } : null;
+  if (tarjetas && tarjetasBudget) {
+    const remaining = tarjetasBudget - tarjetasSpent;
+    const projected = project(tarjetasSpent);
+    tarjetas = {
+      ...tarjetas,
+      budget: tarjetasBudget,
+      remaining,
+      pct: tarjetasSpent / tarjetasBudget,
+      projected,
+      projectedPct: projected / tarjetasBudget,
+      perDayLeft: daysLeft > 0 ? Math.max(0, remaining) / daysLeft : Math.max(0, remaining),
+      daysLeft,
+      status: statusFor(tarjetasSpent / tarjetasBudget, projReliable ? projected / tarjetasBudget : 0),
+    };
+  }
+
   // --- Meta de ahorro ---
   const savingsGoal = cfg.savingsGoal || null;
   let savings = null;
@@ -465,10 +503,11 @@ export function computeMonthBudget(rawState, now = new Date()) {
     diaADia,
     vivienda,
     familia,
+    tarjetas,
     savings,
     coherence,
     disponible,
-    hasAnyGoal: Boolean(extrasBudget || savingsGoal || diaADiaBudget || viviendaBudget || familiaBudget),
+    hasAnyGoal: Boolean(extrasBudget || savingsGoal || diaADiaBudget || viviendaBudget || familiaBudget || tarjetasBudget),
   };
 }
 

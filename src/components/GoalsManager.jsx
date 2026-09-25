@@ -30,6 +30,12 @@ export default function GoalsManager({ state, actions }) {
         placeholder="100000"
       />
       <MoneyField
+        label="Presupuesto de Tarjetas"
+        value={cfg.tarjetasBudget}
+        onChange={actions.setTarjetasBudget}
+        placeholder="200000"
+      />
+      <MoneyField
         label="Presupuesto de gastos extras / salidas"
         value={cfg.extrasBudget}
         onChange={actions.setExtrasBudget}

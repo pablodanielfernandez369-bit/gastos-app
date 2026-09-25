@@ -87,8 +87,9 @@ export default function BudgetGoals({ state, actions, now = new Date() }) {
         {b.diaADia && <DiaADiaCard d={b.diaADia} state={state} now={now} />}
         {b.extras && <ExtrasCard e={b.extras} streak={streak} state={state} now={now} />}
         {b.familia && <FamiliaCard f={b.familia} state={state} now={now} />}
+        {b.tarjetas && <TarjetasCard t={b.tarjetas} state={state} now={now} />}
         <DolaresCard
-          usd={allTime.savingsByCurrency.usd + (allTime.swaps?.usd || 0)}
+          usd={allTime.savingsByCurrency.usd + (allTime.swaps?.usd || 0) - (allTime.autoDeducted?.usd || 0)}
           rate={usdToArs}
           state={state}
         />
@@ -132,6 +133,67 @@ function FamiliaCard({ f, state, now }) {
       <Modal open={open} onClose={() => setOpen(false)} title="Familia">
         <p className="mb-3 text-sm text-ink-soft num">
           Total del mes: <span className="font-semibold text-ink">{formatARS(f.spent)}</span>
+        </p>
+        {items.length === 0 ? (
+          <p className="py-4 text-center text-sm text-ink-faint">Sin movimientos este mes.</p>
+        ) : (
+          <ul className="divide-y divide-hair">
+            {items.map((it) => (
+              <li key={it.id} className="flex items-center gap-3 py-2.5">
+                <MonoChip color={color} letter={it.label.charAt(0).toUpperCase()} size={26} />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-ink">{it.label}</p>
+                  <p className="text-xs text-ink-faint">
+                    {formatDate(it.date)}
+                    {it.sub ? ` · ${it.sub}` : ''}
+                  </p>
+                </div>
+                <p className="shrink-0 font-numeral text-sm font-semibold text-ink num">
+                  {it.usd ? formatUsdNum(it.amount) : formatARS(it.amount)}
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Modal>
+    </>
+  );
+}
+
+function TarjetasCard({ t, state, now }) {
+  const [open, setOpen] = useState(false);
+  const color = state.groups.find((g) => g.id === t.groupId)?.color || '#A39D90';
+
+  const items = useMemo(() => {
+    if (!open) return [];
+    const currKey = monthKey(now.toISOString());
+    return state.expenses
+      .filter((ex) => monthKey(ex.date) === currKey && ex.groupId === t.groupId)
+      .slice()
+      .sort((a, b) => (a.date < b.date ? 1 : -1))
+      .map((ex) => ({
+        id: ex.id,
+        date: ex.date,
+        label: ex.description || state.subcategories.find((s) => s.id === ex.subcategoryId)?.name || 'Tarjetas',
+        sub: ex.description ? state.subcategories.find((s) => s.id === ex.subcategoryId)?.name : null,
+        amount: ex.currency === 'USD' ? ex.amountOriginal : ex.amount,
+        usd: ex.currency === 'USD',
+      }));
+  }, [open, state, t.groupId, now]);
+
+  return (
+    <>
+      <WalletTile color={color} letter="T" onClick={() => setOpen(true)}>
+        <p className="font-display text-[0.95rem] font-medium text-ink">Tarjetas</p>
+        <p className="mt-1.5 font-numeral text-[1.6rem] font-medium leading-none text-ink num">
+          {formatARS(t.spent)}
+        </p>
+        <BudgetProgress b={t} />
+      </WalletTile>
+
+      <Modal open={open} onClose={() => setOpen(false)} title="Tarjetas">
+        <p className="mb-3 text-sm text-ink-soft num">
+          Total del mes: <span className="font-semibold text-ink">{formatARS(t.spent)}</span>
         </p>
         {items.length === 0 ? (
           <p className="py-4 text-center text-sm text-ink-faint">Sin movimientos este mes.</p>
@@ -247,6 +309,16 @@ function DolaresCard({ usd, rate, state }) {
         kind: 'compra',
       });
     }
+    for (const d of state.autoDeductions || []) {
+      rows.push({
+        id: 'd' + d.id,
+        date: d.date,
+        label: `Descuento automático (gastaste ${formatARS(d.ars)} de más)`,
+        amount: d.usd,
+        sign: -1,
+        kind: 'descuento',
+      });
+    }
     return rows.sort((a, b) => (a.date < b.date ? 1 : -1));
   }, [open, state]);
 
@@ -276,7 +348,9 @@ function DolaresCard({ usd, rate, state }) {
                   ? { color: '#5A7D2A', letter: '$' }
                   : it.kind === 'compra'
                     ? { color: USD_COLOR, letter: 'U' }
-                    : { color: '#A39D90', letter: it.label.charAt(0).toUpperCase() };
+                    : it.kind === 'descuento'
+                      ? { color: '#A23B2B', letter: '−' }
+                      : { color: '#A39D90', letter: it.label.charAt(0).toUpperCase() };
               return (
                 <li key={it.id} className="flex items-center gap-3 py-2.5">
                   <MonoChip color={chip.color} letter={chip.letter} size={26} />

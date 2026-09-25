@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { pendingRecurring } from '../lib/recurring';
-import { formatARS } from '../lib/format';
+import { formatARS, monthKey } from '../lib/format';
 import { todayISO } from '../lib/model';
 import ExpenseFormModal from './ExpenseFormModal';
 
@@ -17,14 +17,22 @@ export default function RecurringReminders({ state, actions }) {
       </p>
       <ul className="space-y-2">
         {pending.map((r) => (
-          <li key={r.id} className="flex items-center justify-between text-sm text-ink num">
+          <li key={r.id} className="flex items-center justify-between gap-2 text-sm text-ink num">
             <span>{r.description} · {formatARS(r.amount)}</span>
-            <button
-              onClick={() => setLoading(r)}
-              className="rounded-full bg-caution px-3 py-1 text-xs font-semibold text-paper"
-            >
-              Cargar ahora
-            </button>
+            <span className="flex shrink-0 gap-1.5">
+              <button
+                onClick={() => actions.dismissRecurringForMonth(r.id, monthKey(todayISO()))}
+                className="rounded-full border border-hair px-2.5 py-1 text-xs font-medium text-ink-soft"
+              >
+                Ya lo cargué
+              </button>
+              <button
+                onClick={() => setLoading(r)}
+                className="rounded-full bg-caution px-3 py-1 text-xs font-semibold text-paper"
+              >
+                Cargar ahora
+              </button>
+            </span>
           </li>
         ))}
       </ul>

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { v4 as uuid } from 'uuid';
 import { loadState, persistState, fetchServerState, pushServerState } from './storage';
-import { defaultState, FAMILIA_GROUP_ID, PRESTAMO_GROUP_ID } from './model';
+import { defaultState, FAMILIA_GROUP_ID, PRESTAMO_GROUP_ID, TARJETAS_GROUP_ID } from './model';
 
 // Migra estados guardados de versiones anteriores para que tengan las claves
 // nuevas (config de metas, grupo de "Salidas/Ocio") sin perder datos.
@@ -9,12 +9,14 @@ function migrateState(saved) {
   if (!saved) return defaultState();
   const s = { ...saved };
   s.exchanges = Array.isArray(s.exchanges) ? s.exchanges : [];
+  s.dolarHistory = s.dolarHistory && typeof s.dolarHistory === 'object' ? s.dolarHistory : {};
+  s.autoDeductions = Array.isArray(s.autoDeductions) ? s.autoDeductions : [];
 
   s.config = {
     fxRate: null, savingsGoal: null,
     extrasBudget: null, extrasGroupId: null,
     diaADiaBudget: null, diaADiaGroupId: null,
-    viviendaBudget: null, familiaBudget: null,
+    viviendaBudget: null, familiaBudget: null, tarjetasBudget: null,
     ...s.config,
   };
 
@@ -177,6 +179,13 @@ function migrateState(saved) {
       );
       s.subcategories = s.subcategories.filter((sc) => sc.id !== ayudaPapasVieja.id);
     }
+  }
+
+  // Grupo "Tarjetas": consumos con tarjeta, separados del resto.
+  if (!s.groups?.some((g) => g.id === TARJETAS_GROUP_ID)) {
+    const tarjetas = { id: TARJETAS_GROUP_ID, name: 'Tarjetas', color: '#55606E' };
+    s.groups = [...s.groups, tarjetas];
+    s.subcategories = [...s.subcategories, { id: uuid(), groupId: tarjetas.id, name: 'Otro' }];
   }
 
   return s;
@@ -371,12 +380,26 @@ export function useAppState() {
     setFamiliaBudget(amount) {
       setState((s) => ({ ...s, config: { ...s.config, familiaBudget: amount } }));
     },
+    setTarjetasBudget(amount) {
+      setState((s) => ({ ...s, config: { ...s.config, tarjetasBudget: amount } }));
+    },
 
     addRecurring(recurring) {
       setState((s) => ({ ...s, recurring: [...s.recurring, recurring] }));
     },
     deleteRecurring(id) {
       setState((s) => ({ ...s, recurring: s.recurring.filter((r) => r.id !== id) }));
+    },
+    // "Ya lo cargué": para cuando el gasto ya se cargó por el flujo normal
+    // (sin pasar por "Cargar ahora"), así no queda pidiéndolo de nuevo este
+    // mes. El mes que viene vuelve a aparecer solo, normalmente.
+    dismissRecurringForMonth(id, monthKey) {
+      setState((s) => ({
+        ...s,
+        recurring: s.recurring.map((r) =>
+          r.id === id ? { ...r, dismissedMonths: [...(r.dismissedMonths || []), monthKey] } : r
+        ),
+      }));
     },
 
     replaceState(newState) {
