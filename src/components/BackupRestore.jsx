@@ -7,6 +7,22 @@ import {
   setLastTelegramBackupAt,
 } from '../lib/storage';
 
+// Hay dos hojas ocultas listas para imprimir (billeteras y comparativa,
+// ver PrintWallets.jsx/PrintComparison.jsx e index.css). Marcamos el body
+// con qué botón se apretó justo antes de imprimir, así el CSS de
+// impresión sabe cuál de las dos mostrar y cuál ocultar; se saca la marca
+// al cerrar el diálogo de impresión.
+function printSection(mode) {
+  const cls = `print-mode-${mode}`;
+  document.body.classList.add(cls);
+  const cleanup = () => {
+    document.body.classList.remove(cls);
+    window.removeEventListener('afterprint', cleanup);
+  };
+  window.addEventListener('afterprint', cleanup);
+  window.print();
+}
+
 export default function BackupRestore({ state, actions }) {
   const fileInputRef = useRef(null);
   const [tgStatus, setTgStatus] = useState('idle'); // idle | sending | ok | error
@@ -91,10 +107,16 @@ export default function BackupRestore({ state, actions }) {
       )}
 
       <button
-        onClick={() => window.print()}
+        onClick={() => printSection('wallets')}
         className="mt-2 w-full rounded-lg border border-hair py-2.5 text-sm font-medium text-ink-soft"
       >
         🖨 Imprimir billeteras
+      </button>
+      <button
+        onClick={() => printSection('comparison')}
+        className="mt-2 w-full rounded-lg border border-hair py-2.5 text-sm font-medium text-ink-soft"
+      >
+        🖨 Imprimir tabla comparativa
       </button>
       <input
         ref={fileInputRef}

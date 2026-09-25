@@ -41,6 +41,16 @@ input, select, textarea {
   display: none;
 }
 
+/* Hay dos hojas ocultas (billeteras y comparativa) — el botón que se
+   apretó decide cuál se imprime, marcando el body con una de estas
+   clases justo antes de llamar a window.print() (ver BackupRestore.jsx). */
+body.print-mode-wallets .print-comparison {
+  display: none !important;
+}
+body.print-mode-comparison .print-wallets {
+  display: none !important;
+}
+
 @media print {
   .app-shell {
     display: none;
@@ -94,5 +104,78 @@ input, select, textarea {
   }
   th.num, td.num {
     text-align: right;
+  }
+
+  /* Tabla comparativa (PrintComparison.jsx): sube = verde, baja = rojo
+     (al revés del semáforo habitual de gastos, así lo pidió Pablo para
+     esta tabla puntual). */
+  .cmp-section {
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 2px solid #999;
+  }
+  .cmp-section:last-child {
+    border-bottom: none;
+  }
+  .cmp-section h1 {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 20px;
+    margin: 0 0 4px;
+  }
+  .cmp-sub {
+    font-size: 12px;
+    color: #444;
+    margin: 0 0 10px;
+  }
+  .cmp-total {
+    font-size: 13px;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #ccc;
+  }
+  .cmp-row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 5px 0;
+  }
+  .cmp-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex: none;
+  }
+  .cmp-name {
+    flex: 1;
+    font-size: 12.5px;
+  }
+  .cmp-right {
+    text-align: right;
+  }
+  .cmp-amt {
+    font-family: 'Crimson Pro', Georgia, serif;
+    font-weight: 700;
+  }
+  .cmp-delta {
+    font-size: 11px;
+    margin-left: 5px;
+  }
+  .cmp-delta.cmp-up {
+    color: #5A7D2A;
+  }
+  .cmp-delta.cmp-down {
+    color: #A23B2B;
+  }
+  .cmp-delta.cmp-flat {
+    color: #A39D90;
+  }
+  .cmp-dot.cmp-up {
+    background: #5A7D2A;
+  }
+  .cmp-dot.cmp-down {
+    background: #A23B2B;
+  }
+  .cmp-dot.cmp-flat {
+    background: #A39D90;
   }
 }

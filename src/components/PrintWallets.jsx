@@ -65,7 +65,7 @@ export default function PrintWallets({ state }) {
   }, [state]);
 
   return (
-    <div className="print-only">
+    <div className="print-only print-wallets">
       <WalletSheet
         title="Vivienda"
         subtitle="Movimientos de este mes, agrupados por categoría"

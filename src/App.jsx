@@ -20,6 +20,7 @@ import Ajustes from './components/Ajustes';
 import Asistente from './components/Asistente';
 import NavIcon from './components/NavIcons';
 import PrintWallets from './components/PrintWallets';
+import PrintComparison from './components/PrintComparison';
 
 const TABS = [
   { id: 'dashboard', label: 'Ahorro' },
@@ -165,6 +166,7 @@ export default function App() {
       )}
     </div>
     <PrintWallets state={state} />
+    <PrintComparison state={state} />
     </>
   );
 }
