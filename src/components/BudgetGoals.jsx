@@ -573,6 +573,7 @@ function PrestamoCard({ l, state, actions }) {
           onClose={() => setShowSettle(false)}
           personName={selectedPerson}
           maxAmount={Math.max(0, selectedBalance)}
+          state={state}
           actions={actions}
         />
       )}
