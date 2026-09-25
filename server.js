@@ -6,7 +6,8 @@ import { supabaseConfigured, getState, putState } from './server/supabase.js';
 import { getDolarBlue } from './server/dolar.js';
 import { telegramConfigured, handleUpdate, verifyWebhook } from './server/telegram.js';
 import { sendWeeklyReport } from './server/report.js';
-import { todayAR } from './server/time.js';
+import { todayAR, nowAR } from './server/time.js';
+import { computeMonthBudget } from './src/lib/selectors.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -178,6 +179,54 @@ app.post('/api/backup-cron', async (req, res) => {
   } catch (err) {
     console.error('backup-cron:', err.message);
     res.status(502).json({ error: 'No se pudo enviar el backup automático' });
+  }
+});
+
+// ---- Cotización diaria + descuento automático de USD al gastar de más ----
+// Corre 1 vez por día por un cron externo. Dos cosas:
+// 1) Guarda la cotización blue de HOY en dolarHistory (un valor por día —
+//    sin esto no hay forma de saber, más adelante, qué dólar corresponde
+//    a un día pasado).
+// 2) Si el disponible del mes está negativo (gastaste más de lo que te
+//    quedaba después de tu meta de ahorro), "vende" del ahorro en dólares
+//    el equivalente al sobregasto, al dólar de HOY (es la única cotización
+//    que se puede conocer en el momento en que esto corre). Solo suma la
+//    diferencia contra lo ya descontado este mes — nunca resta si el
+//    sobregasto bajó, es un ajuste de una sola dirección.
+app.post('/api/auto-deduct-cron', async (req, res) => {
+  if (req.query.key !== TELEGRAM_WEBHOOK_SECRET) return res.sendStatus(403);
+  if (!supabaseConfigured) return res.status(503).json({ error: 'Base no configurada' });
+  try {
+    const { data: state } = await getState();
+    if (!state || !state.groups) return res.status(503).json({ error: 'Todavía no hay datos guardados' });
+
+    const blue = await getDolarBlue();
+    const today = todayAR();
+    state.dolarHistory = state.dolarHistory && typeof state.dolarHistory === 'object' ? state.dolarHistory : {};
+    if (blue?.promedio) state.dolarHistory[today] = blue.promedio;
+
+    const rate = state.dolarHistory[today] || blue?.promedio || null;
+    let deduction = null;
+    if (rate) {
+      const b = computeMonthBudget(state, nowAR());
+      const overspend = b.disponible.value < 0 ? -b.disponible.value : 0;
+      const mk = today.slice(0, 7);
+      state.autoDeductions = Array.isArray(state.autoDeductions) ? state.autoDeductions : [];
+      const alreadyThisMonth = state.autoDeductions
+        .filter((d) => (d.date || '').slice(0, 7) === mk)
+        .reduce((sum, d) => sum + (d.ars || 0), 0);
+      const newOverspend = overspend - alreadyThisMonth;
+      if (newOverspend > 1) {
+        deduction = { id: `auto_${Date.now()}`, date: today, ars: newOverspend, usd: newOverspend / rate, rate, createdAt: Date.now() };
+        state.autoDeductions.push(deduction);
+      }
+    }
+
+    const { updatedAt } = await putState(state);
+    res.json({ ok: true, updatedAt, rate, deduction });
+  } catch (err) {
+    console.error('auto-deduct-cron:', err.message);
+    res.status(502).json({ error: 'No se pudo procesar' });
   }
 });
 
