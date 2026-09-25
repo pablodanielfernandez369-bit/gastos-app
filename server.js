@@ -119,39 +119,65 @@ app.post('/api/ask', checkAccess, async (req, res) => {
 });
 
 // ---- Backup del estado como archivo .json al chat de Telegram ----
+// state ya viene con TODO (grupos, gastos, ingresos, cambios de dólares,
+// condonaciones de préstamo, config) porque se manda el objeto completo
+// tal cual está guardado — no hay que listar campos, se actualiza solo.
 
+async function sendBackupToTelegram(state) {
+  if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
+    throw new Error('Backup por Telegram no configurado');
+  }
+  const fecha = new Date().toISOString().slice(0, 10);
+  const json = JSON.stringify(state, null, 2);
+  const form = new FormData();
+  form.append('chat_id', TELEGRAM_CHAT_ID);
+  form.append('caption', `Backup gastos ${fecha}`);
+  form.append(
+    'document',
+    new Blob([json], { type: 'application/json' }),
+    `backup_gastos_${fecha}.json`
+  );
+
+  const tg = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument`, {
+    method: 'POST',
+    body: form,
+  });
+  const data = await tg.json();
+  if (!data.ok) throw new Error(data.description || `Telegram respondió ${tg.status}`);
+}
+
+// Disparado por la app (requiere tenerla abierta) — se deja para el botón
+// manual "Enviar backup a Telegram ahora" de Ajustes.
 app.post('/api/backup', checkAccess, async (req, res) => {
   const { state } = req.body || {};
   if (!state || !state.groups || !state.expenses || !state.incomes) {
     return res.status(400).json({ error: 'El estado no parece válido' });
   }
-  if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
-    return res.status(503).json({ error: 'Backup por Telegram no configurado' });
-  }
-
   try {
-    const fecha = new Date().toISOString().slice(0, 10);
-    const json = JSON.stringify(state, null, 2);
-    const form = new FormData();
-    form.append('chat_id', TELEGRAM_CHAT_ID);
-    form.append('caption', `Backup gastos ${fecha}`);
-    form.append(
-      'document',
-      new Blob([json], { type: 'application/json' }),
-      `backup_gastos_${fecha}.json`
-    );
-
-    const tg = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument`, {
-      method: 'POST',
-      body: form,
-    });
-    const data = await tg.json();
-    if (!data.ok) throw new Error(data.description || `Telegram respondió ${tg.status}`);
-
+    await sendBackupToTelegram(state);
     res.json({ ok: true });
   } catch (err) {
     console.error('Error enviando backup a Telegram:', err.message);
     res.status(502).json({ error: 'No se pudo enviar el backup a Telegram' });
+  }
+});
+
+// Backup automático de verdad: lee el estado directo de Supabase (no
+// depende de que la app esté abierta) y lo manda a Telegram. Lo dispara
+// un cron externo (cron-job.org), protegido con el mismo secret que el
+// resumen semanal — no lleva ACCESS_CODE porque ese es para sesiones de
+// navegador, no para un cron.
+app.post('/api/backup-cron', async (req, res) => {
+  if (req.query.key !== TELEGRAM_WEBHOOK_SECRET) return res.sendStatus(403);
+  if (!supabaseConfigured) return res.status(503).json({ error: 'Base no configurada' });
+  try {
+    const { data: state } = await getState();
+    if (!state || !state.groups) return res.status(503).json({ error: 'Todavía no hay datos guardados' });
+    await sendBackupToTelegram(state);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('backup-cron:', err.message);
+    res.status(502).json({ error: 'No se pudo enviar el backup automático' });
   }
 });
 

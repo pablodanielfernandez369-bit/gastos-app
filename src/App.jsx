@@ -5,9 +5,6 @@ import {
   exportStateAsJson,
   getLastBackupAt,
   setLastBackupAt,
-  getLastTelegramBackupAt,
-  setLastTelegramBackupAt,
-  sendTelegramBackup,
 } from './lib/storage';
 import { todayISO } from './lib/model';
 import ExpenseFormModal from './components/ExpenseFormModal';
@@ -53,20 +50,9 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Backup automático al chat de Telegram: una vez por día al abrir la app.
-  // Si el server todavía no tiene el bot configurado, falla en silencio y
-  // se reintenta la próxima vez.
-  useEffect(() => {
-    const ONE_DAY_MS = 24 * 60 * 60 * 1000;
-    const last = getLastTelegramBackupAt();
-    if (last && Date.now() - last < ONE_DAY_MS) return;
-    if (state.expenses.length === 0 && state.incomes.length === 0) return;
-
-    sendTelegramBackup(state)
-      .then(() => setLastTelegramBackupAt(Date.now()))
-      .catch((e) => console.warn('Backup a Telegram no enviado:', e.message));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // El backup a Telegram ya NO depende de abrir la app: lo dispara un cron
+  // en el servidor (POST /api/backup-cron, ver server.js) leyendo el estado
+  // directo de Supabase. El botón manual de Ajustes sigue andando igual.
 
   const showFloatingButtons = tab !== 'asistente' && tab !== 'ajustes';
 
