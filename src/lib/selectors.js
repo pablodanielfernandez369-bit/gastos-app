@@ -1,6 +1,6 @@
-import { isInRange, monthKey, formatMonthLabel } from './format';
-import { pendingRecurring } from './recurring';
-import { FAMILIA_GROUP_ID, PRESTAMO_GROUP_ID, TARJETAS_GROUP_ID } from './model';
+import { isInRange, monthKey, formatMonthLabel } from './format.js';
+import { pendingRecurring } from './recurring.js';
+import { FAMILIA_GROUP_ID, PRESTAMO_GROUP_ID, TARJETAS_GROUP_ID } from './model.js';
 
 // Monto en su moneda original (ARS o USD), sin convertir. Se usa en todos
 // lados donde pesos y dólares se cuentan por separado.

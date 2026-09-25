@@ -1,4 +1,4 @@
-import { downloadFile } from './storage';
+import { downloadFile } from './storage.js';
 
 function csvEscape(value) {
   const str = String(value ?? '');

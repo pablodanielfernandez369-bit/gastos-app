@@ -1,4 +1,4 @@
-import { monthKey } from './format';
+import { monthKey } from './format.js';
 
 // Un gasto fijo recurrente (alquiler, expensas, luz...) está "cumplido" en
 // el mes actual si existe algún gasto cargado que lo referencia por

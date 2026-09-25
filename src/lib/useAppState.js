@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { v4 as uuid } from 'uuid';
-import { loadState, persistState, fetchServerState, pushServerState } from './storage';
-import { defaultState, FAMILIA_GROUP_ID, PRESTAMO_GROUP_ID, TARJETAS_GROUP_ID } from './model';
+import { loadState, persistState, fetchServerState, pushServerState } from './storage.js';
+import { defaultState, FAMILIA_GROUP_ID, PRESTAMO_GROUP_ID, TARJETAS_GROUP_ID } from './model.js';
 
 // Migra estados guardados de versiones anteriores para que tengan las claves
 // nuevas (config de metas, grupo de "Salidas/Ocio") sin perder datos.
