@@ -3,7 +3,7 @@ import PeriodFilter from './PeriodFilter';
 import { netReimbursements, computeTotals, expensesInRange, incomesInRange, monthOverMonthTotals } from '../lib/selectors';
 import { formatARS, formatDate, rangeForPeriod } from '../lib/format';
 import { todayISO } from '../lib/model';
-import { useDolar } from '../lib/useDolar';
+import { useDolar, usdRate } from '../lib/useDolar';
 import RecurringReminders from './RecurringReminders';
 import PriceAlerts from './PriceAlerts';
 import BudgetGoals from './BudgetGoals';
@@ -77,6 +77,7 @@ export default function Dashboard({ state, actions }) {
   );
 
   const dolar = useDolar();
+  const rate = usdRate(state.config, dolar);
 
   const savingsPositive = totals.savings >= 0;
 
@@ -115,7 +116,7 @@ export default function Dashboard({ state, actions }) {
                 'Cargá tus ingresos para ver el %'
               )}
             </p>
-            <SwapNote swaps={totals.swaps} savingsArs={totals.savingsByCurrency.ars} className="mt-1" />
+            <SwapNote swaps={totals.swaps} savingsArs={totals.savingsByCurrency.ars} rate={rate} className="mt-1" />
             {hasUsdActivity(totals) && (
               <p className="mt-1 font-numeral text-xl font-medium text-ink num">
                 {formatUsd(totals.savingsByCurrency.usd)}{' '}
@@ -131,7 +132,7 @@ export default function Dashboard({ state, actions }) {
             <p className="mt-1 font-numeral text-2xl font-medium text-ink num">
               {formatARS(allTime.savingsByCurrency.ars)}
             </p>
-            <SwapNote swaps={allTime.swaps} savingsArs={allTime.savingsByCurrency.ars} className="mt-1" />
+            <SwapNote swaps={allTime.swaps} savingsArs={allTime.savingsByCurrency.ars} rate={rate} className="mt-1" />
             {hasUsdActivity(allTime) && (
               <p className="mt-1 text-sm text-ink-soft num">{formatUsd(allTime.savingsByCurrency.usd)}</p>
             )}
@@ -337,12 +338,19 @@ function MonthNav({ viewMonth, onChange }) {
 
 // De todo el ahorro en pesos, cuánto está puesto en dólares (al valor de compra)
 // y cuánto sigue líquido en pesos.
-function SwapNote({ swaps, savingsArs, className = '' }) {
-  if (!swaps || swaps.ars <= 0) return null;
+// Cuánto de tu ahorro en pesos está convertido a dólares. Antes mostraba el
+// neto histórico de lo que entró/salió en cada compra/venta (`swaps.ars`),
+// que con compra y venta a cotizaciones distintas (ej compré a 1540, vendí a
+// 1550) no coincide con lo que esos dólares valen HOY — se valúa siempre a
+// la cotización actual para que "líquido en pesos" sea el número real.
+function SwapNote({ swaps, savingsArs, rate, className = '' }) {
+  if (!swaps || swaps.usd <= 0) return null;
+  const valorHoy = rate ? swaps.usd * rate : swaps.ars;
   return (
     <p className={`text-sm text-ink-soft num ${className}`}>
-      Incluye {formatARS(swaps.ars)} en US$ {new Intl.NumberFormat('es-AR', { maximumFractionDigits: 2 }).format(swaps.usd)} comprados
-      {' · '}líquido en pesos {formatARS(savingsArs - swaps.ars)}
+      Incluye {formatARS(valorHoy)} en US$ {new Intl.NumberFormat('es-AR', { maximumFractionDigits: 2 }).format(swaps.usd)}
+      {rate ? ' al dólar de hoy' : ' comprados'}
+      {' · '}líquido en pesos {formatARS(savingsArs - valorHoy)}
     </p>
   );
 }
