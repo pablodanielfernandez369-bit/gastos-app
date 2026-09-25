@@ -3,16 +3,19 @@ import Modal from './Modal';
 import { newExchange, todayISO } from '../lib/model';
 import { formatARS } from '../lib/format';
 
-// Compra de dólares con pesos ahorrados. Todo se escribe a mano (a veces se
-// compra a otro precio): USD, cotización y pesos. Si se cargan USD y
-// cotización, los pesos se calculan solos hasta que se editen a mano.
+// Compra o venta de dólares. Todo se escribe a mano (a veces se compra/vende
+// a otro precio): USD, cotización y pesos. Si se cargan USD y cotización,
+// los pesos se calculan solos hasta que se editen a mano.
 export default function ExchangeFormModal({ open, onClose, draft, actions, editingId }) {
+  const [kind, setKind] = useState(draft?.kind || 'compra');
   const [usd, setUsd] = useState(draft?.usd ?? '');
   const [rate, setRate] = useState(draft?.rate ?? '');
   const [ars, setArs] = useState(draft?.ars ?? '');
   const [arsTouched, setArsTouched] = useState(Boolean(draft));
   const [description, setDescription] = useState(draft?.description ?? '');
   const [date, setDate] = useState(draft?.date ?? todayISO());
+
+  const isVenta = kind === 'venta';
 
   function recalc(nextUsd, nextRate) {
     const u = parseFloat(nextUsd);
@@ -26,6 +29,7 @@ export default function ExchangeFormModal({ open, onClose, draft, actions, editi
     if (!(u > 0) || !(a > 0)) return;
     const r = parseFloat(rate);
     const payload = {
+      kind,
       usd: u,
       ars: a,
       rate: r > 0 ? r : a / u,
@@ -41,11 +45,36 @@ export default function ExchangeFormModal({ open, onClose, draft, actions, editi
   const a = parseFloat(ars);
 
   return (
-    <Modal open={open} onClose={onClose} title={editingId ? 'Editar compra de dólares' : 'Compré dólares'}>
+    <Modal open={open} onClose={onClose} title={editingId ? (isVenta ? 'Editar venta de dólares' : 'Editar compra de dólares') : (isVenta ? 'Vendí dólares' : 'Compré dólares')}>
       <div className="space-y-4">
+        {!editingId && (
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setKind('compra')}
+              className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium ${
+                !isVenta ? 'border-ink bg-ink text-paper' : 'border-hair bg-surface text-ink-soft'
+              }`}
+            >
+              Compré
+            </button>
+            <button
+              type="button"
+              onClick={() => setKind('venta')}
+              className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium ${
+                isVenta ? 'border-ink bg-ink text-paper' : 'border-hair bg-surface text-ink-soft'
+              }`}
+            >
+              Vendí
+            </button>
+          </div>
+        )}
+
         <div className="flex gap-2">
           <div className="flex-1">
-            <label className="block text-xs font-medium text-ink-soft mb-1">USD comprados</label>
+            <label className="block text-xs font-medium text-ink-soft mb-1">
+              USD {isVenta ? 'vendidos' : 'comprados'}
+            </label>
             <input
               type="number"
               inputMode="decimal"
@@ -76,7 +105,9 @@ export default function ExchangeFormModal({ open, onClose, draft, actions, editi
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-ink-soft mb-1">Pesos que salieron</label>
+          <label className="block text-xs font-medium text-ink-soft mb-1">
+            Pesos que {isVenta ? 'entraron' : 'salieron'}
+          </label>
           <input
             type="number"
             inputMode="decimal"
@@ -90,7 +121,9 @@ export default function ExchangeFormModal({ open, onClose, draft, actions, editi
           />
           {u > 0 && a > 0 && (
             <p className="mt-1 text-xs text-ink-faint">
-              Se restan {formatARS(a)} de tus pesos y se suman US$ {u} a tus dólares.
+              {isVenta
+                ? `Se suman ${formatARS(a)} a tu disponible en pesos y se restan US$ ${u} de tus dólares.`
+                : `Se restan ${formatARS(a)} de tus pesos y se suman US$ ${u} a tus dólares.`}
             </p>
           )}
         </div>
@@ -101,7 +134,7 @@ export default function ExchangeFormModal({ open, onClose, draft, actions, editi
             className="w-full rounded-lg border border-hair px-3 py-2"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="ej: en la cueva"
+            placeholder={isVenta ? 'ej: para pagar la tarjeta' : 'ej: en la cueva'}
           />
         </div>
 
@@ -120,7 +153,7 @@ export default function ExchangeFormModal({ open, onClose, draft, actions, editi
             Cancelar
           </button>
           <button onClick={handleSave} className="flex-1 rounded-lg bg-ink py-3 font-medium text-paper">
-            Guardar compra
+            Guardar {isVenta ? 'venta' : 'compra'}
           </button>
         </div>
       </div>

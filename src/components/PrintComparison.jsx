@@ -117,7 +117,12 @@ export default function PrintComparison({ state }) {
 
     // Dólares: no tiene subcategorías (es transversal a la moneda), así
     // que se agrupa por tipo de movimiento en vez de por categoría.
-    const dolaresSums = { Ingreso: { name: 'Ingreso', curr: 0, prev: 0 }, Gasto: { name: 'Gasto', curr: 0, prev: 0 }, Compra: { name: 'Compra de dólares', curr: 0, prev: 0 } };
+    const dolaresSums = {
+      Ingreso: { name: 'Ingreso', curr: 0, prev: 0 },
+      Gasto: { name: 'Gasto', curr: 0, prev: 0 },
+      Compra: { name: 'Compra de dólares', curr: 0, prev: 0 },
+      Venta: { name: 'Venta de dólares', curr: 0, prev: 0 },
+    };
     for (const i of state.incomes) {
       if (i.currency !== 'USD') continue;
       const mk = monthKey(i.date);
@@ -133,12 +138,13 @@ export default function PrintComparison({ state }) {
     for (const x of state.exchanges || []) {
       const mk = monthKey(x.date);
       if (mk !== currKey && mk !== prevKey) continue;
-      dolaresSums.Compra[mk === currKey ? 'curr' : 'prev'] += x.usd || 0;
+      const bucket = x.kind === 'venta' ? dolaresSums.Venta : dolaresSums.Compra;
+      bucket[mk === currKey ? 'curr' : 'prev'] += x.usd || 0;
     }
     const dolaresRows = Object.values(dolaresSums).filter((r) => r.curr > 0 || r.prev > 0).sort((a, b) => b.curr - a.curr);
     const dolaresNet = {
-      curr: dolaresSums.Ingreso.curr + dolaresSums.Compra.curr - dolaresSums.Gasto.curr,
-      prev: dolaresSums.Ingreso.prev + dolaresSums.Compra.prev - dolaresSums.Gasto.prev,
+      curr: dolaresSums.Ingreso.curr + dolaresSums.Compra.curr - dolaresSums.Gasto.curr - dolaresSums.Venta.curr,
+      prev: dolaresSums.Ingreso.prev + dolaresSums.Compra.prev - dolaresSums.Gasto.prev - dolaresSums.Venta.prev,
     };
 
     // Préstamo: por persona, solo lo prestado ese mes (no la deuda

@@ -72,10 +72,10 @@ export function exchangesInRange(state, from, to) {
 }
 
 export function exchangeTotals(exchanges) {
-  return exchanges.reduce(
-    (acc, x) => ({ ars: acc.ars + (x.ars || 0), usd: acc.usd + (x.usd || 0) }),
-    { ars: 0, usd: 0 }
-  );
+  return exchanges.reduce((acc, x) => {
+    const sign = x.kind === 'venta' ? -1 : 1;
+    return { ars: acc.ars + sign * (x.ars || 0), usd: acc.usd + sign * (x.usd || 0) };
+  }, { ars: 0, usd: 0 });
 }
 
 // Descuentos automáticos de USD por gastar de más en el mes (ver server.js
@@ -482,12 +482,19 @@ export function computeMonthBudget(rawState, now = new Date()) {
   // gastó, la meta de ahorro (se aparta entera, no prorrateada) y los
   // recurrentes que todavía falten pagar este mes. Sube cuando cobrás,
   // baja cuando cargás un gasto.
+  // Una "venta de dólares" este mes son pesos reales que entraron a cubrir
+  // gasto — se suman acá (una "compra" no resta: sigue siendo ahorro, solo
+  // cambió de forma, ver newExchange en model.js).
+  const ventasArsMes = (state.exchanges || [])
+    .filter((x) => x.kind === 'venta' && inMonth(x.date))
+    .reduce((sum, x) => sum + (x.ars || 0), 0);
   const disponible = {
-    value: incomeTotal - expenseTotal - (savingsGoal || 0) - pendingRecurringTotal,
+    value: incomeTotal - expenseTotal - (savingsGoal || 0) - pendingRecurringTotal + ventasArsMes,
     incomeTotal,
     expenseTotal,
     savingsGoal: savingsGoal || 0,
     pendingRecurringTotal,
+    ventasArsMes,
   };
 
   return {

@@ -59,7 +59,10 @@ export default function PrintWallets({ state }) {
       if (e.currency === 'USD') rows.push({ date: e.date, label: e.description || 'Gasto', group: 'Gasto', rawAmount: e.amountOriginal, amount: formatUsd(e.amountOriginal) });
     }
     for (const x of state.exchanges || []) {
-      rows.push({ date: x.date, label: x.description || 'Compra de dólares', group: 'Compra', rawAmount: x.usd, amount: formatUsd(x.usd) });
+      const isVenta = x.kind === 'venta';
+      const baseLabel = isVenta ? 'Venta de dólares' : 'Compra de dólares';
+      const signedUsd = isVenta ? -x.usd : x.usd;
+      rows.push({ date: x.date, label: x.description || baseLabel, group: isVenta ? 'Venta' : 'Compra', rawAmount: signedUsd, amount: formatUsd(signedUsd) });
     }
     return rows;
   }, [state]);

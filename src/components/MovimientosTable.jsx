@@ -48,12 +48,15 @@ export default function MovimientosTable({ state, actions }) {
           nativeAmount: i.currency === 'USD' ? i.amountOriginal : i.amount,
         });
       }
-      // Una compra de USD aparece en las dos listas: sale en pesos, entra en dólares.
+      // Una compra de USD aparece en las dos listas: sale en pesos, entra en
+      // dólares. Una venta es al revés: entra en pesos, sale en dólares.
       for (const x of state.exchanges || []) {
         if (!isInRange(x.date, from, to)) continue;
-        const description = `Compra US$ ${x.usd} a ${formatARS(x.rate)}${x.description ? ' · ' + x.description : ''}`;
-        list.push({ kind: 'cambio', id: x.id, date: x.date, description, currency: 'ARS', nativeAmount: x.ars });
-        list.push({ kind: 'cambio', id: x.id, date: x.date, description, currency: 'USD', nativeAmount: x.usd });
+        const isVenta = x.kind === 'venta';
+        const verbo = isVenta ? 'Venta' : 'Compra';
+        const description = `${verbo} US$ ${x.usd} a ${formatARS(x.rate)}${x.description ? ' · ' + x.description : ''}`;
+        list.push({ kind: 'cambio', xKind: x.kind, id: x.id, date: x.date, description, currency: 'ARS', nativeAmount: x.ars });
+        list.push({ kind: 'cambio', xKind: x.kind, id: x.id, date: x.date, description, currency: 'USD', nativeAmount: x.usd });
       }
     }
     const q = search.trim().toLowerCase();
@@ -261,7 +264,7 @@ function MovementsList({ movements, sort, toggleSort, groupName, groupColor, sub
                   ) : m.kind === 'cambio' ? (
                     <>
                       <MonoChip color={USD_COLOR} letter="U" size={22} />
-                      <span className="text-ink-soft">Compra USD</span>
+                      <span className="text-ink-soft">{m.xKind === 'venta' ? 'Venta USD' : 'Compra USD'}</span>
                     </>
                   ) : m.groupId ? (
                     <>
@@ -302,9 +305,14 @@ function MovementsList({ movements, sort, toggleSort, groupName, groupColor, sub
   );
 }
 
-// Ingresos y la pata en dólares de una compra de USD suman; el resto resta.
+// Ingresos y la pata en dólares de una compra de USD suman (entran dólares,
+// salen pesos); en una venta es al revés (entran pesos, salen dólares).
 function isPlus(m) {
-  return m.kind === 'ingreso' || (m.kind === 'cambio' && m.currency === 'USD');
+  if (m.kind === 'ingreso') return true;
+  if (m.kind === 'cambio') {
+    return m.xKind === 'venta' ? m.currency === 'ARS' : m.currency === 'USD';
+  }
+  return false;
 }
 
 function toExpenseDraft(e) {

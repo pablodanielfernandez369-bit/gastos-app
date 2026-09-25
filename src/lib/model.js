@@ -144,12 +144,18 @@ export function newRecurring(partial) {
   };
 }
 
-// Compra de dólares con pesos ahorrados: no es ingreso ni gasto, solo pasa
-// plata del pool de pesos al de dólares. `ars` es lo que salió en pesos.
+// Compra o venta de dólares. `kind: 'compra'` (default, plata de pesos a
+// dólares) o `kind: 'venta'` (al revés: se venden dólares y entran pesos —
+// ej. "vendí USD para cubrir un gasto"). `usd`/`ars` son siempre montos
+// positivos; el signo con que cuentan en cada pool lo decide `kind`
+// (ver selectors.exchangeTotals). Una venta SÍ suma al disponible del mes
+// en pesos (son pesos reales que entraron y se pueden gastar); una compra
+// no resta (sigue siendo "tu ahorro", solo cambió de forma).
 export function newExchange(partial) {
   return {
     id: uuid(),
     date: todayISO(),
+    kind: 'compra',
     usd: 0,
     rate: 0,
     ars: 0,

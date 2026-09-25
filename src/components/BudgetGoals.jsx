@@ -300,13 +300,15 @@ function DolaresCard({ usd, rate, state }) {
       }
     }
     for (const x of state.exchanges || []) {
+      const isVenta = x.kind === 'venta';
+      const baseLabel = isVenta ? 'Venta de dólares' : 'Compra de dólares';
       rows.push({
         id: 'x' + x.id,
         date: x.date,
-        label: x.description ? `Compra de dólares · ${x.description}` : 'Compra de dólares',
+        label: x.description ? `${baseLabel} · ${x.description}` : baseLabel,
         amount: x.usd,
-        sign: 1,
-        kind: 'compra',
+        sign: isVenta ? -1 : 1,
+        kind: isVenta ? 'venta' : 'compra',
       });
     }
     for (const d of state.autoDeductions || []) {

@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react';
-import { v4 as uuid } from 'uuid';
 import Modal from './Modal';
 import { newExpense, todayISO } from '../lib/model';
 import { useDolar, usdRate } from '../lib/useDolar';
@@ -22,7 +21,6 @@ export default function ExpenseFormModal({ open, onClose, draft, state, actions,
   const [date, setDate] = useState(draft?.date ?? todayISO());
   const [newSubName, setNewSubName] = useState('');
   const [showNewSub, setShowNewSub] = useState(false);
-  const [paidWithUsd, setPaidWithUsd] = useState(false);
 
   const dolar = useDolar();
   const rate = usdRate(state.config, dolar) || draft?.fxRate || null;
@@ -92,23 +90,6 @@ export default function ExpenseFormModal({ open, onClose, draft, state, actions,
     } else {
       actions.addExpense(newExpense(payload));
     }
-
-    // "Pagué esto vendiendo dólares": descuenta de una el equivalente en USD
-    // de este gasto puntual, a la cotización de HOY (el momento real en que
-    // se vendieron los dólares), sin esperar al cron nocturno ni mirar el
-    // mes completo.
-    if (paidWithUsd && currency === 'ARS' && rate) {
-      actions.addAutoDeduction({
-        id: uuid(),
-        date,
-        ars: amountFinal,
-        usd: amountFinal / rate,
-        rate,
-        createdAt: Date.now(),
-        note: `Vendí dólares para pagar: ${description.trim() || '(sin descripción)'}`,
-      });
-    }
-
     onClose();
   }
 
@@ -263,25 +244,6 @@ export default function ExpenseFormModal({ open, onClose, draft, state, actions,
             onChange={(e) => setDate(e.target.value)}
           />
         </div>
-
-        {currency === 'ARS' && (
-          <label className="flex items-start gap-2 rounded-lg border border-hair bg-surface-2 px-3 py-2 text-sm">
-            <input
-              type="checkbox"
-              className="mt-0.5"
-              checked={paidWithUsd}
-              onChange={(e) => setPaidWithUsd(e.target.checked)}
-              disabled={!rate}
-            />
-            <span className="text-ink-soft">
-              Pagué esto vendiendo dólares
-              {rate && amountFinal > 0 && (
-                <> — se descuentan <strong>US$ {(amountFinal / rate).toFixed(2)}</strong> de tu ahorro en dólares, al dólar de hoy ({formatPreviewARS(rate)}).</>
-              )}
-              {!rate && ' (no hay cotización disponible ahora)'}
-            </span>
-          </label>
-        )}
 
         <div className="flex gap-2 pt-2">
           <button
