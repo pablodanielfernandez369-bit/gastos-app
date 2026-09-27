@@ -4,6 +4,7 @@ import RecurringManager from './RecurringManager';
 import BackupRestore from './BackupRestore';
 import GoalsManager from './GoalsManager';
 import ChangeAccessCodeModal from './ChangeAccessCodeModal';
+import WalletManager from './WalletManager';
 
 function Section({ title, children }) {
   return (
@@ -16,10 +17,19 @@ function Section({ title, children }) {
   );
 }
 
-export default function Ajustes({ state, actions }) {
+export default function Ajustes({ state, actions, walletId, wallets, onSwitchWallet, onCreateWallet, onDeleteWallet }) {
   const [showChangeCode, setShowChangeCode] = useState(false);
   return (
     <div className="space-y-7">
+      <Section title="Billeteras">
+        <WalletManager
+          walletId={walletId}
+          wallets={wallets}
+          onSwitchWallet={onSwitchWallet}
+          onCreateWallet={onCreateWallet}
+          onDeleteWallet={onDeleteWallet}
+        />
+      </Section>
       <Section title="Metas del mes">
         <GoalsManager state={state} actions={actions} />
       </Section>

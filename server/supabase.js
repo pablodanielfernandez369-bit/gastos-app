@@ -24,23 +24,49 @@ async function rest(path, init) {
   return res;
 }
 
-// --- Estado de la app (un único blob JSON en la fila id='main') ---
+// --- Estado de la app: un blob JSON por billetera (fila id = id de la
+// billetera; la primera/histórica es 'main'). Mismo patrón que gastoscorujo. ---
 
-export async function getState() {
-  const res = await rest('app_state?id=eq.main&select=data,updated_at', { method: 'GET' });
+export async function getState(walletId = 'main') {
+  const res = await rest(`app_state?id=eq.${encodeURIComponent(walletId)}&select=data,updated_at`, { method: 'GET' });
   const rows = await res.json();
   if (!rows.length) return { data: null, updatedAt: null };
   return { data: rows[0].data, updatedAt: rows[0].updated_at };
 }
 
-export async function putState(data) {
-  const res = await rest('app_state?id=eq.main', {
-    method: 'PATCH',
-    headers: { Prefer: 'return=representation' },
-    body: JSON.stringify({ data, updated_at: new Date().toISOString() }),
+export async function putState(walletId, data) {
+  const res = await rest('app_state?on_conflict=id', {
+    method: 'POST',
+    headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
+    body: JSON.stringify({ id: walletId, data, updated_at: new Date().toISOString() }),
   });
   const rows = await res.json();
   return { updatedAt: rows[0]?.updated_at ?? null };
+}
+
+export async function deleteState(walletId) {
+  await rest(`app_state?id=eq.${encodeURIComponent(walletId)}`, { method: 'DELETE' });
+}
+
+// --- Lista de billeteras (fila reservada '__wallets__'): [{id, name,
+// createdAt}]. La billetera 'main' es la histórica (single-wallet de
+// siempre) y siempre existe, aunque esta fila todavía no se haya creado —
+// ver server.js para el fallback. ---
+
+export async function getWalletsRow() {
+  const res = await rest('app_state?id=eq.__wallets__&select=data', { method: 'GET' });
+  const rows = await res.json();
+  return rows.length ? rows[0].data : null;
+}
+
+export async function putWalletsRow(data) {
+  const res = await rest('app_state?on_conflict=id', {
+    method: 'POST',
+    headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
+    body: JSON.stringify({ id: '__wallets__', data, updated_at: new Date().toISOString() }),
+  });
+  const rows = await res.json();
+  return rows[0]?.data ?? null;
 }
 
 // --- Clave de acceso (fila reservada '__access__' en la misma tabla, no

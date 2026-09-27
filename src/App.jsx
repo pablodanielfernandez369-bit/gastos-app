@@ -27,9 +27,10 @@ const TABS = [
   { id: 'ajustes', label: 'Ajustes' },
 ];
 
-export default function App() {
-  const [state, actions] = useAppState();
+export default function App({ walletId, wallets, onSwitchWallet, onCreateWallet, onDeleteWallet }) {
+  const [state, actions] = useAppState(walletId);
   const [tab, setTab] = useState('dashboard');
+  const walletName = wallets?.find((w) => w.id === walletId)?.name;
 
   const [showExpenseForm, setShowExpenseForm] = useState(false);
   const [showIncomeForm, setShowIncomeForm] = useState(false);
@@ -74,6 +75,9 @@ export default function App() {
         <h1 className="font-display text-[1.7rem] font-medium leading-none tracking-tight text-ink">
           Mis gastos y ahorro
         </h1>
+        {wallets?.length > 1 && (
+          <p className="mt-1 text-[0.7rem] font-semibold uppercase tracking-[0.1em] text-accent">{walletName}</p>
+        )}
       </header>
 
       <main className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
@@ -81,7 +85,17 @@ export default function App() {
         {tab === 'movimientos' && <MovimientosTable state={state} actions={actions} />}
         {tab === 'reportes' && <Reportes state={state} />}
         {tab === 'asistente' && <Asistente state={state} />}
-        {tab === 'ajustes' && <Ajustes state={state} actions={actions} />}
+        {tab === 'ajustes' && (
+          <Ajustes
+            state={state}
+            actions={actions}
+            walletId={walletId}
+            wallets={wallets}
+            onSwitchWallet={onSwitchWallet}
+            onCreateWallet={onCreateWallet}
+            onDeleteWallet={onDeleteWallet}
+          />
+        )}
       </main>
 
       {showFloatingButtons && (

@@ -193,8 +193,8 @@ function migrateState(saved) {
 
 // Hook central: arranca del caché local (render instantáneo), sincroniza con
 // el servidor, persiste cada cambio en local + servidor, y expone el CRUD.
-export function useAppState() {
-  const [state, setState] = useState(() => migrateState(loadState()));
+export function useAppState(walletId = 'main') {
+  const [state, setState] = useState(() => migrateState(loadState(walletId)));
   const bootedRef = useRef(false); // ya terminó la sincronización inicial
   const pushPendingRef = useRef(false); // hay un cambio local sin subir
   const syncedAtRef = useRef(null); // updated_at del servidor que ya vimos
@@ -203,25 +203,27 @@ export function useAppState() {
     const migrated = migrateState(data);
     syncedAtRef.current = updatedAt;
     setState(migrated);
-    persistState(migrated);
+    persistState(migrated, walletId);
   }
 
   // Sincronización inicial: si el servidor tiene datos, los adoptamos; si está
-  // vacío, subimos lo que haya en local (primera migración a la base).
+  // vacío, subimos lo que haya en local (primera migración a la base, o una
+  // billetera recién creada que arranca sin nada).
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const { data, updatedAt } = await fetchServerState();
+        const { data, updatedAt } = await fetchServerState(walletId);
         if (cancelled) return;
         const serverHasData =
           data && data.groups && (data.expenses?.length || data.incomes?.length || data.groups?.length > 2);
         if (serverHasData) {
           adoptServer(data, updatedAt);
         } else {
-          const local = migrateState(loadState());
-          const { updatedAt: newAt } = await pushServerState(local);
+          const local = migrateState(loadState(walletId));
+          const { updatedAt: newAt } = await pushServerState(local, walletId);
           syncedAtRef.current = newAt;
+          setState(local);
         }
       } catch (e) {
         console.warn('Sincronización inicial falló, sigo con el caché local:', e.message);
@@ -230,16 +232,17 @@ export function useAppState() {
       }
     })();
     return () => { cancelled = true; };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [walletId]);
 
   // Cada cambio: guardar en local ya, y subir al servidor con un pequeño debounce.
   useEffect(() => {
-    persistState(state);
+    persistState(state, walletId);
     if (!bootedRef.current) return;
     pushPendingRef.current = true;
     const t = setTimeout(async () => {
       try {
-        const { updatedAt } = await pushServerState(state);
+        const { updatedAt } = await pushServerState(state, walletId);
         syncedAtRef.current = updatedAt;
       } catch (e) {
         console.warn('No se pudo subir el estado al servidor:', e.message);
@@ -248,16 +251,17 @@ export function useAppState() {
       }
     }, 1000);
     return () => clearTimeout(t);
-  }, [state]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state, walletId]);
 
-  // Traer cambios del servidor al volver a la app o cada 20s (útil cuando
-  // cargás un gasto por Telegram, o desde otro dispositivo).
+  // Traer cambios del servidor al volver a la app o cada 20s (útil si
+  // cargaste un gasto desde otro dispositivo).
   useEffect(() => {
     async function refresh() {
       if (!bootedRef.current || pushPendingRef.current) return;
       if (typeof document !== 'undefined' && document.hidden) return;
       try {
-        const { data, updatedAt } = await fetchServerState();
+        const { data, updatedAt } = await fetchServerState(walletId);
         if (data && updatedAt && updatedAt !== syncedAtRef.current) {
           adoptServer(data, updatedAt);
         }

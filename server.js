@@ -1,8 +1,12 @@
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { randomUUID } from 'crypto';
 import { answerQuestion as answerQuestionLocal } from './src/lib/analyzer.js';
-import { supabaseConfigured, getState, putState, getAccessCodeRow, putAccessCodeRow } from './server/supabase.js';
+import {
+  supabaseConfigured, getState, putState, deleteState,
+  getAccessCodeRow, putAccessCodeRow, getWalletsRow, putWalletsRow,
+} from './server/supabase.js';
 import { getDolarBlue } from './server/dolar.js';
 import { telegramConfigured, handleUpdate, verifyWebhook } from './server/telegram.js';
 import { sendWeeklyReport } from './server/report.js';
@@ -67,12 +71,18 @@ app.post('/api/change-access-code', checkAccess, async (req, res) => {
 });
 
 // ---- Estado del usuario en Supabase (fuente de verdad; el navegador tiene
-// una copia en localStorage como caché offline) ----
+// una copia en localStorage como caché offline). `?wallet=<id>` dice cuál
+// billetera — sin ese parámetro (apps/dispositivos viejos) es 'main', la
+// histórica de siempre. ----
+
+function walletIdOf(req) {
+  return String(req.query.wallet || 'main');
+}
 
 app.get('/api/state', checkAccess, async (req, res) => {
   if (!supabaseConfigured) return res.status(503).json({ error: 'Base no configurada' });
   try {
-    const { data, updatedAt } = await getState();
+    const { data, updatedAt } = await getState(walletIdOf(req));
     res.json({ data, updatedAt });
   } catch (err) {
     console.error('GET /api/state:', err.message);
@@ -87,11 +97,64 @@ app.put('/api/state', checkAccess, async (req, res) => {
     return res.status(400).json({ error: 'Estado inválido' });
   }
   try {
-    const { updatedAt } = await putState(state);
+    const { updatedAt } = await putState(walletIdOf(req), state);
     res.json({ ok: true, updatedAt });
   } catch (err) {
     console.error('PUT /api/state:', err.message);
     res.status(502).json({ error: 'No se pudo guardar el estado' });
+  }
+});
+
+// ---- Billeteras: crear/listar/borrar. 'main' es la histórica (siempre
+// existe aunque la fila '__wallets__' todavía no se haya creado — recién se
+// crea la primera vez que se agrega o borra una billetera). ----
+
+async function listWallets() {
+  const row = await getWalletsRow();
+  const list = Array.isArray(row?.list) && row.list.length ? row.list : [{ id: 'main', name: 'Principal' }];
+  return list;
+}
+
+app.get('/api/wallets', checkAccess, async (req, res) => {
+  if (!supabaseConfigured) return res.status(503).json({ error: 'Base no configurada' });
+  try {
+    res.json({ wallets: await listWallets() });
+  } catch (err) {
+    console.error('GET /api/wallets:', err.message);
+    res.status(502).json({ error: 'No se pudieron leer las billeteras' });
+  }
+});
+
+app.post('/api/wallets', checkAccess, async (req, res) => {
+  if (!supabaseConfigured) return res.status(503).json({ error: 'Base no configurada' });
+  const name = String(req.body?.name || '').trim();
+  if (!name) return res.status(400).json({ error: 'Falta el nombre' });
+  try {
+    const list = await listWallets();
+    const id = randomUUID();
+    const wallet = { id, name, createdAt: Date.now() };
+    await putWalletsRow({ list: [...list, wallet] });
+    await putState(id, {}); // arranca vacía; el cliente la llena con defaultState()
+    res.json({ wallet });
+  } catch (err) {
+    console.error('POST /api/wallets:', err.message);
+    res.status(502).json({ error: 'No se pudo crear la billetera' });
+  }
+});
+
+app.delete('/api/wallets/:id', checkAccess, async (req, res) => {
+  if (!supabaseConfigured) return res.status(503).json({ error: 'Base no configurada' });
+  try {
+    const list = await listWallets();
+    if (list.length <= 1) return res.status(400).json({ error: 'No podés borrar la última billetera' });
+    const next = list.filter((w) => w.id !== req.params.id);
+    if (next.length === list.length) return res.status(404).json({ error: 'No existe esa billetera' });
+    await putWalletsRow({ list: next });
+    await deleteState(req.params.id);
+    res.json({ ok: true, wallets: next });
+  } catch (err) {
+    console.error('DELETE /api/wallets/:id:', err.message);
+    res.status(502).json({ error: 'No se pudo borrar la billetera' });
   }
 });
 
@@ -154,15 +217,16 @@ app.post('/api/ask', checkAccess, async (req, res) => {
 // condonaciones de préstamo, config) porque se manda el objeto completo
 // tal cual está guardado — no hay que listar campos, se actualiza solo.
 
-async function sendBackupToTelegram(state) {
+async function sendBackupToTelegram(state, walletName) {
   if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
     throw new Error('Backup por Telegram no configurado');
   }
   const fecha = new Date().toISOString().slice(0, 10);
+  const suffix = walletName ? ` (${walletName})` : '';
   const json = JSON.stringify(state, null, 2);
   const form = new FormData();
   form.append('chat_id', TELEGRAM_CHAT_ID);
-  form.append('caption', `Backup gastos ${fecha}`);
+  form.append('caption', `Backup gastos${suffix} ${fecha}`);
   form.append(
     'document',
     new Blob([json], { type: 'application/json' }),
@@ -194,18 +258,24 @@ app.post('/api/backup', checkAccess, async (req, res) => {
 });
 
 // Backup automático de verdad: lee el estado directo de Supabase (no
-// depende de que la app esté abierta) y lo manda a Telegram. Lo dispara
-// un cron externo (cron-job.org), protegido con el mismo secret que el
-// resumen semanal — no lleva ACCESS_CODE porque ese es para sesiones de
-// navegador, no para un cron.
+// depende de que la app esté abierta) y lo manda a Telegram — una vez por
+// cada billetera que exista. Lo dispara un cron externo (cron-job.org),
+// protegido con el mismo secret que el resumen semanal — no lleva
+// ACCESS_CODE porque ese es para sesiones de navegador, no para un cron.
 app.post('/api/backup-cron', async (req, res) => {
   if (req.query.key !== TELEGRAM_WEBHOOK_SECRET) return res.sendStatus(403);
   if (!supabaseConfigured) return res.status(503).json({ error: 'Base no configurada' });
   try {
-    const { data: state } = await getState();
-    if (!state || !state.groups) return res.status(503).json({ error: 'Todavía no hay datos guardados' });
-    await sendBackupToTelegram(state);
-    res.json({ ok: true });
+    const wallets = await listWallets();
+    let sent = 0;
+    for (const w of wallets) {
+      const { data: state } = await getState(w.id);
+      if (!state || !state.groups) continue;
+      await sendBackupToTelegram(state, w.name);
+      sent++;
+    }
+    if (!sent) return res.status(503).json({ error: 'Todavía no hay datos guardados' });
+    res.json({ ok: true, sent });
   } catch (err) {
     console.error('backup-cron:', err.message);
     res.status(502).json({ error: 'No se pudo enviar el backup automático' });
@@ -227,33 +297,40 @@ app.post('/api/auto-deduct-cron', async (req, res) => {
   if (req.query.key !== TELEGRAM_WEBHOOK_SECRET) return res.sendStatus(403);
   if (!supabaseConfigured) return res.status(503).json({ error: 'Base no configurada' });
   try {
-    const { data: state } = await getState();
-    if (!state || !state.groups) return res.status(503).json({ error: 'Todavía no hay datos guardados' });
-
     const blue = await getDolarBlue();
     const today = todayAR();
-    state.dolarHistory = state.dolarHistory && typeof state.dolarHistory === 'object' ? state.dolarHistory : {};
-    if (blue?.promedio) state.dolarHistory[today] = blue.promedio;
+    const rateToday = blue?.promedio || null;
 
-    const rate = state.dolarHistory[today] || blue?.promedio || null;
-    let deduction = null;
-    if (rate) {
-      const b = computeMonthBudget(state, nowAR());
-      const overspend = b.disponible.value < 0 ? -b.disponible.value : 0;
-      const mk = today.slice(0, 7);
-      state.autoDeductions = Array.isArray(state.autoDeductions) ? state.autoDeductions : [];
-      const alreadyThisMonth = state.autoDeductions
-        .filter((d) => (d.date || '').slice(0, 7) === mk)
-        .reduce((sum, d) => sum + (d.ars || 0), 0);
-      const newOverspend = overspend - alreadyThisMonth;
-      if (newOverspend > 1) {
-        deduction = { id: `auto_${Date.now()}`, date: today, ars: newOverspend, usd: newOverspend / rate, rate, createdAt: Date.now() };
-        state.autoDeductions.push(deduction);
+    const wallets = await listWallets();
+    const results = [];
+    for (const w of wallets) {
+      const { data: state } = await getState(w.id);
+      if (!state || !state.groups) continue;
+
+      state.dolarHistory = state.dolarHistory && typeof state.dolarHistory === 'object' ? state.dolarHistory : {};
+      if (rateToday) state.dolarHistory[today] = rateToday;
+      const rate = state.dolarHistory[today] || rateToday || null;
+
+      let deduction = null;
+      if (rate) {
+        const b = computeMonthBudget(state, nowAR());
+        const overspend = b.disponible.value < 0 ? -b.disponible.value : 0;
+        const mk = today.slice(0, 7);
+        state.autoDeductions = Array.isArray(state.autoDeductions) ? state.autoDeductions : [];
+        const alreadyThisMonth = state.autoDeductions
+          .filter((d) => (d.date || '').slice(0, 7) === mk)
+          .reduce((sum, d) => sum + (d.ars || 0), 0);
+        const newOverspend = overspend - alreadyThisMonth;
+        if (newOverspend > 1) {
+          deduction = { id: `auto_${Date.now()}`, date: today, ars: newOverspend, usd: newOverspend / rate, rate, createdAt: Date.now() };
+          state.autoDeductions.push(deduction);
+        }
       }
-    }
 
-    const { updatedAt } = await putState(state);
-    res.json({ ok: true, updatedAt, rate, deduction });
+      const { updatedAt } = await putState(w.id, state);
+      results.push({ walletId: w.id, walletName: w.name, updatedAt, rate, deduction });
+    }
+    res.json({ ok: true, rate: rateToday, wallets: results });
   } catch (err) {
     console.error('auto-deduct-cron:', err.message);
     res.status(502).json({ error: 'No se pudo procesar' });

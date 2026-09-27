@@ -1,12 +1,19 @@
 // Capa de persistencia. Hoy usa localStorage; el resto de la app solo
 // conoce getState()/setState(), así que el día de mañana esto se puede
 // reemplazar por IndexedDB o un backend real sin tocar nada más.
-
+//
+// Multi-billetera: 'main' (la histórica, de siempre) sigue usando la MISMA
+// clave sin sufijo que ya existía — cero riesgo de perder el caché de nadie
+// al agregar esto. Una billetera nueva usa una clave con sufijo por id.
 const STORAGE_KEY = 'gastos_app_v1';
 
-export function loadState() {
+function keyFor(walletId) {
+  return walletId && walletId !== 'main' ? `${STORAGE_KEY}_${walletId}` : STORAGE_KEY;
+}
+
+export function loadState(walletId = 'main') {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(keyFor(walletId));
     if (!raw) return null;
     return JSON.parse(raw);
   } catch (e) {
@@ -15,9 +22,9 @@ export function loadState() {
   }
 }
 
-export function persistState(state) {
+export function persistState(state, walletId = 'main') {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    localStorage.setItem(keyFor(walletId), JSON.stringify(state));
   } catch (e) {
     console.error('No se pudo guardar en el almacenamiento local', e);
   }
@@ -70,20 +77,62 @@ export async function changeAccessCode(newCode) {
 // --- Sincronización con el servidor (Supabase es la fuente de verdad;
 // localStorage queda como caché para andar rápido y offline) ---
 
-export async function fetchServerState() {
-  const res = await fetch('/api/state', { headers: accessHeaders() });
+export async function fetchServerState(walletId = 'main') {
+  const res = await fetch(`/api/state?wallet=${encodeURIComponent(walletId)}`, { headers: accessHeaders() });
   if (!res.ok) throw new Error(`GET /api/state ${res.status}`);
   return res.json(); // { data, updatedAt }
 }
 
-export async function pushServerState(state) {
-  const res = await fetch('/api/state', {
+export async function pushServerState(state, walletId = 'main') {
+  const res = await fetch(`/api/state?wallet=${encodeURIComponent(walletId)}`, {
     method: 'PUT',
     headers: { 'content-type': 'application/json', ...accessHeaders() },
     body: JSON.stringify({ state }),
   });
   if (!res.ok) throw new Error(`PUT /api/state ${res.status}`);
   return res.json(); // { ok, updatedAt }
+}
+
+// --- Billeteras: cuál está activa en ESTE dispositivo (cada uno puede tener
+// una distinta abierta), y CRUD contra el server (la lista en sí es
+// compartida entre dispositivos, ver server.js /api/wallets). ---
+
+const ACTIVE_WALLET_KEY = 'gastos_app_v1_active_wallet';
+
+export function getActiveWalletId() {
+  return localStorage.getItem(ACTIVE_WALLET_KEY) || 'main';
+}
+
+export function setActiveWalletId(id) {
+  localStorage.setItem(ACTIVE_WALLET_KEY, id);
+}
+
+export async function fetchWallets() {
+  const res = await fetch('/api/wallets', { headers: accessHeaders() });
+  if (!res.ok) throw new Error(`GET /api/wallets ${res.status}`);
+  const { wallets } = await res.json();
+  return wallets;
+}
+
+export async function createWallet(name) {
+  const res = await fetch('/api/wallets', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', ...accessHeaders() },
+    body: JSON.stringify({ name }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error || `POST /api/wallets ${res.status}`);
+  return data.wallet;
+}
+
+export async function deleteWallet(id) {
+  const res = await fetch(`/api/wallets/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    headers: accessHeaders(),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error || `DELETE /api/wallets ${res.status}`);
+  return data.wallets;
 }
 
 const LAST_BACKUP_KEY = 'gastos_app_v1_last_backup';
