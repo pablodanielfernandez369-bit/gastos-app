@@ -1,5 +1,19 @@
 import { useState } from 'react';
 import MonoChip from './MonoChip';
+import { FAMILIA_GROUP_ID, PRESTAMO_GROUP_ID, TARJETAS_GROUP_ID } from '../lib/model';
+
+// Categorías fijas del sistema: no se pueden borrar (están cableadas en
+// selectors/config, borrarlas rompería las billeteras del dashboard).
+function isProtectedGroup(g, config) {
+  return (
+    g.id === 'vivienda' ||
+    g.id === PRESTAMO_GROUP_ID ||
+    g.id === FAMILIA_GROUP_ID ||
+    g.id === TARJETAS_GROUP_ID ||
+    g.id === config?.extrasGroupId ||
+    g.id === config?.diaADiaGroupId
+  );
+}
 
 export default function CategoryManager({ state, actions }) {
   const [newGroupName, setNewGroupName] = useState('');
@@ -10,6 +24,15 @@ export default function CategoryManager({ state, actions }) {
     if (!newGroupName.trim()) return;
     actions.addGroup(newGroupName.trim());
     setNewGroupName('');
+  }
+
+  function handleDeleteGroup(g) {
+    const inUse = state.expenses.some((e) => e.groupId === g.id);
+    const msg = inUse
+      ? `"${g.name}" tiene gastos cargados. Si la borrás, esos gastos quedan sin categorizar. ¿Continuar?`
+      : `¿Borrar la categoría "${g.name}" y sus subcategorías?`;
+    if (!confirm(msg)) return;
+    actions.deleteGroup(g.id);
   }
 
   function handleAddSub(groupId) {
@@ -34,7 +57,10 @@ export default function CategoryManager({ state, actions }) {
         <div key={g.id} className="rounded-2xl border border-hair bg-surface p-4">
           <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-ink">
             <MonoChip color={g.color} letter={g.name.charAt(0).toUpperCase()} size={24} />
-            {g.name}
+            <span className="flex-1">{g.name}</span>
+            {!isProtectedGroup(g, state.config) && (
+              <button onClick={() => handleDeleteGroup(g)} className="text-ink-faint" title="Borrar categoría">🗑️</button>
+            )}
           </h3>
           <ul className="space-y-1">
             {state.subcategories.filter((s) => s.groupId === g.id).map((sub) => (

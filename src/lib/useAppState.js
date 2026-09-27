@@ -345,6 +345,35 @@ export function useAppState() {
       return id;
     },
 
+    // Borra una categoría principal creada por el usuario (ej "Perro" que
+    // agregó Pablo para probar). NUNCA las fijas del sistema (Vivienda, Día
+    // a día, Salidas/Ocio, Familia, Tarjetas, Préstamo) — esas están cableadas
+    // en selectors/config y borrarlas rompería las billeteras del dashboard.
+    // Los gastos que tenía esa categoría NO se borran, quedan sin categorizar
+    // (mismo criterio que ya usa deleteSubcategory).
+    deleteGroup(id) {
+      setState((s) => {
+        const protectedIds = new Set([
+          'vivienda',
+          PRESTAMO_GROUP_ID,
+          FAMILIA_GROUP_ID,
+          TARJETAS_GROUP_ID,
+          s.config?.extrasGroupId,
+          s.config?.diaADiaGroupId,
+        ]);
+        if (protectedIds.has(id)) return s;
+        const subIds = new Set(s.subcategories.filter((sc) => sc.groupId === id).map((sc) => sc.id));
+        return {
+          ...s,
+          groups: s.groups.filter((g) => g.id !== id),
+          subcategories: s.subcategories.filter((sc) => sc.groupId !== id),
+          expenses: s.expenses.map((e) =>
+            e.groupId === id ? { ...e, groupId: null, subcategoryId: null } : subIds.has(e.subcategoryId) ? { ...e, subcategoryId: null } : e
+          ),
+        };
+      });
+    },
+
     addSubcategory(groupId, name) {
       const id = uuid();
       setState((s) => ({
