@@ -2,7 +2,7 @@ import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { answerQuestion as answerQuestionLocal } from './src/lib/analyzer.js';
-import { supabaseConfigured, getState, putState } from './server/supabase.js';
+import { supabaseConfigured, getState, putState, getAccessCodeRow, putAccessCodeRow } from './server/supabase.js';
 import { getDolarBlue } from './server/dolar.js';
 import { telegramConfigured, handleUpdate, verifyWebhook } from './server/telegram.js';
 import { sendWeeklyReport } from './server/report.js';
@@ -22,19 +22,49 @@ const TELEGRAM_WEBHOOK_SECRET = process.env.TELEGRAM_WEBHOOK_SECRET;
 
 // ---- Clave de acceso: si está configurada, todo lo que lee o escribe datos
 // personales la exige por header. El celular la manda automático una vez que
-// la cargaste ahí (ver src/lib/storage.js); sin ACCESS_CODE seteada, queda
-// abierto (comportamiento de antes, útil para desarrollo local). No se le
-// exige al webhook de Telegram ni al keep-alive: esos ya tienen su propia
-// verificación (secret_token del bot / no exponen datos). ----
+// la cargaste ahí (ver src/lib/storage.js). No se le exige al webhook de
+// Telegram ni al keep-alive: esos ya tienen su propia verificación
+// (secret_token del bot / no exponen datos). La clave vive en Supabase (fila
+// reservada '__access__' en app_state, mutable en caliente) para poder
+// cambiarla desde la app sin tocar el dashboard de Render; ACCESS_CODE (env
+// var) es solo la semilla inicial la primera vez que arranca sin esa fila
+// creada todavía. ----
 
-const ACCESS_CODE = process.env.ACCESS_CODE;
+let currentAccessCode = process.env.ACCESS_CODE || null;
+
+async function loadAccessCode() {
+  if (!supabaseConfigured) return;
+  try {
+    const data = await getAccessCodeRow();
+    if (data?.code) currentAccessCode = data.code;
+  } catch (err) {
+    console.error('No se pudo leer la clave de acceso guardada:', err.message);
+  }
+}
+await loadAccessCode();
 
 function checkAccess(req, res, next) {
-  if (!ACCESS_CODE || req.get('x-access-code') === ACCESS_CODE) return next();
+  if (!currentAccessCode || req.get('x-access-code') === currentAccessCode) return next();
   res.status(401).json({ error: 'Clave incorrecta' });
 }
 
 app.get('/api/access-check', checkAccess, (req, res) => res.json({ ok: true }));
+
+// Cambiar la clave: hay que mandar la clave ACTUAL por header (checkAccess ya
+// la exige) más la nueva en el body. Sin "clave olvidada" a propósito.
+app.post('/api/change-access-code', checkAccess, async (req, res) => {
+  if (!supabaseConfigured) return res.status(503).json({ error: 'Base no configurada' });
+  const newCode = String(req.body?.newCode || '').trim();
+  if (newCode.length < 4) return res.status(400).json({ error: 'La clave nueva es muy corta' });
+  try {
+    await putAccessCodeRow({ code: newCode });
+    currentAccessCode = newCode;
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('POST /api/change-access-code:', err.message);
+    res.status(502).json({ error: 'No se pudo guardar la clave nueva' });
+  }
+});
 
 // ---- Estado del usuario en Supabase (fuente de verdad; el navegador tiene
 // una copia en localStorage como caché offline) ----

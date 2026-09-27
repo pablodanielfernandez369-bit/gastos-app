@@ -50,6 +50,23 @@ export function accessHeaders() {
   return code ? { 'x-access-code': code } : {};
 }
 
+// Cambia la clave de acceso. Hace falta mandar la clave actual (va sola en
+// el header, como cualquier otro pedido) más la nueva. Si el server la
+// acepta, este dispositivo se queda logueado con la nueva sin pedir nada de
+// nuevo — cualquier OTRO dispositivo con la vieja guardada va a quedar
+// afuera la próxima vez que la app se fije si sigue valiendo (AccessGate).
+export async function changeAccessCode(newCode) {
+  const res = await fetch('/api/change-access-code', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', ...accessHeaders() },
+    body: JSON.stringify({ newCode }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error || `POST /api/change-access-code ${res.status}`);
+  setAccessCode(newCode);
+  return true;
+}
+
 // --- Sincronización con el servidor (Supabase es la fuente de verdad;
 // localStorage queda como caché para andar rápido y offline) ---
 

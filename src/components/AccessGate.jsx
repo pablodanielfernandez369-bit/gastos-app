@@ -5,14 +5,22 @@ import { getAccessCode, setAccessCode, clearAccessCode } from '../lib/storage';
 // queda andando solo (la clave se guarda en ese dispositivo y se manda sola
 // en cada pedido al servidor); cualquier otro que abra el link sin la clave
 // correcta no puede ver ni tocar los datos.
+//
+// Devuelve 'ok' | 'wrong' | 'unknown'. Solo 'wrong' (401 explícito, la clave
+// que mandamos no es la que el server tiene guardada AHORA) borra la clave
+// guardada y vuelve a pedirla — cualquier otro problema (sin conexión, el
+// servidor tardando en despertar, un 502/503 pasajero) se trata como "no se
+// pudo confirmar todavía", no como clave incorrecta, para no estar pidiendo
+// la clave de nuevo por algo que no tiene que ver con la clave.
 async function verify(code) {
   try {
     const res = await fetch('/api/access-check', {
       headers: code ? { 'x-access-code': code } : {},
     });
-    return res.ok;
+    if (res.ok) return 'ok';
+    return res.status === 401 ? 'wrong' : 'unknown';
   } catch {
-    return true; // sin conexión: no le cortamos el paso a un dispositivo ya habilitado
+    return 'unknown';
   }
 }
 
@@ -24,12 +32,18 @@ export default function AccessGate({ children }) {
 
   useEffect(() => {
     (async () => {
-      const ok = await verify(getAccessCode());
-      if (ok) {
-        setStatus('unlocked');
-      } else {
+      const storedCode = getAccessCode();
+      const result = await verify(storedCode);
+      if (result === 'wrong') {
         clearAccessCode();
         setStatus('locked');
+      } else if (result === 'ok') {
+        setStatus('unlocked');
+      } else {
+        // No se pudo confirmar (sin conexión, servidor despertando, etc): un
+        // dispositivo que ya tenía una clave guardada pasa igual — recién si
+        // el server dice explícitamente que está mal lo sacamos afuera.
+        setStatus(storedCode ? 'unlocked' : 'locked');
       }
     })();
   }, []);
@@ -39,13 +53,15 @@ export default function AccessGate({ children }) {
     setError('');
     setChecking(true);
     const code = input.trim();
-    const ok = await verify(code);
+    const result = await verify(code);
     setChecking(false);
-    if (ok) {
+    if (result === 'ok') {
       setAccessCode(code);
       setStatus('unlocked');
-    } else {
+    } else if (result === 'wrong') {
       setError('Clave incorrecta.');
+    } else {
+      setError('No se pudo confirmar, probá de nuevo.');
     }
   }
 

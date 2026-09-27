@@ -43,6 +43,25 @@ export async function putState(data) {
   return { updatedAt: rows[0]?.updated_at ?? null };
 }
 
+// --- Clave de acceso (fila reservada '__access__' en la misma tabla, no
+// colisiona con 'main' que es el estado real) — ver server.js checkAccess ---
+
+export async function getAccessCodeRow() {
+  const res = await rest('app_state?id=eq.__access__&select=data', { method: 'GET' });
+  const rows = await res.json();
+  return rows.length ? rows[0].data : null;
+}
+
+export async function putAccessCodeRow(data) {
+  const res = await rest('app_state?on_conflict=id', {
+    method: 'POST',
+    headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
+    body: JSON.stringify({ id: '__access__', data, updated_at: new Date().toISOString() }),
+  });
+  const rows = await res.json();
+  return rows[0]?.data ?? null;
+}
+
 // --- Confirmaciones pendientes del bot de Telegram ---
 
 export async function savePending(id, payload) {
