@@ -62,6 +62,10 @@ export default function CategoryManager({ state, actions }) {
               <button onClick={() => handleDeleteGroup(g)} className="text-ink-faint" title="Borrar categoría">🗑️</button>
             )}
           </h3>
+
+          {!isProtectedGroup(g, state.config) && (
+            <CustomCardToggle groupId={g.id} state={state} actions={actions} />
+          )}
           <ul className="space-y-1">
             {state.subcategories.filter((s) => s.groupId === g.id).map((sub) => (
               <li key={sub.id} className="flex items-center gap-2">
@@ -117,6 +121,45 @@ export default function CategoryManager({ state, actions }) {
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// Categorías propias (no fijas) pueden mostrarse también como tarjeta en el
+// inicio, igual que Vivienda/Familia/Tarjetas, con presupuesto opcional.
+function CustomCardToggle({ groupId, state, actions }) {
+  const card = state.config?.customCards?.[groupId];
+  const enabled = Boolean(card);
+
+  return (
+    <div className="mb-3 rounded-lg border border-hair bg-surface-2 px-3 py-2">
+      <label className="flex items-center gap-2 text-sm text-ink-soft">
+        <input
+          type="checkbox"
+          checked={enabled}
+          onChange={(e) => actions.setCustomCardEnabled(groupId, e.target.checked)}
+        />
+        Mostrar como tarjeta en el inicio
+      </label>
+      {enabled && (
+        <div className="mt-2 flex items-center gap-2">
+          <span className="text-xs text-ink-faint">Presupuesto mensual:</span>
+          <div className="flex items-center gap-1 rounded-lg border border-hair px-2 py-1">
+            <span className="text-ink-faint">$</span>
+            <input
+              type="number"
+              inputMode="numeric"
+              className="w-28 border-0 py-0.5 text-sm focus:outline-none focus:ring-0"
+              value={card.budget ?? ''}
+              onChange={(e) => {
+                const n = parseFloat(e.target.value);
+                actions.setCustomCardBudget(groupId, Number.isFinite(n) && n > 0 ? n : null);
+              }}
+              placeholder="opcional"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

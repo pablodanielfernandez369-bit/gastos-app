@@ -606,7 +606,7 @@ export function computeLocalBalance(state) {
 
 // verde si va y proyecta bien; rojo si ya pasó el 90% o proyecta pasarse;
 // amarillo en el medio.
-function statusFor(pct, projectedPct) {
+export function statusFor(pct, projectedPct) {
   if (pct >= 0.9 || projectedPct >= 1) return 'rojo';
   if (pct >= 0.7 || projectedPct >= 0.85) return 'amarillo';
   return 'verde';

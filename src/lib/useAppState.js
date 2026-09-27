@@ -19,6 +19,11 @@ function migrateState(saved) {
     viviendaBudget: null, familiaBudget: null, tarjetasBudget: null,
     ...s.config,
   };
+  // Categorías propias del usuario que eligió mostrar como tarjeta en el
+  // inicio (además de las fijas): { [groupId]: { budget: number|null } } —
+  // la sola presencia de la clave dice "mostrar", el presupuesto es opcional
+  // (mismo criterio que Vivienda/Familia/Tarjetas).
+  s.config.customCards = s.config.customCards && typeof s.config.customCards === 'object' ? s.config.customCards : {};
 
   // Asegura un grupo para gastos extras/salidas y lo deja como default del
   // presupuesto si todavía no hay uno elegido.
@@ -367,6 +372,8 @@ export function useAppState(walletId = 'main') {
         ]);
         if (protectedIds.has(id)) return s;
         const subIds = new Set(s.subcategories.filter((sc) => sc.groupId === id).map((sc) => sc.id));
+        const customCards = { ...(s.config?.customCards || {}) };
+        delete customCards[id];
         return {
           ...s,
           groups: s.groups.filter((g) => g.id !== id),
@@ -374,6 +381,7 @@ export function useAppState(walletId = 'main') {
           expenses: s.expenses.map((e) =>
             e.groupId === id ? { ...e, groupId: null, subcategoryId: null } : subIds.has(e.subcategoryId) ? { ...e, subcategoryId: null } : e
           ),
+          config: { ...s.config, customCards },
         };
       });
     },
@@ -430,6 +438,31 @@ export function useAppState(walletId = 'main') {
     },
     setTarjetasBudget(amount) {
       setState((s) => ({ ...s, config: { ...s.config, tarjetasBudget: amount } }));
+    },
+
+    // Categorías propias como tarjeta del inicio (ver migración arriba).
+    // enabled=true la agrega (presupuesto null, "sin presupuesto" hasta que
+    // se configure); false la saca de la vista de inicio sin borrar la
+    // categoría ni sus gastos.
+    setCustomCardEnabled(groupId, enabled) {
+      setState((s) => {
+        const customCards = { ...(s.config.customCards || {}) };
+        if (enabled) customCards[groupId] = customCards[groupId] || { budget: null };
+        else delete customCards[groupId];
+        return { ...s, config: { ...s.config, customCards } };
+      });
+    },
+    setCustomCardBudget(groupId, budget) {
+      setState((s) => ({
+        ...s,
+        config: {
+          ...s.config,
+          customCards: {
+            ...(s.config.customCards || {}),
+            [groupId]: { ...(s.config.customCards?.[groupId] || {}), budget },
+          },
+        },
+      }));
     },
 
     addRecurring(recurring) {

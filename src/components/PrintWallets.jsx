@@ -105,6 +105,20 @@ export default function PrintWallets({ state }) {
         total={formatUsd(allTime.savingsByCurrency.usd + (allTime.swaps?.usd || 0))}
         rows={dolaresRows}
       />
+      {Object.keys(state.config?.customCards || {}).map((groupId) => {
+        const group = state.groups.find((g) => g.id === groupId);
+        if (!group) return null;
+        const rows = monthExpenseRows(groupId);
+        return (
+          <WalletSheet
+            key={groupId}
+            title={group.name}
+            subtitle="Movimientos de este mes, agrupados por categoría"
+            total={formatARS(rows.reduce((sum, r) => sum + r.rawAmount, 0))}
+            rows={rows}
+          />
+        );
+      })}
 
       {prestamo && (
         <section className="print-section">

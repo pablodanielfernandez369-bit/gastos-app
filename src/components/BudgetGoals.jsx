@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { computeMonthBudget, computeStreak, computeLocalBalance, computeTotals, normalizePersonKey } from '../lib/selectors';
+import { computeMonthBudget, computeStreak, computeLocalBalance, computeTotals, normalizePersonKey, statusFor } from '../lib/selectors';
 import { formatARS, formatDate, monthKey } from '../lib/format';
 import { useDolar, usdRate } from '../lib/useDolar';
 import { USD_COLOR } from '../lib/model';
@@ -88,6 +88,9 @@ export default function BudgetGoals({ state, actions, now = new Date() }) {
         {b.extras && <ExtrasCard e={b.extras} streak={streak} state={state} now={now} />}
         {b.familia && <FamiliaCard f={b.familia} state={state} now={now} />}
         {b.tarjetas && <TarjetasCard t={b.tarjetas} state={state} now={now} />}
+        {Object.entries(state.config?.customCards || {}).map(([groupId, cfg]) => (
+          <CustomCard key={groupId} groupId={groupId} budget={cfg.budget} state={state} now={now} />
+        ))}
         <DolaresCard
           usd={allTime.savingsByCurrency.usd + (allTime.swaps?.usd || 0) - (allTime.autoDeducted?.usd || 0)}
           rate={usdToArs}
@@ -133,6 +136,81 @@ function FamiliaCard({ f, state, now }) {
       <Modal open={open} onClose={() => setOpen(false)} title="Familia">
         <p className="mb-3 text-sm text-ink-soft num">
           Total del mes: <span className="font-semibold text-ink">{formatARS(f.spent)}</span>
+        </p>
+        {items.length === 0 ? (
+          <p className="py-4 text-center text-sm text-ink-faint">Sin movimientos este mes.</p>
+        ) : (
+          <ul className="divide-y divide-hair">
+            {items.map((it) => (
+              <li key={it.id} className="flex items-center gap-3 py-2.5">
+                <MonoChip color={color} letter={it.label.charAt(0).toUpperCase()} size={26} />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-ink">{it.label}</p>
+                  <p className="text-xs text-ink-faint">
+                    {formatDate(it.date)}
+                    {it.sub ? ` · ${it.sub}` : ''}
+                  </p>
+                </div>
+                <p className="shrink-0 font-numeral text-sm font-semibold text-ink num">
+                  {it.usd ? formatUsdNum(it.amount) : formatARS(it.amount)}
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Modal>
+    </>
+  );
+}
+
+// Tarjeta genérica para una categoría propia que el usuario eligió mostrar
+// en el inicio (Ajustes → Categorías → "Mostrar como tarjeta en el inicio").
+// Mismo patrón que Familia/Tarjetas/Vivienda, pero calcula todo al vuelo en
+// vez de depender de un bloque fijo de computeMonthBudget, porque estas
+// categorías son dinámicas (cualquier cantidad, cualquier id).
+function CustomCard({ groupId, budget, state, now }) {
+  const [open, setOpen] = useState(false);
+  const group = state.groups.find((g) => g.id === groupId);
+  const currKey = monthKey(now.toISOString());
+
+  const monthExpenses = useMemo(
+    () => state.expenses.filter((e) => e.groupId === groupId && monthKey(e.date) === currKey),
+    [state.expenses, groupId, currKey]
+  );
+  const spent = useMemo(() => monthExpenses.reduce((sum, e) => sum + e.amount, 0), [monthExpenses]);
+  const b = budget ? { budget, pct: spent / budget, status: statusFor(spent / budget, 0) } : { budget: null };
+
+  const items = useMemo(() => {
+    if (!open || !group) return [];
+    return monthExpenses
+      .slice()
+      .sort((a, x) => (a.date < x.date ? 1 : -1))
+      .map((ex) => ({
+        id: ex.id,
+        date: ex.date,
+        label: ex.description || state.subcategories.find((s) => s.id === ex.subcategoryId)?.name || group.name,
+        sub: ex.description ? state.subcategories.find((s) => s.id === ex.subcategoryId)?.name : null,
+        amount: ex.currency === 'USD' ? ex.amountOriginal : ex.amount,
+        usd: ex.currency === 'USD',
+      }));
+  }, [open, monthExpenses, state.subcategories, group]);
+
+  if (!group) return null; // la categoría se borró pero quedó el toggle viejo, no debería pasar
+  const color = group.color || '#A39D90';
+
+  return (
+    <>
+      <WalletTile color={color} letter={group.name.charAt(0).toUpperCase()} onClick={() => setOpen(true)}>
+        <p className="font-display text-[0.95rem] font-medium text-ink">{group.name}</p>
+        <p className="mt-1.5 font-numeral text-[1.6rem] font-medium leading-none text-ink num">
+          {formatARS(spent)}
+        </p>
+        <BudgetProgress b={b} />
+      </WalletTile>
+
+      <Modal open={open} onClose={() => setOpen(false)} title={group.name}>
+        <p className="mb-3 text-sm text-ink-soft num">
+          Total del mes: <span className="font-semibold text-ink">{formatARS(spent)}</span>
         </p>
         {items.length === 0 ? (
           <p className="py-4 text-center text-sm text-ink-faint">Sin movimientos este mes.</p>
