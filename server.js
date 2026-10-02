@@ -11,7 +11,7 @@ import { getDolarBlue } from './server/dolar.js';
 import { telegramConfigured, handleUpdate, verifyWebhook } from './server/telegram.js';
 import { sendWeeklyReport } from './server/report.js';
 import { todayAR, nowAR } from './server/time.js';
-import { computeMonthBudget } from './src/lib/selectors.js';
+import { computeMonthBudget, computeTotals, monthBounds, usdNet } from './src/lib/selectors.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -314,16 +314,20 @@ app.post('/api/auto-deduct-cron', async (req, res) => {
       let deduction = null;
       if (rate) {
         const b = computeMonthBudget(state, nowAR());
-        // Sin ingresos cargados todavía en el mes (típico de los primeros
-        // días) el disponible da negativo solo por la meta de ahorro y los
-        // fijos pendientes: eso no es gastar de más, no se descuenta nada.
-        const overspend = b.incomeTotal > 0 && b.disponible.value < 0 ? -b.disponible.value : 0;
+        // Gastar de más = lo YA gastado pasa lo que entró menos la meta de
+        // ahorro. Los fijos que todavía no se pagaron no cuentan (no es
+        // plata gastada), y sin ingresos cargados en el mes no se descuenta.
+        const realLeft = b.incomeTotal - b.expenseTotal - (b.disponible.savingsGoal || 0);
+        const overspend = b.incomeTotal > 0 && realLeft < 0 ? -realLeft : 0;
         const mk = today.slice(0, 7);
         state.autoDeductions = Array.isArray(state.autoDeductions) ? state.autoDeductions : [];
         const alreadyThisMonth = state.autoDeductions
           .filter((d) => (d.date || '').slice(0, 7) === mk)
           .reduce((sum, d) => sum + (d.ars || 0), 0);
-        const newOverspend = overspend - alreadyThisMonth;
+        // Cada mes es aparte: solo se pueden "vender" los dólares que hay en
+        // ESTE mes (nunca dejar el saldo en USD en negativo).
+        const usdAvailable = Math.max(0, usdNet(computeTotals(state, ...monthBounds(nowAR()))));
+        const newOverspend = Math.min(overspend - alreadyThisMonth, usdAvailable * rate);
         if (newOverspend > 1) {
           deduction = { id: `auto_${Date.now()}`, date: today, ars: newOverspend, usd: newOverspend / rate, rate, createdAt: Date.now() };
           state.autoDeductions.push(deduction);
