@@ -314,7 +314,10 @@ app.post('/api/auto-deduct-cron', async (req, res) => {
       let deduction = null;
       if (rate) {
         const b = computeMonthBudget(state, nowAR());
-        const overspend = b.disponible.value < 0 ? -b.disponible.value : 0;
+        // Sin ingresos cargados todavía en el mes (típico de los primeros
+        // días) el disponible da negativo solo por la meta de ahorro y los
+        // fijos pendientes: eso no es gastar de más, no se descuenta nada.
+        const overspend = b.incomeTotal > 0 && b.disponible.value < 0 ? -b.disponible.value : 0;
         const mk = today.slice(0, 7);
         state.autoDeductions = Array.isArray(state.autoDeductions) ? state.autoDeductions : [];
         const alreadyThisMonth = state.autoDeductions

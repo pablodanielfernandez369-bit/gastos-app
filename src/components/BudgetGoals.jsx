@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { computeMonthBudget, computeStreak, computeLocalBalance, computeTotals, normalizePersonKey, statusFor } from '../lib/selectors';
+import { computeMonthBudget, computeStreak, computeLocalBalance, computeTotals, monthBounds, usdNet, normalizePersonKey, statusFor } from '../lib/selectors';
 import { formatARS, formatDate, monthKey } from '../lib/format';
 import { useDolar, usdRate } from '../lib/useDolar';
 import { USD_COLOR } from '../lib/model';
@@ -70,10 +70,10 @@ export default function BudgetGoals({ state, actions, now = new Date() }) {
   const streak = useMemo(() => computeStreak(state, now), [state, now]);
   const local = useMemo(() => computeLocalBalance(state), [state]);
   const hasLocalActivity = Boolean(local && (local.spent > 0 || local.reimbursed > 0 || local.settled > 0));
-  // Ahorro en USD acumulado (todo el historial, no el mes): es lo que
-  // muestra la billetera "Dólares" — mismo dato que ya se ve en el
-  // Dashboard como "de ahorro en dólares", nada nuevo se calcula.
-  const allTime = useMemo(() => computeTotals(state, null, null), [state]);
+  // Dólares del mes que se está mirando (no el historial): cada mes es
+  // aparte, igual que el resto de las billeteras.
+  const [monthFrom, monthTo] = useMemo(() => monthBounds(now), [now]);
+  const monthTotals = useMemo(() => computeTotals(state, monthFrom, monthTo), [state, monthFrom, monthTo]);
   const dolar = useDolar();
   const usdToArs = usdRate(state.config, dolar);
 
@@ -92,9 +92,11 @@ export default function BudgetGoals({ state, actions, now = new Date() }) {
           <CustomCard key={groupId} groupId={groupId} budget={cfg.budget} state={state} now={now} />
         ))}
         <DolaresCard
-          usd={allTime.savingsByCurrency.usd + (allTime.swaps?.usd || 0) - (allTime.autoDeducted?.usd || 0)}
+          usd={usdNet(monthTotals)}
           rate={usdToArs}
           state={state}
+          from={monthFrom}
+          to={monthTo}
         />
         {hasLocalActivity && <PrestamoCard l={local} state={state} actions={actions} />}
       </div>
@@ -360,7 +362,7 @@ function ViviendaCard({ v, state, now }) {
   );
 }
 
-function DolaresCard({ usd, rate, state }) {
+function DolaresCard({ usd, rate, state, from, to }) {
   const [open, setOpen] = useState(false);
   const equivalent = rate ? usd * rate : null;
 
@@ -399,8 +401,10 @@ function DolaresCard({ usd, rate, state }) {
         kind: 'descuento',
       });
     }
-    return rows.sort((a, b) => (a.date < b.date ? 1 : -1));
-  }, [open, state]);
+    return rows
+      .filter((r) => r.date >= from && r.date <= to)
+      .sort((a, b) => (a.date < b.date ? 1 : -1));
+  }, [open, state, from, to]);
 
   return (
     <>
@@ -410,16 +414,16 @@ function DolaresCard({ usd, rate, state }) {
           {formatUsdNum(usd)}
         </p>
         <p className="mt-2.5 text-xs text-ink-soft num">
-          {equivalent != null ? <>≈ {formatARS(equivalent)} al blue de hoy</> : 'Ahorro acumulado en dólares'}
+          {equivalent != null ? <>≈ {formatARS(equivalent)} al blue de hoy</> : 'Ahorro en dólares del mes'}
         </p>
       </WalletTile>
 
       <Modal open={open} onClose={() => setOpen(false)} title="Dólares">
         <p className="mb-3 text-sm text-ink-soft num">
-          Ahorro acumulado: <span className="font-semibold text-ink">{formatUsdNum(usd)}</span>
+          Ahorro del mes: <span className="font-semibold text-ink">{formatUsdNum(usd)}</span>
         </p>
         {items.length === 0 ? (
-          <p className="py-4 text-center text-sm text-ink-faint">Sin movimientos en dólares.</p>
+          <p className="py-4 text-center text-sm text-ink-faint">Sin movimientos en dólares este mes.</p>
         ) : (
           <ul className="divide-y divide-hair">
             {items.map((it) => {

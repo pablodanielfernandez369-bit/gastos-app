@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import PeriodFilter from './PeriodFilter';
-import { netReimbursements, computeTotals, expensesInRange, incomesInRange, monthOverMonthTotals } from '../lib/selectors';
+import { netReimbursements, computeTotals, monthBounds, usdNet, expensesInRange, incomesInRange, monthOverMonthTotals } from '../lib/selectors';
 import { formatARS, formatDate, rangeForPeriod } from '../lib/format';
 import { todayISO } from '../lib/model';
 import { useDolar, usdRate } from '../lib/useDolar';
@@ -28,7 +28,9 @@ export default function Dashboard({ state, actions }) {
   );
 
   const totals = useMemo(() => computeTotals(state, from, to), [state, from, to]);
-  const allTime = useMemo(() => computeTotals(state, null, null), [state]);
+  // Ahorro del mes que se está mirando arriba (MonthNav): cada mes es
+  // aparte, no se arrastra lo de meses anteriores.
+  const monthTotals = useMemo(() => computeTotals(state, ...monthBounds(viewMonth)), [state, viewMonth]);
   const mom = useMemo(() => monthOverMonthTotals(state), [state]);
 
   const netted = useMemo(() => netReimbursements(state), [state]);
@@ -127,14 +129,14 @@ export default function Dashboard({ state, actions }) {
 
           <div className="rounded-2xl border border-hair bg-surface p-4">
             <p className="text-[0.7rem] font-semibold uppercase tracking-[0.1em] text-ink-faint">
-              Ahorro acumulado
+              Ahorro del mes
             </p>
             <p className="mt-1 font-numeral text-2xl font-medium text-ink num">
-              {formatARS(allTime.savingsByCurrency.ars)}
+              {formatARS(monthTotals.savingsByCurrency.ars)}
             </p>
-            <SwapNote swaps={allTime.swaps} savingsArs={allTime.savingsByCurrency.ars} rate={rate} className="mt-1" />
-            {hasUsdActivity(allTime) && (
-              <p className="mt-1 text-sm text-ink-soft num">{formatUsd(allTime.savingsByCurrency.usd)}</p>
+            <SwapNote swaps={monthTotals.swaps} savingsArs={monthTotals.savingsByCurrency.ars} rate={rate} className="mt-1" />
+            {(hasUsdActivity(monthTotals) || usdNet(monthTotals) !== 0) && (
+              <p className="mt-1 text-sm text-ink-soft num">{formatUsd(usdNet(monthTotals))}</p>
             )}
           </div>
         </div>

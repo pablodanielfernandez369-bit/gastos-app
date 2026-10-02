@@ -90,6 +90,22 @@ export function autoDeductionTotals(deductions) {
   );
 }
 
+// [desde, hasta] ISO (inclusive) del mes calendario de `date`. Cada mes es
+// un mes aparte: ahorro, dólares, etc. nunca arrastran lo de meses anteriores.
+export function monthBounds(date = new Date()) {
+  const pad = (n) => String(n).padStart(2, '0');
+  const y = date.getFullYear();
+  const m = date.getMonth() + 1;
+  const last = new Date(y, m, 0).getDate();
+  return [`${y}-${pad(m)}-01`, `${y}-${pad(m)}-${pad(last)}`];
+}
+
+// Saldo en dólares de un período: ingresos − gastos en USD, + compras −
+// ventas de dólares, − descuentos automáticos.
+export function usdNet(totals) {
+  return totals.savingsByCurrency.usd + (totals.swaps?.usd || 0) - (totals.autoDeducted?.usd || 0);
+}
+
 export function computeTotals(rawState, from, to) {
   const state = netReimbursements(rawState);
   const swaps = exchangeTotals(exchangesInRange(state, from, to));

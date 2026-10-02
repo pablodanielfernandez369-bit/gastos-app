@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { computeMonthBudget, computeLocalBalance, computeTotals } from '../lib/selectors';
+import { computeMonthBudget, computeLocalBalance, computeTotals, monthBounds, usdNet } from '../lib/selectors';
 import { formatARS, formatDate, monthKey } from '../lib/format';
 
 function formatUsd(n) {
@@ -30,7 +30,8 @@ function groupRows(rows) {
 export default function PrintWallets({ state }) {
   const b = useMemo(() => computeMonthBudget(state), [state]);
   const prestamo = useMemo(() => computeLocalBalance(state), [state]);
-  const allTime = useMemo(() => computeTotals(state, null, null), [state]);
+  const [monthFrom, monthTo] = useMemo(() => monthBounds(new Date()), []);
+  const monthTotals = useMemo(() => computeTotals(state, monthFrom, monthTo), [state, monthFrom, monthTo]);
 
   const currKey = monthKey(new Date().toISOString());
   const subName = (id) => state.subcategories.find((s) => s.id === id)?.name || 'Sin categorizar';
@@ -64,8 +65,11 @@ export default function PrintWallets({ state }) {
       const signedUsd = isVenta ? -x.usd : x.usd;
       rows.push({ date: x.date, label: x.description || baseLabel, group: isVenta ? 'Venta' : 'Compra', rawAmount: signedUsd, amount: formatUsd(signedUsd) });
     }
-    return rows;
-  }, [state]);
+    for (const d of state.autoDeductions || []) {
+      rows.push({ date: d.date, label: d.note || 'Descuento automático', group: 'Descuento', rawAmount: -d.usd, amount: formatUsd(-d.usd) });
+    }
+    return rows.filter((r) => r.date >= monthFrom && r.date <= monthTo);
+  }, [state, monthFrom, monthTo]);
 
   return (
     <div className="print-only print-wallets">
@@ -101,8 +105,8 @@ export default function PrintWallets({ state }) {
       />
       <WalletSheet
         title="Dólares"
-        subtitle="Todo el historial en esta moneda, agrupado por tipo"
-        total={formatUsd(allTime.savingsByCurrency.usd + (allTime.swaps?.usd || 0))}
+        subtitle="Movimientos en dólares de este mes, agrupados por tipo"
+        total={formatUsd(usdNet(monthTotals))}
         rows={dolaresRows}
       />
       {Object.keys(state.config?.customCards || {}).map((groupId) => {
