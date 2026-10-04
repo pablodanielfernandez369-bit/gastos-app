@@ -269,12 +269,11 @@ function monthKeyOf(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 }
 
-// Ingresos/gastos totales y por grupo del mes calendario actual vs el
+// Ingresos/gastos totales y por grupo del mes calendario de `now` vs el
 // anterior, para el "vs mes pasado" de las tarjetas del dashboard. Devuelve
 // null en cada bucket sin base del mes anterior (no hay % contra cero).
-export function monthOverMonthTotals(rawState) {
+export function monthOverMonthTotals(rawState, now = new Date()) {
   const state = netReimbursements(rawState);
-  const now = new Date();
   const currKey = monthKeyOf(now);
   const prevKey = monthKeyOf(new Date(now.getFullYear(), now.getMonth() - 1, 1));
 

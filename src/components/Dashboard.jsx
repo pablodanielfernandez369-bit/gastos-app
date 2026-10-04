@@ -22,16 +22,19 @@ export default function Dashboard({ state, actions }) {
     return new Date(n.getFullYear(), n.getMonth(), 1);
   });
 
+  // En "Mes" el período es el mes que se está mirando en MonthNav (no
+  // siempre el mes real de hoy): al ir a un mes anterior, ingresos/gastos/
+  // capacidad de ahorro de abajo muestran ese mismo mes.
   const [from, to] = useMemo(
-    () => rangeForPeriod(period, customFrom, customTo),
-    [period, customFrom, customTo]
+    () => (period === 'mes' ? monthBounds(viewMonth) : rangeForPeriod(period, customFrom, customTo)),
+    [period, customFrom, customTo, viewMonth]
   );
 
   const totals = useMemo(() => computeTotals(state, from, to), [state, from, to]);
   // Ahorro del mes que se está mirando arriba (MonthNav): cada mes es
   // aparte, no se arrastra lo de meses anteriores.
   const monthTotals = useMemo(() => computeTotals(state, ...monthBounds(viewMonth)), [state, viewMonth]);
-  const mom = useMemo(() => monthOverMonthTotals(state), [state]);
+  const mom = useMemo(() => monthOverMonthTotals(state, viewMonth), [state, viewMonth]);
 
   const netted = useMemo(() => netReimbursements(state), [state]);
 
@@ -86,7 +89,7 @@ export default function Dashboard({ state, actions }) {
   return (
     <div className="space-y-4">
       <DolarStrip dolar={dolar} manual={state.config?.fxRateManual} />
-      <MonthNav viewMonth={viewMonth} onChange={setViewMonth} />
+      <MonthNav viewMonth={viewMonth} onChange={(m) => { setViewMonth(m); setPeriod('mes'); }} />
       <BudgetGoals state={state} actions={actions} now={viewMonth} />
       <RecurringReminders state={state} actions={actions} />
       <PriceAlerts state={state} limit={3} compact />
@@ -216,7 +219,7 @@ function DeltaTag({ delta, goodDirection }) {
   if (!delta) return null;
   const pct = delta.deltaPct;
   if (Math.abs(pct) < 1) {
-    return <p className="mt-1 text-xs text-ink-faint">≈ igual que el mes pasado</p>;
+    return <p className="mt-1 text-xs text-ink-faint">≈ igual que el mes anterior</p>;
   }
   const up = pct > 0;
   const isGood = goodDirection === 'up' ? up : !up;
