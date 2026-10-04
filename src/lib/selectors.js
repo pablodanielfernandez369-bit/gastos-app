@@ -180,7 +180,7 @@ export function computeMonthlySeries(rawState, months = 12) {
   const sortedKeys = [...keys].sort().slice(-months);
 
   const sumNative = (items, currency) =>
-    items.reduce((sum, it) => sum + (it.currency === currency ? nativeAmount(it) : 0), 0);
+    items.reduce((sum, it) => sum + ((it.currency || 'ARS') === currency ? nativeAmount(it) : 0), 0);
 
   return sortedKeys.map((key) => {
     const monthIncomes = state.incomes.filter((i) => monthKey(i.date) === key);
