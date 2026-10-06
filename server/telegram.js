@@ -219,7 +219,7 @@ async function commitExpense(p) {
     createdAt: Date.now(),
   });
 
-  await putState(state);
+  await putState('main', state);
   return { state, groupId, subcategoryId };
 }
 
