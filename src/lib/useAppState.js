@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { v4 as uuid } from 'uuid';
 import { loadState, persistState, fetchServerState, pushServerState } from './storage.js';
-import { defaultState, FAMILIA_GROUP_ID, PRESTAMO_GROUP_ID, TARJETAS_GROUP_ID } from './model.js';
+import { defaultState, todayISO, FAMILIA_GROUP_ID, PRESTAMO_GROUP_ID, TARJETAS_GROUP_ID } from './model.js';
 
 // Migra estados guardados de versiones anteriores para que tengan las claves
 // nuevas (config de metas, grupo de "Salidas/Ocio") sin perder datos.
@@ -11,6 +11,8 @@ function migrateState(saved) {
   s.exchanges = Array.isArray(s.exchanges) ? s.exchanges : [];
   s.dolarHistory = s.dolarHistory && typeof s.dolarHistory === 'object' ? s.dolarHistory : {};
   s.autoDeductions = Array.isArray(s.autoDeductions) ? s.autoDeductions : [];
+  // Saldos de Ahorros fijados a mano (ver selectors.computeSavings).
+  s.savingsAnchors = Array.isArray(s.savingsAnchors) ? s.savingsAnchors : [];
 
   s.config = {
     fxRate: null, savingsGoal: null,
@@ -304,6 +306,16 @@ export function useAppState(walletId = 'main') {
       setState((s) => ({ ...s, incomes: s.incomes.filter((i) => i.id !== id) }));
     },
 
+    // Fija el saldo real de Ahorros a hoy; desde ahí se sigue moviendo solo.
+    setSavingsBalance({ ars, usd }) {
+      setState((s) => ({
+        ...s,
+        savingsAnchors: [
+          ...(s.savingsAnchors || []),
+          { id: uuid(), date: todayISO(), ars, usd, createdAt: Date.now() },
+        ],
+      }));
+    },
     addExchange(exchange) {
       setState((s) => ({ ...s, exchanges: [...(s.exchanges || []), exchange] }));
     },

@@ -75,9 +75,8 @@ export default function BackupRestore({ state, actions }) {
     <div className="rounded-2xl border border-hair bg-surface p-4">
       <h3 className="mb-2 text-sm font-semibold text-ink">Backup de tus datos</h3>
       <p className="mb-3 text-sm text-ink-soft">
-        Todo se guarda en este dispositivo. Cada vez que abrís la app y pasó más de un día
-        desde el último backup, se descarga uno a tu carpeta de Descargas y se manda otro
-        al chat de Telegram.
+        El backup se manda solo todos los días a tu chat de Telegram. Desde acá podés
+        descargar uno a mano o restaurar uno anterior.
       </p>
       <div className="flex gap-2">
         <button

@@ -8,6 +8,7 @@ import MonoChip from './MonoChip';
 import PrestamoLoanModal from './PrestamoLoanModal';
 import PrestamoReembolsoModal from './PrestamoReembolsoModal';
 import DebtSettlementModal from './DebtSettlementModal';
+import AhorrosCard from './AhorrosCard';
 
 // La tarjeta de cada billetera: un chip con la inicial + un degradé muy
 // suave del color de esa categoría de fondo. El mismo color (y el mismo
@@ -83,6 +84,7 @@ export default function BudgetGoals({ state, actions, now = new Date() }) {
         Billeteras
       </p>
       <div className="flex flex-col gap-3">
+        <AhorrosCard state={state} actions={actions} now={now} rate={usdToArs} />
         {b.vivienda && <ViviendaCard v={b.vivienda} state={state} now={now} />}
         {b.diaADia && <DiaADiaCard d={b.diaADia} state={state} now={now} />}
         {b.extras && <ExtrasCard e={b.extras} streak={streak} state={state} now={now} />}

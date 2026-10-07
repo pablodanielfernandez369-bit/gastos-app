@@ -1,12 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useAppState } from './lib/useAppState';
-import {
-  downloadFile,
-  exportStateAsJson,
-  getLastBackupAt,
-  setLastBackupAt,
-} from './lib/storage';
-import { todayISO } from './lib/model';
 import ExpenseFormModal from './components/ExpenseFormModal';
 import IncomeFormModal from './components/IncomeFormModal';
 import ExchangeFormModal from './components/ExchangeFormModal';
@@ -36,21 +29,8 @@ export default function App({ walletId, wallets, onSwitchWallet, onCreateWallet,
   const [showIncomeForm, setShowIncomeForm] = useState(false);
   const [showExchangeForm, setShowExchangeForm] = useState(false);
 
-  // Backup automático silencioso: si pasó más de un día desde el último,
-  // lo descarga solo a Descargas al abrir la app (no depende de un horario
-  // exacto, porque nada corre en segundo plano si la app está cerrada).
-  useEffect(() => {
-    const ONE_DAY_MS = 24 * 60 * 60 * 1000;
-    const last = getLastBackupAt();
-    if (last && Date.now() - last < ONE_DAY_MS) return;
-
-    if (state.expenses.length > 0 || state.incomes.length > 0) {
-      downloadFile(`backup_gastos_${todayISO()}.json`, exportStateAsJson(state), 'application/json');
-    }
-    setLastBackupAt(Date.now());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
+  // Sin backup automático a Descargas (Pablo lo pidió sacar): alcanza con
+  // el de Telegram. El botón manual "Descargar backup" de Ajustes sigue.
   // El backup a Telegram ya NO depende de abrir la app: lo dispara un cron
   // en el servidor (POST /api/backup-cron, ver server.js) leyendo el estado
   // directo de Supabase. El botón manual de Ajustes sigue andando igual.
