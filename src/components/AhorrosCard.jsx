@@ -27,8 +27,8 @@ function Delta({ value, fmt }) {
 }
 
 // "Ahorros": el único saldo que se traslada de un mes al otro (el resto de
-// las billeteras arranca de cero cada mes). Se mueve solo con lo que sobra o
-// falta cada mes, y se puede corregir a mano desde el detalle.
+// las billeteras arranca de cero cada mes). Completamente manual: solo
+// cambia cuando el usuario carga un saldo nuevo desde el detalle.
 export default function AhorrosCard({ state, actions, now, rate }) {
   const [open, setOpen] = useState(false);
   const [arsInput, setArsInput] = useState('');
@@ -38,7 +38,7 @@ export default function AhorrosCard({ state, actions, now, rate }) {
   const since = s.baselineDate ? `desde el ${formatDate(s.baselineDate)}` : `en ${monthName}`;
 
   function openDetail() {
-    // El formulario corrige el saldo de HOY, aunque se esté mirando otro mes.
+    // El formulario actualiza el saldo de HOY, aunque se esté mirando otro mes.
     const today = computeSavings(state, new Date()).balance;
     setArsInput(today ? String(Math.round(today.ars)) : '');
     setUsdInput(today ? String(Math.round(today.usd)) : '');
@@ -124,17 +124,17 @@ export default function AhorrosCard({ state, actions, now, rate }) {
               </tbody>
             </table>
             <p className="mt-2 text-xs text-ink-faint">
-              Se mueve solo: suma lo que te sobra cada mes y resta lo que gastás de más. Comprar o vender dólares pasa plata de un lado al otro.
+              El saldo solo cambia cuando vos lo actualizás acá abajo. Tus gastos e ingresos no lo tocan.
             </p>
           </>
         )}
 
         <div className="mt-5 border-t border-hair pt-4">
           <p className="text-sm font-medium text-ink">
-            {s.hasAnchor ? 'Corregir el saldo a mano' : 'Cargar el saldo de hoy'}
+            {s.hasAnchor ? 'Actualizar el saldo' : 'Cargar el saldo de hoy'}
           </p>
           <p className="mt-1 text-xs text-ink-faint">
-            Poné lo que tenés hoy de verdad. Desde ahí sigue sumando y restando solo.
+            Poné lo que tenés ahorrado hoy, en dólares y en pesos.
           </p>
           <div className="mt-3 flex gap-2">
             <div className="flex-1">

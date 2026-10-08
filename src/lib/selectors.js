@@ -628,48 +628,18 @@ export function statusFor(pct, projectedPct) {
 }
 
 // ---- Ahorros: el único saldo que se traslada de un mes al otro ----
-// Parte de un "ancla" (saldo real en pesos y dólares que el usuario fijó en
-// una fecha: state.savingsAnchors) y le suma solo todo lo que pasó después:
-//   pesos   = ingresos − gastos en ARS − pesos usados para comprar USD
-//             + pesos recibidos por vender USD (y por descuentos automáticos)
-//   dólares = ingresos − gastos en USD + compras − ventas − descuentos
-// Corregir el saldo a mano agrega un ancla nueva (no pisa la anterior, así
-// los meses ya cerrados siguen mostrando lo que tenían).
-function savingsBalanceAt(state, anchors, endISO) {
+// Completamente manual: el saldo (pesos y dólares) es el último que el
+// usuario cargó (state.savingsAnchors). Ingresos, gastos y compras/ventas
+// de dólares NO lo mueven. Cada vez que se actualiza se agrega un registro
+// nuevo (no pisa el anterior), así se puede ver cuánto subió o bajó mes a mes.
+function savingsBalanceAt(anchors, endISO) {
   let anchor = null;
   for (const a of anchors) if (a.date <= endISO) anchor = a;
-  if (!anchor) return null;
-  const after = (it) =>
-    it.date <= endISO &&
-    (it.date > anchor.date || (it.date === anchor.date && (it.createdAt || 0) > (anchor.createdAt || 0)));
-  let ars = anchor.ars || 0;
-  let usd = anchor.usd || 0;
-  for (const i of state.incomes) {
-    if (!after(i)) continue;
-    if (i.currency === 'USD') usd += i.amountOriginal || 0;
-    else ars += i.amount;
-  }
-  for (const e of state.expenses) {
-    if (!after(e)) continue;
-    if (e.currency === 'USD') usd -= e.amountOriginal || 0;
-    else ars -= e.amount;
-  }
-  for (const x of state.exchanges || []) {
-    if (!after(x)) continue;
-    const sign = x.kind === 'venta' ? -1 : 1;
-    usd += sign * (x.usd || 0);
-    ars -= sign * (x.ars || 0);
-  }
-  for (const d of state.autoDeductions || []) {
-    if (!after(d)) continue;
-    usd -= d.usd || 0;
-    ars += d.ars || 0;
-  }
-  return { ars, usd };
+  return anchor ? { ars: anchor.ars || 0, usd: anchor.usd || 0 } : null;
 }
 
-// Saldo de Ahorros al cierre del mes de `viewDate` (o a hoy, si es el mes
-// en curso), cuánto subió/bajó contra el cierre del mes anterior, y la
+// Saldo de Ahorros al cierre del mes de `viewDate` (el último cargado
+// hasta ese mes), cuánto subió/bajó contra el cierre del mes anterior, y la
 // evolución de los últimos meses. `baselineDate` viene cuando no hay cierre
 // del mes anterior (el primer saldo se fijó a mitad de mes): ahí la
 // variación es "desde esa fecha".
@@ -678,15 +648,14 @@ export function computeSavings(rawState, viewDate = new Date(), historyMonths = 
     .slice()
     .sort((a, b) => (a.date === b.date ? (a.createdAt || 0) - (b.createdAt || 0) : a.date < b.date ? -1 : 1));
   if (anchors.length === 0) return { hasAnchor: false };
-  const state = netReimbursements(rawState);
   const first = anchors[0];
 
   const forMonth = (date) => {
     const end = monthBounds(date)[1];
-    const balance = savingsBalanceAt(state, anchors, end);
+    const balance = savingsBalanceAt(anchors, end);
     if (!balance) return { month: end.slice(0, 7), label: formatMonthLabel(end), balance: null };
     const prevEnd = monthBounds(new Date(date.getFullYear(), date.getMonth(), 0))[1];
-    const prev = savingsBalanceAt(state, anchors, prevEnd);
+    const prev = savingsBalanceAt(anchors, prevEnd);
     const base = prev || { ars: first.ars || 0, usd: first.usd || 0 };
     return {
       month: end.slice(0, 7),
