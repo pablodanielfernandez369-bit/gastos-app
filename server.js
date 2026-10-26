@@ -164,7 +164,7 @@ app.delete('/api/wallets/:id', checkAccess, async (req, res) => {
 app.get('/healthz', (req, res) => res.type('text').send('ok'));
 
 // ---- Egresos de Mercado Pago → el bot pregunta si cargarlos. Corre solo
-// cada 10 min mientras el server está despierto (el keep-alive de
+// cada 1 min mientras el server está despierto (el keep-alive de
 // cron-job.org lo mantiene así); este endpoint es para forzar una vuelta. ----
 
 const runMpCheck = () =>
@@ -191,7 +191,7 @@ app.post('/api/mp-check', async (req, res) => {
 
 if (mpConfigured && telegramConfigured && supabaseConfigured) {
   setTimeout(runMpCheck, 30 * 1000);
-  setInterval(runMpCheck, 10 * 60 * 1000);
+  setInterval(runMpCheck, 60 * 1000);
 }
 
 // ---- Resumen semanal como imagen (lo dispara cron-job.org los domingos) ----
