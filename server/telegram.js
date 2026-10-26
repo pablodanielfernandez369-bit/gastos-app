@@ -154,7 +154,9 @@ function describePending(state, p) {
     if (s) sub = ` › ${s.name}`;
   }
   const persona = p.personName ? `\nNombre: *${p.personName}*` : '';
-  const origen = p.mp ? `💸 *Detecté un gasto en Mercado Pago* (${mpWhen(p.mp)})\n\n` : '';
+  const origen = p.mp
+    ? `${p.mp.test ? '🧪 *PRUEBA* · ' : ''}💸 *Detecté un gasto en Mercado Pago* (${mpWhen(p.mp)})\n\n`
+    : '';
   return `${origen}📝 *${money}* — ${p.description}\nCategoría: *${g}${sub}*${persona}`;
 }
 
@@ -332,6 +334,18 @@ async function handleCallback(cb) {
     return editText(messageId, '❌ Cancelado.');
   }
 
+  // Modo prueba (/api/mp-check?test=1): mismo flujo, pero no se guarda nada.
+  if ((action === 'sv' || action === 'cs') && pending.mp?.test) {
+    if (action === 'cs') {
+      pending.subcategoryId = arg === 'new' || arg === 'none' ? null : arg;
+      pending.newSubcategoryName = arg === 'new' ? pending.description : null;
+    }
+    await deletePending(id);
+    if (activePendingId === id) activePendingId = null;
+    await ack('Prueba OK');
+    return editText(messageId, `${describePending(state, pending)}\n\n🧪 *Prueba OK* — así se hubiera guardado. No se cargó nada.`);
+  }
+
   if (action === 'sv') {
     try {
       const { groupId, subcategoryId } = await commitExpense(pending);
@@ -450,7 +464,7 @@ export async function notifyMpOutflow(o) {
   if (o.toll) {
     // Mercado Pago no manda la patente: hay que preguntar de quién es el auto.
     await savePending(id, { mp: o });
-    const sent = await send(`🚗 *Peaje ${money}* (${mpWhen(o)})\n¿De quién es?`, {
+    const sent = await send(`${o.test ? '🧪 *PRUEBA* · ' : ''}🚗 *Peaje ${money}* (${mpWhen(o)})\n¿De quién es?`, {
       reply_markup: {
         inline_keyboard: [
           [{ text: 'Mío', callback_data: `mp:${id}:me` }, { text: 'Mel', callback_data: `mp:${id}:mel` }],

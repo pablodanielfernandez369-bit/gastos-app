@@ -9,7 +9,7 @@ import {
 } from './server/supabase.js';
 import { getDolarBlue } from './server/dolar.js';
 import { telegramConfigured, handleUpdate, verifyWebhook, notifyMpOutflow } from './server/telegram.js';
-import { mpConfigured, checkNewOutflows } from './server/mercadopago.js';
+import { mpConfigured, checkNewOutflows, fetchRecentOutflows } from './server/mercadopago.js';
 import { sendWeeklyReport } from './server/report.js';
 import { todayAR, nowAR } from './server/time.js';
 import { computeMonthBudget, computeTotals, monthBounds, usdNet } from './src/lib/selectors.js';
@@ -175,6 +175,17 @@ const runMpCheck = () =>
 
 app.post('/api/mp-check', async (req, res) => {
   if (req.query.key !== TELEGRAM_WEBHOOK_SECRET) return res.sendStatus(403);
+  if (req.query.test) {
+    // Manda el último egreso como PRUEBA: los botones funcionan pero no guardan.
+    try {
+      const [last] = await fetchRecentOutflows();
+      if (!last) return res.json({ ok: false, error: 'No hay egresos' });
+      await notifyMpOutflow({ ...last, test: true });
+      return res.json({ ok: true, test: last.description, amount: last.amount });
+    } catch (err) {
+      return res.status(502).json({ error: err.message });
+    }
+  }
   res.json(await runMpCheck());
 });
 
