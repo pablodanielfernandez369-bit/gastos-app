@@ -69,6 +69,14 @@ async function alreadyInApi(amount, at) {
   );
 }
 
+// Egresos ya avisados desde una notificación. El polling de la API lo consulta
+// antes de avisar, por si el pago aparece en la API recién después de la espera.
+const notified = [];
+export function wasNotified(amount, at) {
+  while (notified.length && Date.now() - notified[0].at > 2 * 60 * 60 * 1000) notified.shift();
+  return notified.some((n) => Math.abs(n.amount - amount) < 0.01 && Math.abs(n.at - at) < MATCH_WINDOW_MS);
+}
+
 // Devuelve enseguida; el aviso por Telegram sale después de la espera.
 export function handleNotif({ title = '', text = '', postTime, test }, notify) {
   const at = Number(postTime) || Date.now();
@@ -86,6 +94,9 @@ export function handleNotif({ title = '', text = '', postTime, test }, notify) {
       const p = await parseNotif(title, text);
       if (!p.egreso || !p.amount) return;
       if (!test && (await alreadyInApi(p.amount, at))) return;
+      // MP y Mercado Libre pueden avisar la misma compra con textos distintos.
+      if (!test && wasNotified(p.amount, at)) return;
+      if (!test) notified.push({ amount: p.amount, at });
       await notify({
         mpId: `notif:${hash}`,
         createdAt: new Date(at).toISOString(),
