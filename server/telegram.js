@@ -81,7 +81,7 @@ async function parseExpense(text, state, pendingContext = null) {
     '- "confident": false si no pudiste sacar un monto o el mensaje es ambiguo.\n';
 
   if (pendingContext) {
-    const { messageId: _messageId, originalText: _originalText, isCorrection: _isCorrection, ...prevFields } = pendingContext;
+    const { messageId: _messageId, originalText: _originalText, isCorrection: _isCorrection, mp, ...prevFields } = pendingContext;
     system +=
       '\nHay un gasto que el usuario escribió hace un momento y TODAVÍA NO CONFIRMÓ (se lo ' +
       'mostré con botones, está esperando que apriete uno):\n' +
@@ -94,6 +94,14 @@ async function parseExpense(text, state, pendingContext = null) {
       'que no cambiaron (incluido el "amount" si no lo corrigió), y poné "isCorrection": true. ' +
       'Si es (b): interpretalo como un gasto nuevo de cero, ignorando el de arriba, y poné ' +
       '"isCorrection": false.\n';
+    if (mp) {
+      system +=
+        'Ese gasto lo detecté solo en Mercado Pago (no lo escribió el usuario), así que el monto ' +
+        'ya es el real. Un mensaje SIN monto que cuenta a quién, para qué o qué fue (ej "envié a ' +
+        'mel", "era la luz", "regalo para mamá", "fue el super") es casi seguro una aclaración (a): ' +
+        'usalo para la descripción, la categoría y el nombre, dejá el monto igual y poné ' +
+        '"confident": true. Si nombra a una persona, va en "personName".\n';
+    }
   }
 
   system += `\nHoy es ${today}.\nGRUPOS: ${JSON.stringify(grupos)}\nSUBCATEGORIAS: ${JSON.stringify(subs)}`;
@@ -283,6 +291,7 @@ async function handleMessage(msg) {
     }
 
     const parsed = await parseExpense(text, state, pendingContext);
+    if (pendingContext?.mp && parsed.isCorrection) parsed.amount ||= pendingContext.amount;
     if (!parsed.confident || !parsed.amount) {
       return send('No pude sacar el monto o no entendí bien. Probá algo como "gasté 5000 en nafta".');
     }
@@ -291,6 +300,10 @@ async function handleMessage(msg) {
 
     if (isCorrection) {
       const updated = { ...parsed, originalText: pendingContext.originalText, messageId: pendingContext.messageId };
+      // Los de Mercado Pago conservan monto, moneda y fecha reales del pago.
+      if (pendingContext.mp) {
+        Object.assign(updated, { mp: pendingContext.mp, amount: pendingContext.amount, currency: pendingContext.currency });
+      }
       await savePending(activePendingId, updated);
       if (updated.messageId) {
         await editText(updated.messageId, describePending(state, updated), confirmKeyboard(activePendingId));
@@ -481,6 +494,8 @@ export async function notifyMpOutflow(o) {
   const sent = await send(describePending(state, pend), confirmKeyboard(id));
   if (!sent?.ok) throw new Error('Telegram no aceptó el mensaje');
   await savePending(id, { ...pend, messageId: sent.result.message_id });
+  // Así lo próximo que escriba Pablo ("envié a mel") se toma como aclaración de este.
+  activePendingId = id;
 }
 
 // Resumen rápido del mes (se puede pedir con /resumen o mandarlo por cron)
