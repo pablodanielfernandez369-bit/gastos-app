@@ -70,7 +70,7 @@ async function alreadyInApi(amount, at) {
 }
 
 // Devuelve enseguida; el aviso por Telegram sale después de la espera.
-export function handleNotif({ title = '', text = '', postTime }, notify) {
+export function handleNotif({ title = '', text = '', postTime, test }, notify) {
   const at = Number(postTime) || Date.now();
   const hash = createHash('sha256').update(`${title}|${text}`).digest('hex').slice(0, 16);
 
@@ -85,7 +85,7 @@ export function handleNotif({ title = '', text = '', postTime }, notify) {
     try {
       const p = await parseNotif(title, text);
       if (!p.egreso || !p.amount) return;
-      if (await alreadyInApi(p.amount, at)) return;
+      if (!test && (await alreadyInApi(p.amount, at))) return;
       await notify({
         mpId: `notif:${hash}`,
         createdAt: new Date(at).toISOString(),
@@ -93,6 +93,7 @@ export function handleNotif({ title = '', text = '', postTime }, notify) {
         currency: p.currency === 'USD' ? 'USD' : 'ARS',
         description: (p.comercio || 'Pago Mercado Pago').slice(0, 60),
         toll: false,
+        test: Boolean(test), // prueba: los botones no guardan
         date: at ? dateAR(at) : todayAR(),
       });
     } catch (err) {
