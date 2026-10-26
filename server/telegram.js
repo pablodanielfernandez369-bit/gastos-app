@@ -154,7 +154,16 @@ function describePending(state, p) {
     if (s) sub = ` › ${s.name}`;
   }
   const persona = p.personName ? `\nNombre: *${p.personName}*` : '';
-  return `📝 *${money}* — ${p.description}\nCategoría: *${g}${sub}*${persona}`;
+  const origen = p.mp ? `💸 *Detecté un gasto en Mercado Pago* (${mpWhen(p.mp)})\n\n` : '';
+  return `${origen}📝 *${money}* — ${p.description}\nCategoría: *${g}${sub}*${persona}`;
+}
+
+// "25/10 14:10" en hora argentina.
+function mpWhen(o) {
+  return new Intl.DateTimeFormat('es-AR', {
+    timeZone: 'America/Argentina/Buenos_Aires',
+    day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false,
+  }).format(new Date(o.createdAt)).replace(',', '');
 }
 
 function fmt(n) {
@@ -212,9 +221,10 @@ async function commitExpense(p) {
     subcategoryId: subcategoryId || null,
     description: p.description || '(sin descripción)',
     personName: p.personName?.trim() || null,
-    date: todayAR(),
+    date: p.mp?.date || todayAR(),
     type: 'variable',
-    inputMethod: 'telegram',
+    inputMethod: p.mp ? 'mercadopago' : 'telegram',
+    mpPaymentId: p.mp?.mpId || null,
     recurringId: null,
     createdAt: Date.now(),
   });
@@ -342,6 +352,19 @@ async function handleCallback(cb) {
     }
   }
 
+  if (action === 'mp') {
+    await ack();
+    try {
+      const pend = await buildMpPending(pending.mp, state, arg === 'mel' ? 'Mel' : null);
+      await savePending(id, { ...pend, messageId });
+      activePendingId = id;
+      return editText(messageId, describePending(state, pend), confirmKeyboard(id));
+    } catch (err) {
+      console.error('Error armando gasto de Mercado Pago:', err.message);
+      return editText(messageId, '⚠️ No pude armar el gasto. Cargalo a mano.');
+    }
+  }
+
   if (action === 'cat') {
     await ack();
     const rows = state.groups.map((g) => [{ text: g.name, callback_data: `cg:${id}:${g.id}` }]);
@@ -394,6 +417,56 @@ async function handleCallback(cb) {
       return editText(messageId, '⚠️ No se pudo guardar. Probá de nuevo.');
     }
   }
+}
+
+// --- Egresos detectados en Mercado Pago (ver server/mercadopago.js) ---
+
+// Le pide a Claude la categoría como si Pablo hubiera escrito el gasto; el
+// monto, la moneda y la fecha salen siempre de Mercado Pago.
+async function buildMpPending(o, state, personName) {
+  const text = `${o.description} ${o.amount}${personName ? ` de ${personName}` : ''}`;
+  let parsed;
+  try {
+    parsed = await parseExpense(text, state);
+  } catch (err) {
+    console.error('parseExpense (MP) falló, va sin categoría:', err.message);
+    parsed = { groupId: null, subcategoryId: null, newGroupName: null, newSubcategoryName: null };
+  }
+  return {
+    ...parsed,
+    amount: o.amount,
+    currency: o.currency,
+    personName: personName || null,
+    description: parsed.description || o.description,
+    confident: true,
+    mp: o,
+    originalText: text,
+  };
+}
+
+export async function notifyMpOutflow(o) {
+  const id = randomUUID().slice(0, 8);
+  const money = o.currency === 'USD' ? `US$ ${fmt(o.amount)}` : `$ ${fmt(o.amount)}`;
+  if (o.toll) {
+    // Mercado Pago no manda la patente: hay que preguntar de quién es el auto.
+    await savePending(id, { mp: o });
+    const sent = await send(`🚗 *Peaje ${money}* (${mpWhen(o)})\n¿De quién es?`, {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: 'Mío', callback_data: `mp:${id}:me` }, { text: 'Mel', callback_data: `mp:${id}:mel` }],
+          [{ text: '❌ No lo cargo', callback_data: `cx:${id}` }],
+        ],
+      },
+    });
+    if (!sent?.ok) throw new Error('Telegram no aceptó el mensaje');
+    return;
+  }
+  const { data: state } = await getState();
+  if (!state?.groups) throw new Error('No hay estado en la base');
+  const pend = await buildMpPending(o, state, null);
+  const sent = await send(describePending(state, pend), confirmKeyboard(id));
+  if (!sent?.ok) throw new Error('Telegram no aceptó el mensaje');
+  await savePending(id, { ...pend, messageId: sent.result.message_id });
 }
 
 // Resumen rápido del mes (se puede pedir con /resumen o mandarlo por cron)

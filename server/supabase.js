@@ -88,6 +88,23 @@ export async function putAccessCodeRow(data) {
   return rows[0]?.data ?? null;
 }
 
+// --- Pagos de Mercado Pago ya avisados por el bot (fila reservada
+// '__mp_seen__'): { since, ids } — ver server/mercadopago.js ---
+
+export async function getSeenRow() {
+  const res = await rest('app_state?id=eq.__mp_seen__&select=data', { method: 'GET' });
+  const rows = await res.json();
+  return rows.length ? rows[0].data : null;
+}
+
+export async function putSeenRow(data) {
+  await rest('app_state?on_conflict=id', {
+    method: 'POST',
+    headers: { Prefer: 'resolution=merge-duplicates' },
+    body: JSON.stringify({ id: '__mp_seen__', data, updated_at: new Date().toISOString() }),
+  });
+}
+
 // --- Confirmaciones pendientes del bot de Telegram ---
 
 export async function savePending(id, payload) {

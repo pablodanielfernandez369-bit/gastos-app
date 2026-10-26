@@ -8,7 +8,8 @@ import {
   getAccessCodeRow, putAccessCodeRow, getWalletsRow, putWalletsRow,
 } from './server/supabase.js';
 import { getDolarBlue } from './server/dolar.js';
-import { telegramConfigured, handleUpdate, verifyWebhook } from './server/telegram.js';
+import { telegramConfigured, handleUpdate, verifyWebhook, notifyMpOutflow } from './server/telegram.js';
+import { mpConfigured, checkNewOutflows } from './server/mercadopago.js';
 import { sendWeeklyReport } from './server/report.js';
 import { todayAR, nowAR } from './server/time.js';
 import { computeMonthBudget, computeTotals, monthBounds, usdNet } from './src/lib/selectors.js';
@@ -161,6 +162,26 @@ app.delete('/api/wallets/:id', checkAccess, async (req, res) => {
 // ---- Health check (lo usa el keep-alive para que Render no se duerma) ----
 
 app.get('/healthz', (req, res) => res.type('text').send('ok'));
+
+// ---- Egresos de Mercado Pago → el bot pregunta si cargarlos. Corre solo
+// cada 10 min mientras el server está despierto (el keep-alive de
+// cron-job.org lo mantiene así); este endpoint es para forzar una vuelta. ----
+
+const runMpCheck = () =>
+  checkNewOutflows(notifyMpOutflow).catch((err) => {
+    console.error('mp-check:', err.message);
+    return { error: err.message };
+  });
+
+app.post('/api/mp-check', async (req, res) => {
+  if (req.query.key !== TELEGRAM_WEBHOOK_SECRET) return res.sendStatus(403);
+  res.json(await runMpCheck());
+});
+
+if (mpConfigured && telegramConfigured && supabaseConfigured) {
+  setTimeout(runMpCheck, 30 * 1000);
+  setInterval(runMpCheck, 10 * 60 * 1000);
+}
 
 // ---- Resumen semanal como imagen (lo dispara cron-job.org los domingos) ----
 
@@ -446,4 +467,5 @@ app.listen(PORT, () => {
   console.log(`  Asistente IA: ${ANTHROPIC_API_KEY ? 'ok' : 'off (falta ANTHROPIC_API_KEY)'}`);
   console.log(`  Supabase: ${supabaseConfigured ? 'ok' : 'off'}`);
   console.log(`  Bot Telegram: ${telegramConfigured ? 'ok' : 'off'}`);
+  console.log(`  Mercado Pago: ${mpConfigured ? 'ok' : 'off (falta MP_ACCESS_TOKEN)'}`);
 });
