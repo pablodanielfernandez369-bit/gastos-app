@@ -10,6 +10,7 @@ import {
 import { getDolarBlue } from './server/dolar.js';
 import { telegramConfigured, handleUpdate, verifyWebhook, notifyMpOutflow } from './server/telegram.js';
 import { mpConfigured, checkNewOutflows, fetchRecentOutflows } from './server/mercadopago.js';
+import { handleNotif, validNotifKey, lastNotifs } from './server/mpnotif.js';
 import { sendWeeklyReport } from './server/report.js';
 import { todayAR, nowAR } from './server/time.js';
 import { computeMonthBudget, computeTotals, monthBounds, usdNet } from './src/lib/selectors.js';
@@ -187,6 +188,18 @@ app.post('/api/mp-check', async (req, res) => {
     }
   }
   res.json(await runMpCheck());
+});
+
+// Notificaciones de MP que manda la app de Android (compras con la prepaga,
+// que la API no ve). Ver server/mpnotif.js.
+app.post('/api/mp-notif', (req, res) => {
+  if (!validNotifKey(req.get('x-key'))) return res.sendStatus(403);
+  res.json(handleNotif(req.body || {}, notifyMpOutflow));
+});
+
+app.get('/api/mp-notif/last', (req, res) => {
+  if (!validNotifKey(req.get('x-key'))) return res.sendStatus(403);
+  res.json(lastNotifs);
 });
 
 if (mpConfigured && telegramConfigured && supabaseConfigured) {
