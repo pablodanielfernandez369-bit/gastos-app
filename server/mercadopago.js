@@ -15,9 +15,10 @@ export const mpConfigured = Boolean(TOKEN);
 
 const MAX_SEEN = 500;
 
-async function mp(path) {
+async function mp(path, opts = {}) {
   const res = await fetch(`https://api.mercadopago.com${path}`, {
-    headers: { Authorization: `Bearer ${TOKEN}` },
+    ...opts,
+    headers: { Authorization: `Bearer ${TOKEN}`, 'content-type': 'application/json', ...opts.headers },
   });
   if (!res.ok) throw new Error(`Mercado Pago ${res.status}: ${(await res.text()).slice(0, 200)}`);
   return res.json();
@@ -146,4 +147,16 @@ export async function debugRecentPayments(limit = 10) {
     charges_details: p.charges_details?.map((c) => ({ name: c.name, type: c.type, amounts: c.amounts })),
     currency_conversion: p.currency_conversion ?? p.additional_info?.currency_conversion,
   }));
+}
+
+// Diagnóstico de los reportes de cuenta (/v1/account/...): devuelve status y
+// cuerpo crudo, para probar qué permite el token.
+export async function accountReportRaw(method, path, body) {
+  if (!path.startsWith('/v1/account/')) throw new Error('solo /v1/account/');
+  const res = await fetch(`https://api.mercadopago.com${path}`, {
+    method,
+    headers: { Authorization: `Bearer ${TOKEN}`, 'content-type': 'application/json' },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  return { status: res.status, body: (await res.text()).slice(0, 20000) };
 }
