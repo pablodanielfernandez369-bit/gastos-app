@@ -233,12 +233,13 @@ pendingHooks.created = async (id, pend) => {
   });
   const o = pend.mp;
   const what = o.toll ? `🚗 Peaje ${money(o)} — ¿de quién es?` : `${money(pend)} — ${pend.description}`;
-  const sent = await sendPush({
+  // Ya quedó en el chat: si la push falla no se reintenta (duplicaría la tarjeta).
+  await sendPush({
     title: `${o.test ? '🧪 PRUEBA · ' : ''}💸 Gasto en Mercado Pago`,
     body: `${what}\nTocá para confirmarlo`,
     tag: id,
-  });
-  return sent > 0;
+  }).catch((err) => console.error('push MP:', err.message));
+  return true;
 };
 
 pendingHooks.resolved = (id, text) => withChat(async (chat) => resolveMessage(chat, id, text));
