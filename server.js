@@ -9,7 +9,7 @@ import {
 } from './server/supabase.js';
 import { getDolarBlue } from './server/dolar.js';
 import { telegramConfigured, handleUpdate, verifyWebhook, notifyMpOutflow } from './server/telegram.js';
-import { mpConfigured, checkNewOutflows, fetchRecentOutflows } from './server/mercadopago.js';
+import { mpConfigured, checkNewOutflows, fetchRecentOutflows, debugRecentPayments } from './server/mercadopago.js';
 import { handleNotif, validNotifKey, lastNotifs, wasNotified } from './server/mpnotif.js';
 import { sendWeeklyReport } from './server/report.js';
 import {
@@ -205,6 +205,15 @@ app.post('/api/mp-notif', (req, res) => {
 app.get('/api/mp-notif/last', (req, res) => {
   if (!validNotifKey(req.get('x-key'))) return res.sendStatus(403);
   res.json(lastNotifs);
+});
+
+app.get('/api/mp-debug', async (req, res) => {
+  if (!validNotifKey(req.get('x-key'))) return res.sendStatus(403);
+  try {
+    res.json(await debugRecentPayments());
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 if (mpConfigured && telegramConfigured && supabaseConfigured) {

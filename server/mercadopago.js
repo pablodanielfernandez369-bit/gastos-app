@@ -114,3 +114,28 @@ export async function checkNewOutflows(notify) {
     running = false;
   }
 }
+
+// Diagnóstico: campos de monto y fecha de los últimos egresos, tal como los
+// manda MP (para ver qué campo trae el monto realmente debitado).
+export async function debugRecentPayments(limit = 10) {
+  const id = await getUserId();
+  const data = await mp(`/v1/payments/search?payer.id=${id}&sort=date_created&criteria=desc&limit=${limit}`);
+  return (data.results || []).map((p) => ({
+    id: p.id,
+    status: p.status,
+    status_detail: p.status_detail,
+    operation_type: p.operation_type,
+    payment_type_id: p.payment_type_id,
+    description: p.description,
+    date_created: p.date_created,
+    date_approved: p.date_approved,
+    currency_id: p.currency_id,
+    transaction_amount: p.transaction_amount,
+    taxes_amount: p.taxes_amount,
+    transaction_details: p.transaction_details,
+    fee_details: p.fee_details,
+    taxes: p.taxes,
+    charges_details: p.charges_details?.map((c) => ({ name: c.name, type: c.type, amounts: c.amounts })),
+    currency_conversion: p.currency_conversion ?? p.additional_info?.currency_conversion,
+  }));
+}
