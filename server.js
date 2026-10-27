@@ -14,6 +14,7 @@ import { handleNotif, validNotifKey, lastNotifs, wasNotified } from './server/mp
 import { sendWeeklyReport } from './server/report.js';
 import {
   getChatView, handleChatText, handleChatAction, addPushSubscription, sendPush, vapidPublicKey,
+  lastPush, pushSubCount,
 } from './server/chatbot.js';
 import { todayAR, nowAR } from './server/time.js';
 import { computeMonthBudget, computeTotals, monthBounds, usdNet } from './src/lib/selectors.js';
@@ -303,7 +304,10 @@ app.post('/api/chat/pending/:id', checkAccess, async (req, res) => {
   }
 });
 
-app.get('/api/push/key', (req, res) => res.json({ key: vapidPublicKey }));
+app.get('/api/push/key', async (req, res) => {
+  const subs = await pushSubCount().catch(() => null);
+  res.json({ key: vapidPublicKey, subs, lastPush });
+});
 
 app.post('/api/push/subscribe', checkAccess, async (req, res) => {
   try {

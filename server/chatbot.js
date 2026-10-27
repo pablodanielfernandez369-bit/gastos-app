@@ -196,21 +196,31 @@ export async function addPushSubscription(sub) {
   await putPushRow(row);
 }
 
+// Último envío, para diagnosticar desde /api/push/key (sin datos personales).
+export const lastPush = { at: null, subs: 0, sent: 0, errors: [] };
+
+export async function pushSubCount() {
+  return ((await getPushRow())?.subs || []).length;
+}
+
 export async function sendPush(payload) {
   if (!pushConfigured) return 0;
   const row = (await getPushRow()) || { subs: [] };
   let sent = 0;
+  const errors = [];
   const dead = new Set();
   await Promise.all(row.subs.map(async (sub) => {
     try {
       await webpush.sendNotification(sub, JSON.stringify(payload), { TTL: 6 * 3600, urgency: 'high' });
       sent++;
     } catch (err) {
+      errors.push(`${err.statusCode || ''} ${err.message}`.trim().slice(0, 200));
       if (err.statusCode === 404 || err.statusCode === 410) dead.add(sub.endpoint);
       else console.error('push:', err.statusCode || '', err.message);
     }
   }));
   if (dead.size) await putPushRow({ subs: row.subs.filter((s) => !dead.has(s.endpoint)) });
+  Object.assign(lastPush, { at: new Date().toISOString(), subs: row.subs.length, sent, errors });
   return sent;
 }
 
