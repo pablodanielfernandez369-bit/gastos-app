@@ -63,15 +63,23 @@ function isOutflow(p) {
 export async function fetchRecentOutflows() {
   const id = await getUserId();
   const data = await mp(`/v1/payments/search?payer.id=${id}&sort=date_created&criteria=desc&limit=50`);
-  return (data.results || []).filter(isOutflow).map((p) => ({
-    mpId: String(p.id),
-    createdAt: p.date_created,
-    amount: Math.round(p.transaction_amount * 100) / 100,
-    currency: p.currency_id === 'USD' ? 'USD' : 'ARS',
-    description: describe(p),
-    toll: isToll(p),
-    date: dateAR(p.date_created),
-  }));
+  return (data.results || []).filter(isOutflow).map((p) => {
+    // Lo que salió de la cuenta: con la prepaga incluye el "cards_spread" de
+    // MP (~10%), y con cupón es menos que transaction_amount.
+    const paid = p.transaction_details?.total_paid_amount || p.transaction_amount;
+    // Los débitos de suscripciones (ej. Anthropic) se crean un día y se
+    // aprueban otro; cuenta el día en que se cobró.
+    const when = p.date_approved || p.date_created;
+    return {
+      mpId: String(p.id),
+      createdAt: when,
+      amount: Math.round(paid * 100) / 100,
+      currency: p.currency_id === 'USD' ? 'USD' : 'ARS',
+      description: describe(p),
+      toll: isToll(p),
+      date: dateAR(when),
+    };
+  });
 }
 
 // Devuelve los egresos que todavía no se avisaron (del más viejo al más
