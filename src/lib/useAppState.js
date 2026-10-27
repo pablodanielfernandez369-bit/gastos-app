@@ -276,7 +276,13 @@ export function useAppState(walletId = 'main') {
     }
     const iv = setInterval(refresh, 20000);
     window.addEventListener('focus', refresh);
-    return () => { clearInterval(iv); window.removeEventListener('focus', refresh); };
+    // El chat avisa cuando el servidor guardó un gasto, para verlo ya.
+    window.addEventListener('gastos:server-changed', refresh);
+    return () => {
+      clearInterval(iv);
+      window.removeEventListener('focus', refresh);
+      window.removeEventListener('gastos:server-changed', refresh);
+    };
   }, []);
 
   const actions = useMemo(() => ({

@@ -124,3 +124,25 @@ export async function getPending(id) {
 export async function deletePending(id) {
   await rest(`tg_pending?id=eq.${encodeURIComponent(id)}`, { method: 'DELETE' });
 }
+
+// --- Chat de la app (fila reservada '__chat__'): { messages, activePendingId }
+// y suscripciones Web Push (fila '__push__'): { subs } — ver server/chatbot.js ---
+
+async function getRow(id) {
+  const res = await rest(`app_state?id=eq.${id}&select=data`, { method: 'GET' });
+  const rows = await res.json();
+  return rows.length ? rows[0].data : null;
+}
+
+async function putRow(id, data) {
+  await rest('app_state?on_conflict=id', {
+    method: 'POST',
+    headers: { Prefer: 'resolution=merge-duplicates' },
+    body: JSON.stringify({ id, data, updated_at: new Date().toISOString() }),
+  });
+}
+
+export const getChatRow = () => getRow('__chat__');
+export const putChatRow = (data) => putRow('__chat__', data);
+export const getPushRow = () => getRow('__push__');
+export const putPushRow = (data) => putRow('__push__', data);

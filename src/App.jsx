@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAppState } from './lib/useAppState';
 import ExpenseFormModal from './components/ExpenseFormModal';
 import IncomeFormModal from './components/IncomeFormModal';
@@ -22,7 +22,19 @@ const TABS = [
 
 export default function App({ walletId, wallets, onSwitchWallet, onCreateWallet, onDeleteWallet }) {
   const [state, actions] = useAppState(walletId);
-  const [tab, setTab] = useState('dashboard');
+  // ?tab=asistente: lo abre la notificación push de un aviso de MP.
+  const [tab, setTab] = useState(() =>
+    new URLSearchParams(window.location.search).get('tab') === 'asistente' ? 'asistente' : 'dashboard'
+  );
+
+  useEffect(() => {
+    if (window.location.search) window.history.replaceState(null, '', '/');
+    const onMessage = (e) => {
+      if (e.data?.type === 'open-chat') setTab('asistente');
+    };
+    navigator.serviceWorker?.addEventListener('message', onMessage);
+    return () => navigator.serviceWorker?.removeEventListener('message', onMessage);
+  }, []);
   const walletName = wallets?.find((w) => w.id === walletId)?.name;
 
   const [showExpenseForm, setShowExpenseForm] = useState(false);

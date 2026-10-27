@@ -26,6 +26,13 @@ const api = (method) => `https://api.telegram.org/bot${BOT_TOKEN}/${method}`;
 // aceptable, no rompe nada.
 let activePendingId = null;
 
+// El chat de la app (server/chatbot.js) se engancha acá: comparte las mismas
+// confirmaciones pendientes (tg_pending), así un aviso de MP se resuelve
+// desde cualquiera de los dos lados y el otro se entera.
+export const pendingHooks = { created: null, resolved: null };
+const resolved = (id, text) =>
+  Promise.resolve(pendingHooks.resolved?.(id, text)).catch((e) => console.error('pendingHooks.resolved:', e.message));
+
 async function tg(method, body) {
   const res = await fetch(api(method), {
     method: 'POST',
@@ -45,7 +52,7 @@ const editText = (messageId, text, extra = {}) =>
 
 // --- Interpretación del mensaje con Claude ---
 
-async function parseExpense(text, state, pendingContext = null) {
+export async function parseExpense(text, state, pendingContext = null, { allowQuestion = false } = {}) {
   const grupos = state.groups.map((g) => ({ id: g.id, nombre: g.name }));
   const subs = state.subcategories.map((s) => ({ id: s.id, grupoId: s.groupId, nombre: s.name }));
   const today = todayAR();
@@ -55,6 +62,7 @@ async function parseExpense(text, state, pendingContext = null) {
     '"newGroupName": string|null, "subcategoryId": string|null, "newSubcategoryName": string|null, ' +
     '"description": string, "personName": string|null, "confident": boolean' +
     (pendingContext ? ', "isCorrection": boolean' : '') +
+    (allowQuestion ? ', "isQuestion": boolean' : '') +
     '}';
 
   let system =
@@ -78,7 +86,12 @@ async function parseExpense(text, state, pendingContext = null) {
     'persona, "personName" DEBE ser null. Nunca copies un nombre de estas instrucciones ' +
     'ni de ningún otro lado: el nombre tiene que estar escrito, literalmente, en el ' +
     'mensaje del usuario.\n' +
-    '- "confident": false si no pudiste sacar un monto o el mensaje es ambiguo.\n';
+    '- "confident": false si no pudiste sacar un monto o el mensaje es ambiguo.\n' +
+    (allowQuestion
+      ? '- "isQuestion": true si el mensaje NO es un gasto sino una pregunta o consulta sobre sus ' +
+        'gastos, ingresos o ahorro (ej "cuánto gasté este mes", "cómo voy con el super", "subió la luz?"). ' +
+        'En ese caso el resto de los campos no importa.\n'
+      : '');
 
   if (pendingContext) {
     const { messageId: _messageId, originalText: _originalText, isCorrection: _isCorrection, mp, ...prevFields } = pendingContext;
@@ -148,7 +161,7 @@ async function parseExpense(text, state, pendingContext = null) {
 
 // --- Helpers de presentación ---
 
-function groupName(state, id) {
+export function groupName(state, id) {
   return state.groups.find((g) => g.id === id)?.name || null;
 }
 
@@ -176,7 +189,7 @@ function mpWhen(o) {
   }).format(new Date(o.createdAt)).replace(',', '');
 }
 
-function fmt(n) {
+export function fmt(n) {
   return new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 }).format(n || 0);
 }
 
@@ -194,7 +207,7 @@ const confirmKeyboard = (id) => ({
 
 // --- Aplicar el gasto al estado ---
 
-async function commitExpense(p) {
+export async function commitExpense(p, inputMethod = 'telegram') {
   const { data: state } = await getState();
   if (!state || !state.groups) throw new Error('No hay estado en la base');
   state.expenses = state.expenses || [];
@@ -233,7 +246,7 @@ async function commitExpense(p) {
     personName: p.personName?.trim() || null,
     date: p.mp?.date || todayAR(),
     type: 'variable',
-    inputMethod: p.mp ? 'mercadopago' : 'telegram',
+    inputMethod: p.mp ? 'mercadopago' : inputMethod,
     mpPaymentId: p.mp?.mpId || null,
     recurringId: null,
     createdAt: Date.now(),
@@ -344,6 +357,7 @@ async function handleCallback(cb) {
     await deletePending(id);
     if (activePendingId === id) activePendingId = null;
     await ack('Cancelado');
+    await resolved(id, '❌ Cancelado desde Telegram.');
     return editText(messageId, '❌ Cancelado.');
   }
 
@@ -356,6 +370,7 @@ async function handleCallback(cb) {
     await deletePending(id);
     if (activePendingId === id) activePendingId = null;
     await ack('Prueba OK');
+    await resolved(id, '🧪 Prueba resuelta desde Telegram (no se cargó nada).');
     return editText(messageId, `${describePending(state, pending)}\n\n🧪 *Prueba OK* — así se hubiera guardado. No se cargó nada.`);
   }
 
@@ -371,6 +386,7 @@ async function handleCallback(cb) {
         pending.newSubcategoryName ||
         state.subcategories.find((s) => s.id === subcategoryId)?.name ||
         '';
+      await resolved(id, `✅ Guardado desde Telegram: ${money} — ${pending.description}`);
       return editText(messageId, `✅ Guardado: *${money}* — ${pending.description}\n${g}${subName ? ' › ' + subName : ''}`);
     } catch (err) {
       console.error('Error guardando gasto de Telegram:', err.message);
@@ -437,6 +453,7 @@ async function handleCallback(cb) {
       const money = pending.currency === 'USD' ? `US$ ${fmt(pending.amount)}` : `$ ${fmt(pending.amount)}`;
       const subName =
         newState.subcategories.find((s) => s.id === subcategoryId)?.name || '';
+      await resolved(id, `✅ Guardado desde Telegram: ${money} — ${pending.description}`);
       return editText(messageId, `✅ Guardado: *${money}* — ${pending.description}\n${g}${subName ? ' › ' + subName : ''}`);
     } catch (err) {
       console.error('Error guardando gasto (subcategoría) de Telegram:', err.message);
@@ -450,7 +467,7 @@ async function handleCallback(cb) {
 
 // Le pide a Claude la categoría como si Pablo hubiera escrito el gasto; el
 // monto, la moneda y la fecha salen siempre de Mercado Pago.
-async function buildMpPending(o, state, personName) {
+export async function buildMpPending(o, state, personName) {
   const text = `${o.description} ${o.amount}${personName ? ` de ${personName}` : ''}`;
   let parsed;
   try {
@@ -471,37 +488,69 @@ async function buildMpPending(o, state, personName) {
   };
 }
 
+// Avisa por Telegram y en el chat de la app (pendingHooks.created). Solo
+// falla (para que se reintente) si no salió por ninguno de los dos.
 export async function notifyMpOutflow(o) {
   const id = randomUUID().slice(0, 8);
   const money = o.currency === 'USD' ? `US$ ${fmt(o.amount)}` : `$ ${fmt(o.amount)}`;
+  let pend, text, extra;
   if (o.toll) {
     // Mercado Pago no manda la patente: hay que preguntar de quién es el auto.
-    await savePending(id, { mp: o });
-    const sent = await send(`${o.test ? '🧪 *PRUEBA* · ' : ''}🚗 *Peaje ${money}* (${mpWhen(o)})\n¿De quién es?`, {
+    pend = { mp: o };
+    text = `${o.test ? '🧪 *PRUEBA* · ' : ''}🚗 *Peaje ${money}* (${mpWhen(o)})\n¿De quién es?`;
+    extra = {
       reply_markup: {
         inline_keyboard: [
           [{ text: 'Mío', callback_data: `mp:${id}:me` }, { text: 'Mel', callback_data: `mp:${id}:mel` }],
           [{ text: '❌ No lo cargo', callback_data: `cx:${id}` }],
         ],
       },
-    });
-    if (!sent?.ok) throw new Error('Telegram no aceptó el mensaje');
-    return;
+    };
+  } else {
+    const { data: state } = await getState();
+    if (!state?.groups) throw new Error('No hay estado en la base');
+    pend = await buildMpPending(o, state, null);
+    text = describePending(state, pend);
+    extra = confirmKeyboard(id);
   }
-  const { data: state } = await getState();
-  if (!state?.groups) throw new Error('No hay estado en la base');
-  const pend = await buildMpPending(o, state, null);
-  const sent = await send(describePending(state, pend), confirmKeyboard(id));
-  if (!sent?.ok) throw new Error('Telegram no aceptó el mensaje');
-  await savePending(id, { ...pend, messageId: sent.result.message_id });
+
+  let messageId = null;
+  if (telegramConfigured) {
+    const sent = await send(text, extra).catch((err) => ({ ok: false, description: err.message }));
+    if (sent?.ok) messageId = sent.result.message_id;
+    else console.error('Aviso MP por Telegram falló:', sent?.description);
+  }
+  await savePending(id, { ...pend, messageId });
+
+  let inApp = false;
+  try {
+    inApp = Boolean(await pendingHooks.created?.(id, pend));
+  } catch (err) {
+    console.error('Aviso MP en la app falló:', err.message);
+  }
+  if (!messageId && !inApp) {
+    await deletePending(id);
+    throw new Error('No se pudo avisar ni por Telegram ni en la app');
+  }
   // Así lo próximo que escriba Pablo ("envié a mel") se toma como aclaración de este.
-  activePendingId = id;
+  if (messageId) activePendingId = id;
+}
+
+// Cuando el pendiente se resolvió desde la app: cerrar el mensaje de Telegram
+// (sin botones) para que no quede colgado.
+export async function closeTelegramMessage(messageId, text) {
+  if (!telegramConfigured || !messageId) return;
+  await editText(messageId, text);
 }
 
 // Resumen rápido del mes (se puede pedir con /resumen o mandarlo por cron)
 export async function sendResumen() {
   const { data: state } = await getState();
   if (!state || !state.groups) return send('Todavía no hay datos cargados.');
+  await send(resumenText(state));
+}
+
+export function resumenText(state) {
   const mk = todayAR().slice(0, 7);
   const inMonth = (d) => (d || '').slice(0, 7) === mk;
   const gastos = state.expenses.filter((e) => inMonth(e.date));
@@ -528,7 +577,7 @@ export async function sendResumen() {
   if (goal) {
     txt += `\nMeta de ahorro: $ ${fmt(goal)} — vas $ ${fmt(totIngreso - totGasto)}`;
   }
-  await send(txt);
+  return txt;
 }
 
 // Router del webhook. Devuelve siempre rápido (Telegram reintenta si tarda).

@@ -12,6 +12,9 @@ import { telegramConfigured, handleUpdate, verifyWebhook, notifyMpOutflow } from
 import { mpConfigured, checkNewOutflows, fetchRecentOutflows } from './server/mercadopago.js';
 import { handleNotif, validNotifKey, lastNotifs, wasNotified } from './server/mpnotif.js';
 import { sendWeeklyReport } from './server/report.js';
+import {
+  getChatView, handleChatText, handleChatAction, addPushSubscription, sendPush, vapidPublicKey,
+} from './server/chatbot.js';
 import { todayAR, nowAR } from './server/time.js';
 import { computeMonthBudget, computeTotals, monthBounds, usdNet } from './src/lib/selectors.js';
 
@@ -258,6 +261,65 @@ app.post('/api/ask', checkAccess, async (req, res) => {
   }
 });
 
+// ---- Bot dentro de la app (ver server/chatbot.js) ----
+
+async function answerForChat(question, state) {
+  if (!ANTHROPIC_API_KEY) return answerQuestionLocal(question, state);
+  try {
+    return await askClaude(question, state);
+  } catch (err) {
+    console.error('chat askClaude:', err.message);
+    return answerQuestionLocal(question, state);
+  }
+}
+
+app.get('/api/chat', checkAccess, async (req, res) => {
+  if (!supabaseConfigured) return res.status(503).json({ error: 'Base no configurada' });
+  try {
+    res.json(await getChatView());
+  } catch (err) {
+    console.error('GET /api/chat:', err.message);
+    res.status(502).json({ error: 'No se pudo leer el chat' });
+  }
+});
+
+app.post('/api/chat', checkAccess, async (req, res) => {
+  if (!supabaseConfigured) return res.status(503).json({ error: 'Base no configurada' });
+  try {
+    res.json(await handleChatText(req.body?.text, answerForChat));
+  } catch (err) {
+    console.error('POST /api/chat:', err.message);
+    res.status(502).json({ error: 'No se pudo procesar el mensaje' });
+  }
+});
+
+app.post('/api/chat/pending/:id', checkAccess, async (req, res) => {
+  if (!supabaseConfigured) return res.status(503).json({ error: 'Base no configurada' });
+  try {
+    res.json(await handleChatAction(req.params.id, req.body || {}));
+  } catch (err) {
+    console.error('POST /api/chat/pending:', err.message);
+    res.status(502).json({ error: 'No se pudo guardar' });
+  }
+});
+
+app.get('/api/push/key', (req, res) => res.json({ key: vapidPublicKey }));
+
+app.post('/api/push/subscribe', checkAccess, async (req, res) => {
+  try {
+    await addPushSubscription(req.body?.subscription);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('POST /api/push/subscribe:', err.message);
+    res.status(400).json({ error: 'No se pudo activar' });
+  }
+});
+
+app.post('/api/push/test', checkAccess, async (req, res) => {
+  const sent = await sendPush({ title: '🔔 Prueba', body: 'Las notificaciones de la app funcionan.', tag: 'test' });
+  res.json({ ok: sent > 0, sent });
+});
+
 // ---- Backup del estado como archivo .json al chat de Telegram ----
 // state ya viene con TODO (grupos, gastos, ingresos, cambios de dólares,
 // condonaciones de préstamo, config) porque se manda el objeto completo
@@ -492,5 +554,6 @@ app.listen(PORT, () => {
   console.log(`  Asistente IA: ${ANTHROPIC_API_KEY ? 'ok' : 'off (falta ANTHROPIC_API_KEY)'}`);
   console.log(`  Supabase: ${supabaseConfigured ? 'ok' : 'off'}`);
   console.log(`  Bot Telegram: ${telegramConfigured ? 'ok' : 'off'}`);
+  console.log(`  Push en la app: ${vapidPublicKey ? 'ok' : 'off (faltan VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY)'}`);
   console.log(`  Mercado Pago: ${mpConfigured ? 'ok' : 'off (falta MP_ACCESS_TOKEN)'}`);
 });
