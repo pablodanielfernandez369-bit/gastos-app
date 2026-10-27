@@ -16,6 +16,11 @@ const MODEL = 'claude-sonnet-5';
 
 export const telegramConfigured = Boolean(BOT_TOKEN && CHAT_ID && WEBHOOK_SECRET);
 
+// 2026-10-27: el bot se mudó a la app (server/chatbot.js). Telegram queda solo
+// para el backup (y el resumen semanal): no avisa pagos de MP ni carga gastos
+// por mensaje. Los botones de avisos viejos siguen andando. Poner en true para volver.
+const TELEGRAM_BOT_ENABLED = false;
+
 const api = (method) => `https://api.telegram.org/bot${BOT_TOKEN}/${method}`;
 
 // Id de la confirmación pendiente más reciente (bot de un solo usuario: no
@@ -515,7 +520,7 @@ export async function notifyMpOutflow(o) {
   }
 
   let messageId = null;
-  if (telegramConfigured) {
+  if (telegramConfigured && TELEGRAM_BOT_ENABLED) {
     const sent = await send(text, extra).catch((err) => ({ ok: false, description: err.message }));
     if (sent?.ok) messageId = sent.result.message_id;
     else console.error('Aviso MP por Telegram falló:', sent?.description);
@@ -585,6 +590,10 @@ export async function handleUpdate(update) {
   try {
     if (update.message) {
       if (String(update.message.chat?.id) !== String(CHAT_ID)) return;
+      if (!TELEGRAM_BOT_ENABLED) {
+        await send('El bot ahora está dentro de la app: gastos-app-396i.onrender.com → pestaña *Asistente*. Acá solo llegan los backups.');
+        return;
+      }
       await handleMessage(update.message);
     } else if (update.callback_query) {
       if (String(update.callback_query.message?.chat?.id) !== String(CHAT_ID)) return;
