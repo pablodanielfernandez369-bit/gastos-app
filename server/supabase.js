@@ -146,3 +146,6 @@ export const getChatRow = () => getRow('__chat__');
 export const putChatRow = (data) => putRow('__chat__', data);
 export const getPushRow = () => getRow('__push__');
 export const putPushRow = (data) => putRow('__push__', data);
+// Registro de notificaciones de MP recibidas y qué se hizo con cada una (server/mpnotif.js).
+export const getNotifLogRow = () => getRow('__mp_notif_log__');
+export const putNotifLogRow = (data) => putRow('__mp_notif_log__', data);

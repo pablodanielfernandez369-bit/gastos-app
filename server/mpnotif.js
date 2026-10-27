@@ -10,6 +10,7 @@
 import { createHash } from 'crypto';
 import { fetchRecentOutflows, mpConfigured } from './mercadopago.js';
 import { todayAR } from './time.js';
+import { getNotifLogRow, putNotifLogRow, supabaseConfigured } from './supabase.js';
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const MODEL = 'claude-sonnet-5';
@@ -23,6 +24,24 @@ const WAIT_MS = 2 * 60 * 1000;
 const MATCH_WINDOW_MS = 15 * 60 * 1000;
 const seen = new Map(); // hash del texto -> cuándo llegó
 export const lastNotifs = []; // últimas recibidas, para ver el formato real
+
+// Lo mismo pero guardado en la base (sobrevive a los reinicios), con el
+// resultado de cada una: así se puede ver por qué alguna no avisó.
+const LOG_MAX = 50;
+let logQueue = Promise.resolve();
+function logNotif(hash, fields) {
+  if (!supabaseConfigured) return;
+  logQueue = logQueue
+    .then(async () => {
+      const log = (await getNotifLogRow()) || [];
+      const entry = log.find((e) => e.hash === hash && !e.done);
+      if (entry) Object.assign(entry, fields);
+      else log.unshift({ hash, ...fields });
+      await putNotifLogRow(log.slice(0, LOG_MAX));
+    })
+    .catch((err) => console.error('mp-notif log:', err.message));
+}
+export const getNotifLog = async () => (supabaseConfigured ? (await getNotifLogRow()) || [] : lastNotifs);
 
 // Claude decide si la notificación es plata que sale y saca monto/comercio.
 async function parseNotif(title, text) {
@@ -88,14 +107,16 @@ export function handleNotif({ title = '', text = '', postTime, test }, notify) {
   for (const [h, t] of seen) if (Date.now() - t > 60 * 60 * 1000) seen.delete(h);
   if (seen.has(hash)) return { duplicate: true };
   seen.set(hash, Date.now());
+  logNotif(hash, { title, text, at: new Date(at).toISOString(), result: 'esperando' });
+  const done = (result, extra) => logNotif(hash, { result, ...extra, done: true });
 
   setTimeout(async () => {
     try {
       const p = await parseNotif(title, text);
-      if (!p.egreso || !p.amount) return;
-      if (!test && (await alreadyInApi(p.amount, at))) return;
+      if (!p.egreso || !p.amount) return done('no es egreso', { parsed: p });
+      if (!test && (await alreadyInApi(p.amount, at))) return done('ya está en la API', { parsed: p });
       // MP y Mercado Libre pueden avisar la misma compra con textos distintos.
-      if (!test && wasNotified(p.amount, at)) return;
+      if (!test && wasNotified(p.amount, at)) return done('repetida', { parsed: p });
       if (!test) notified.push({ amount: p.amount, at });
       await notify({
         mpId: `notif:${hash}`,
@@ -107,8 +128,10 @@ export function handleNotif({ title = '', text = '', postTime, test }, notify) {
         test: Boolean(test), // prueba: los botones no guardan
         date: at ? dateAR(at) : todayAR(),
       });
+      done('avisada', { parsed: p });
     } catch (err) {
       console.error('mp-notif:', err.message);
+      done('error', { error: err.message });
     }
   }, WAIT_MS);
   return { queued: true };
