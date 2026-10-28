@@ -41,6 +41,19 @@ function logNotif(hash, fields) {
     })
     .catch((err) => console.error('mp-notif log:', err.message));
 }
+// Igual que wasNotified pero mirando el registro guardado: las transferencias
+// a banco salen del reporte horas después, cuando la memoria ya se vació.
+export async function wasNotifiedLogged(amount, at) {
+  if (wasNotified(amount, at)) return true;
+  if (!supabaseConfigured) return false;
+  const log = (await getNotifLogRow()) || [];
+  return log.some(
+    (e) =>
+      e.result === 'avisada' &&
+      Math.abs((e.parsed?.amount || 0) - amount) < 0.01 &&
+      Math.abs(new Date(e.at).getTime() - at) < MATCH_WINDOW_MS
+  );
+}
 export const getNotifLog = async () => (supabaseConfigured ? (await getNotifLogRow()) || [] : lastNotifs);
 
 // Claude decide si la notificación es plata que sale y saca monto/comercio.

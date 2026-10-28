@@ -86,12 +86,12 @@ export async function fetchRecentOutflows() {
 // Transferencias a cuentas bancarias (CBU/CVU de otro banco): NO aparecen en
 // /v1/payments/search, pero sí en el reporte "Dinero en cuenta" (release
 // report) como filas "payout". El reporte se pide y MP tarda ~5-10 min en
-// armarlo, así que se pide uno cada REPORT_EVERY_MS (últimas 24 h) y se lee
-// el más nuevo que esté listo.
-const REPORT_EVERY_MS = 10 * 60 * 1000;
-let lastReportRequest = 0;
-let lastReportFile = null;
-let reportPayouts = [];
+// armarlo. Se pide uno cada 12 h (cubriendo las últimas 24 h, así se solapan)
+// y mientras se espera se consulta la lista hasta que aparece listo. Cuándo se
+// pidió y qué archivo se leyó quedan en la fila __mp_seen__ (sobrevive a los
+// reinicios); lo ya avisado no se repite porque su id queda en seen.ids.
+const REPORT_EVERY_MS = 12 * 60 * 60 * 1000;
+const REPORT_WAIT_MS = 2 * 60 * 60 * 1000;
 
 export function parseReportPayouts(csv) {
   const [head, ...rows] = csv.trim().split(/\r?\n/);
@@ -114,22 +114,28 @@ export function parseReportPayouts(csv) {
     });
 }
 
-async function refreshReportPayouts() {
+// Devuelve los payouts del reporte nuevo (si hay uno listo sin leer) y
+// actualiza seen.report = { requestedAt, file }.
+async function refreshReportPayouts(seen) {
+  const report = (seen.report ||= { requestedAt: 0, file: null });
+  let payouts = [];
   try {
-    const files = await mp('/v1/account/release_report/list');
-    const newest = (Array.isArray(files) ? files : [])
-      .filter((f) => f.file_name && f.created_from === 'manual')
-      .sort((a, b) => new Date(b.date_created) - new Date(a.date_created))[0];
-    if (newest && newest.file_name !== lastReportFile) {
-      const res = await fetch(`https://api.mercadopago.com/v1/account/release_report/${newest.file_name}`, {
-        headers: { Authorization: `Bearer ${TOKEN}` },
-      });
-      if (!res.ok) throw new Error(`reporte ${res.status}`);
-      reportPayouts = parseReportPayouts(await res.text());
-      lastReportFile = newest.file_name;
+    if (Date.now() - report.requestedAt < REPORT_WAIT_MS) {
+      const files = await mp('/v1/account/release_report/list');
+      const newest = (Array.isArray(files) ? files : [])
+        .filter((f) => f.file_name && f.created_from === 'manual')
+        .sort((a, b) => new Date(b.date_created) - new Date(a.date_created))[0];
+      if (newest && newest.file_name !== report.file) {
+        const res = await fetch(`https://api.mercadopago.com/v1/account/release_report/${newest.file_name}`, {
+          headers: { Authorization: `Bearer ${TOKEN}` },
+        });
+        if (!res.ok) throw new Error(`reporte ${res.status}`);
+        payouts = parseReportPayouts(await res.text());
+        report.file = newest.file_name;
+      }
     }
-    if (Date.now() - lastReportRequest > REPORT_EVERY_MS) {
-      lastReportRequest = Date.now();
+    if (Date.now() - report.requestedAt > REPORT_EVERY_MS) {
+      report.requestedAt = Date.now();
       const end = new Date();
       const begin = new Date(end.getTime() - 24 * 60 * 60 * 1000);
       const iso = (d) => d.toISOString().replace(/\.\d+Z$/, 'Z');
@@ -141,7 +147,7 @@ async function refreshReportPayouts() {
   } catch (err) {
     console.error('MP reporte:', err.message);
   }
-  return reportPayouts;
+  return payouts;
 }
 
 // Devuelve los egresos que todavía no se avisaron (del más viejo al más
@@ -153,15 +159,17 @@ export async function checkNewOutflows(notify) {
   if (!mpConfigured || running) return { skipped: true };
   running = true;
   try {
-    const outflows = [...(await fetchRecentOutflows()), ...(await refreshReportPayouts())].sort(
-      (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
-    );
+    const apiOutflows = await fetchRecentOutflows();
     let seen = await getSeenRow();
     if (!seen) {
-      seen = { since: new Date().toISOString(), ids: outflows.map((o) => o.mpId) };
+      seen = { since: new Date().toISOString(), ids: apiOutflows.map((o) => o.mpId) };
       await putSeenRow(seen);
-      return { baseline: true, count: outflows.length };
+      return { baseline: true, count: apiOutflows.length };
     }
+    const reportBefore = JSON.stringify(seen.report || null);
+    const outflows = [...apiOutflows, ...(await refreshReportPayouts(seen))].sort(
+      (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+    );
     const seenIds = new Set(seen.ids);
     const since = new Date(seen.since);
     const fresh = outflows
@@ -180,7 +188,7 @@ export async function checkNewOutflows(notify) {
       seen.ids.push(o.mpId);
     }
     seen.ids = seen.ids.slice(-MAX_SEEN);
-    if (notified) await putSeenRow(seen);
+    if (notified || JSON.stringify(seen.report) !== reportBefore) await putSeenRow(seen);
     return { notified, fresh: fresh.length };
   } finally {
     running = false;

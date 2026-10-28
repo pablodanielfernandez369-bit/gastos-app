@@ -10,7 +10,7 @@ import {
 import { getDolarBlue } from './server/dolar.js';
 import { telegramConfigured, handleUpdate, verifyWebhook, notifyMpOutflow } from './server/telegram.js';
 import { mpConfigured, checkNewOutflows, fetchRecentOutflows, debugRecentPayments, accountReportRaw } from './server/mercadopago.js';
-import { handleNotif, validNotifKey, getNotifLog, wasNotified } from './server/mpnotif.js';
+import { handleNotif, validNotifKey, getNotifLog, wasNotifiedLogged } from './server/mpnotif.js';
 import { sendWeeklyReport } from './server/report.js';
 import {
   getChatView, handleChatText, handleChatAction, addPushSubscription, sendPush, vapidPublicKey,
@@ -174,7 +174,9 @@ app.get('/healthz', (req, res) => res.type('text').send('ok'));
 
 const runMpCheck = () =>
   // Si ya lo avisó la notificación del celular, se marca como visto sin repetir.
-  checkNewOutflows((o) => (wasNotified(o.amount, new Date(o.createdAt).getTime()) ? null : notifyMpOutflow(o))).catch((err) => {
+  checkNewOutflows(async (o) =>
+    (await wasNotifiedLogged(o.amount, new Date(o.createdAt).getTime())) ? null : notifyMpOutflow(o)
+  ).catch((err) => {
     console.error('mp-check:', err.message);
     return { error: err.message };
   });
