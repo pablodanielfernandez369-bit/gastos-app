@@ -50,21 +50,16 @@ export async function wasNotifiedLogged(amount, at) {
   return log.some(
     (e) =>
       e.result === 'avisada' &&
-      (!e.source || e.source === SOURCES.mercadopago) &&
       Math.abs((e.parsed?.amount || 0) - amount) < 0.01 &&
       Math.abs(new Date(e.at).getTime() - at) < MATCH_WINDOW_MS
   );
 }
 export const getNotifLog = async () => (supabaseConfigured ? (await getNotifLogRow()) || [] : lastNotifs);
 
-// De qué app vino la notificación (la app de Android lo manda en "app"; las
-// versiones viejas no lo mandan y solo reenvían Mercado Pago).
-const SOURCES = { mercadopago: 'Mercado Pago', rebanking: 'Rebanking' };
-
 // Claude decide si la notificación es plata que sale y saca monto/comercio.
-async function parseNotif(title, text, source) {
+async function parseNotif(title, text) {
   const system =
-    `Te paso una notificación del celular de la app ${source} (Argentina). Decidí si es ` +
+    'Te paso una notificación del celular de la app Mercado Pago (Argentina). Decidí si es ' +
     'un EGRESO de plata del usuario: un pago, una compra con tarjeta (incluida la prepaga), un ' +
     'débito automático, una transferencia enviada, un pago de servicio. NO son egresos: plata ' +
     'recibida, ingresos, rendimientos, promociones, recordatorios, ofertas, avisos de seguridad, ' +
@@ -115,38 +110,33 @@ export function wasNotified(amount, at) {
 }
 
 // Devuelve enseguida; el aviso por Telegram sale después de la espera.
-export function handleNotif({ app, title = '', text = '', postTime, test }, notify) {
+export function handleNotif({ title = '', text = '', postTime, test }, notify) {
   const at = Number(postTime) || Date.now();
-  const source = SOURCES[app] || SOURCES.mercadopago;
-  const isMp = source === SOURCES.mercadopago;
   const hash = createHash('sha256').update(`${title}|${text}`).digest('hex').slice(0, 16);
 
-  lastNotifs.unshift({ source, title, text, at: new Date(at).toISOString() });
+  lastNotifs.unshift({ title, text, at: new Date(at).toISOString() });
   lastNotifs.length = Math.min(lastNotifs.length, 20);
 
   for (const [h, t] of seen) if (Date.now() - t > 60 * 60 * 1000) seen.delete(h);
   if (seen.has(hash)) return { duplicate: true };
   seen.set(hash, Date.now());
-  logNotif(hash, { source, title, text, at: new Date(at).toISOString(), result: 'esperando' });
+  logNotif(hash, { title, text, at: new Date(at).toISOString(), result: 'esperando' });
   const done = (result, extra) => logNotif(hash, { result, ...extra, done: true });
 
   setTimeout(async () => {
     try {
-      const p = await parseNotif(title, text, source);
+      const p = await parseNotif(title, text);
       if (!p.egreso || !p.amount) return done('no es egreso', { parsed: p });
-      // La API y el antiduplicado solo aplican a Mercado Pago: Rebanking no
-      // tiene API y sus pagos no tienen nada que ver con los de MP.
-      if (isMp && !test && (await alreadyInApi(p.amount, at))) return done('ya está en la API', { parsed: p });
+      if (!test && (await alreadyInApi(p.amount, at))) return done('ya está en la API', { parsed: p });
       // MP y Mercado Libre pueden avisar la misma compra con textos distintos.
-      if (isMp && !test && wasNotified(p.amount, at)) return done('repetida', { parsed: p });
-      if (isMp && !test) notified.push({ amount: p.amount, at });
+      if (!test && wasNotified(p.amount, at)) return done('repetida', { parsed: p });
+      if (!test) notified.push({ amount: p.amount, at });
       await notify({
         mpId: `notif:${hash}`,
-        source,
         createdAt: new Date(at).toISOString(),
         amount: Math.round(p.amount * 100) / 100,
         currency: p.currency === 'USD' ? 'USD' : 'ARS',
-        description: (p.comercio || `Pago ${source}`).slice(0, 60),
+        description: (p.comercio || 'Pago Mercado Pago').slice(0, 60),
         toll: false,
         test: Boolean(test), // prueba: los botones no guardan
         date: at ? dateAR(at) : todayAR(),
