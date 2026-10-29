@@ -235,7 +235,7 @@ pendingHooks.created = async (id, pend) => {
   const what = o.toll ? `🚗 Peaje ${money(o)} — ¿de quién es?` : `${money(pend)} — ${pend.description}`;
   // Ya quedó en el chat: si la push falla no se reintenta (duplicaría la tarjeta).
   await sendPush({
-    title: `${o.test ? '🧪 PRUEBA · ' : ''}💸 Gasto en Mercado Pago`,
+    title: `${o.test ? '🧪 PRUEBA · ' : ''}💸 Gasto en ${o.source || 'Mercado Pago'}`,
     body: `${what}\nTocá para confirmarlo`,
     tag: id,
   }).catch((err) => console.error('push MP:', err.message));

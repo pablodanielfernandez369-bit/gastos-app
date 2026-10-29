@@ -118,7 +118,7 @@ function PendingCard({ pending, state, onAction }) {
   const mp = pending.mp;
   const header = mp && (
     <p className="mb-1 text-xs font-semibold text-accent">
-      {mp.test && '🧪 PRUEBA · '}💸 Detecté un gasto en Mercado Pago ({mpWhen(mp)})
+      {mp.test && '🧪 PRUEBA · '}💸 Detecté un gasto en {mp.source || 'Mercado Pago'} ({mpWhen(mp)})
     </p>
   );
   const btn = 'rounded-lg px-3 py-2 text-sm font-semibold disabled:opacity-40';

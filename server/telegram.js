@@ -114,7 +114,7 @@ export async function parseExpense(text, state, pendingContext = null, { allowQu
       '"isCorrection": false.\n';
     if (mp) {
       system +=
-        'Ese gasto lo detecté solo en Mercado Pago (no lo escribió el usuario), así que el monto ' +
+        `Ese gasto lo detecté solo en ${mp.source || 'Mercado Pago'} (no lo escribió el usuario), así que el monto ` +
         'ya es el real. Un mensaje SIN monto que cuenta a quién, para qué o qué fue (ej "envié a ' +
         'mel", "era la luz", "regalo para mamá", "fue el super") es casi seguro una aclaración (a): ' +
         'usalo para la descripción, la categoría y el nombre, dejá el monto igual y poné ' +
@@ -181,7 +181,7 @@ function describePending(state, p) {
   }
   const persona = p.personName ? `\nNombre: *${p.personName}*` : '';
   const origen = p.mp
-    ? `${p.mp.test ? '🧪 *PRUEBA* · ' : ''}💸 *Detecté un gasto en Mercado Pago* (${mpWhen(p.mp)})\n\n`
+    ? `${p.mp.test ? '🧪 *PRUEBA* · ' : ''}💸 *Detecté un gasto en ${p.mp.source || 'Mercado Pago'}* (${mpWhen(p.mp)})\n\n`
     : '';
   return `${origen}📝 *${money}* — ${p.description}\nCategoría: *${g}${sub}*${persona}`;
 }
@@ -251,7 +251,7 @@ export async function commitExpense(p, inputMethod = 'telegram') {
     personName: p.personName?.trim() || null,
     date: p.mp?.date || todayAR(),
     type: 'variable',
-    inputMethod: p.mp ? 'mercadopago' : inputMethod,
+    inputMethod: p.mp ? (p.mp.source === 'Rebanking' ? 'rebanking' : 'mercadopago') : inputMethod,
     mpPaymentId: p.mp?.mpId || null,
     recurringId: null,
     createdAt: Date.now(),
