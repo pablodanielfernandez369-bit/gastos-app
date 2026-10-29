@@ -243,22 +243,3 @@ pendingHooks.created = async (id, pend) => {
 };
 
 pendingHooks.resolved = (id, text) => withChat(async (chat) => resolveMessage(chat, id, text));
-
-// Avisos que llegan sin monto (Rebanking solo dice "¡Tu transferencia fue
-// exitosa!"): no hay nada que confirmar, se le pregunta a Pablo y lo que
-// conteste entra como un gasto nuevo por el flujo normal del chat.
-export async function askMissingAmount(o) {
-  const what = o.description ? `"${o.description}"` : 'un movimiento';
-  const text =
-    `${o.test ? '🧪 PRUEBA · ' : ''}💸 ${o.source} avisó ${what}, pero no dice el monto. ` +
-    '¿Cuánto fue y a quién o para qué? (ej "15000 a Mel")';
-  await withChat(async (chat) => {
-    chat.messages.push(msg('bot', text));
-    chat.activePendingId = null;
-  });
-  await sendPush({
-    title: `${o.test ? '🧪 PRUEBA · ' : ''}💸 Movimiento en ${o.source}`,
-    body: `${o.description || 'Sin detalle'}\nTocá para contar cuánto fue`,
-    tag: `ask:${o.mpId}`,
-  }).catch((err) => console.error(`push ${o.source}:`, err.message));
-}
