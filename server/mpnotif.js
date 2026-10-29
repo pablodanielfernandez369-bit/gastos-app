@@ -68,7 +68,9 @@ async function parseNotif(title, text, source) {
     'un EGRESO de plata del usuario: un pago, una compra con tarjeta (incluida la prepaga), un ' +
     'débito automático, una transferencia enviada, un pago de servicio. NO son egresos: plata ' +
     'recibida, ingresos, rendimientos, promociones, recordatorios, ofertas, avisos de seguridad, ' +
-    'pagos rechazados o pendientes. Devolvé SOLO un JSON: {"egreso": boolean, "amount": number|null, ' +
+    'pagos rechazados o pendientes. Un aviso de transferencia hecha o exitosa ("¡Tu transferencia ' +
+    'fue exitosa!") que no dice que la recibiste ES egreso, aunque no traiga monto: ahí "amount" ' +
+    'va null. Devolvé SOLO un JSON: {"egreso": boolean, "amount": number|null, ' +
     '"currency": "ARS"|"USD", "comercio": string|null}. "amount" en número (33.675,22 = 33675.22). ' +
     '"comercio": a quién se pagó, corto (ej "Claude Ai", "Transferencia a Melina").';
   const r = await fetch('https://api.anthropic.com/v1/messages', {
@@ -115,7 +117,7 @@ export function wasNotified(amount, at) {
 }
 
 // Devuelve enseguida; el aviso por Telegram sale después de la espera.
-export function handleNotif({ app, title = '', text = '', postTime, test }, notify) {
+export function handleNotif({ app, title = '', text = '', postTime, test }, notify, askAmount) {
   const at = Number(postTime) || Date.now();
   const source = SOURCES[app] || SOURCES.mercadopago;
   const isMp = source === SOURCES.mercadopago;
@@ -133,7 +135,19 @@ export function handleNotif({ app, title = '', text = '', postTime, test }, noti
   setTimeout(async () => {
     try {
       const p = await parseNotif(title, text, source);
-      if (!p.egreso || !p.amount) return done('no es egreso', { parsed: p });
+      if (!p.egreso) return done('no es egreso', { parsed: p });
+      if (!p.amount) {
+        // MP siempre dice el monto; Rebanking a veces no ("¡Tu transferencia
+        // fue exitosa!"): ahí se le pregunta a Pablo.
+        if (isMp || !askAmount) return done('sin monto', { parsed: p });
+        await askAmount({
+          mpId: `notif:${hash}`,
+          source,
+          description: (p.comercio || text || title).slice(0, 60),
+          test: Boolean(test),
+        });
+        return done('preguntada (sin monto)', { parsed: p });
+      }
       // La API y el antiduplicado solo aplican a Mercado Pago: Rebanking no
       // tiene API y sus pagos no tienen nada que ver con los de MP.
       if (isMp && !test && (await alreadyInApi(p.amount, at))) return done('ya está en la API', { parsed: p });

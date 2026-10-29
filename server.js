@@ -14,7 +14,7 @@ import { handleNotif, validNotifKey, getNotifLog, wasNotifiedLogged } from './se
 import { sendWeeklyReport } from './server/report.js';
 import {
   getChatView, handleChatText, handleChatAction, addPushSubscription, sendPush, vapidPublicKey,
-  lastPush, pushSubCount,
+  lastPush, pushSubCount, askMissingAmount,
 } from './server/chatbot.js';
 import { todayAR, nowAR } from './server/time.js';
 import { computeMonthBudget, computeTotals, monthBounds, usdNet } from './src/lib/selectors.js';
@@ -201,7 +201,7 @@ app.post('/api/mp-check', async (req, res) => {
 // que la API no ve). Ver server/mpnotif.js.
 app.post('/api/mp-notif', (req, res) => {
   if (!validNotifKey(req.get('x-key'))) return res.sendStatus(403);
-  res.json(handleNotif(req.body || {}, notifyMpOutflow));
+  res.json(handleNotif(req.body || {}, notifyMpOutflow, askMissingAmount));
 });
 
 app.get('/api/mp-notif/last', async (req, res) => {
