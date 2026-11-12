@@ -74,6 +74,9 @@ export async function fetchRecentOutflows() {
     return {
       mpId: String(p.id),
       createdAt: when,
+      // Cuándo se hizo el pago (puede ser días antes de la aprobación: un
+      // PedidosYa del 8/11 quedó pendiente y MP lo aprobó el 11/11).
+      madeAt: p.date_created || when,
       amount: Math.round(paid * 100) / 100,
       currency: p.currency_id === 'USD' ? 'USD' : 'ARS',
       description: describe(p),

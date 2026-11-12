@@ -172,11 +172,37 @@ app.get('/healthz', (req, res) => res.type('text').send('ok'));
 // cada 1 min mientras el server está despierto (el keep-alive de
 // cron-job.org lo mantiene así); este endpoint es para forzar una vuelta. ----
 
+// ¿Ya hay un gasto guardado para este pago? Mismo id de MP, o mismo monto
+// cargado desde un aviso de MP en los últimos días (el aviso del celular sale
+// al momento, pero MP a veces aprueba el pago días después).
+const MP_DUP_DAYS = 5;
+async function mpAlreadySaved(o) {
+  const { data } = await getState('main');
+  const from = new Date(new Date(o.madeAt || o.createdAt).getTime() - MP_DUP_DAYS * 86400000)
+    .toISOString().slice(0, 10);
+  return (data?.expenses || []).some(
+    (e) =>
+      e.mpPaymentId === o.mpId ||
+      // Solo contra gastos que vinieron de una notificación del celular o del
+      // reporte: si el otro tiene un id de la API distinto, es otro pago
+      // (ej. dos pedidos iguales en la semana) y sí hay que avisarlo.
+      (e.inputMethod === 'mercadopago' &&
+        /^(notif|payout):/.test(e.mpPaymentId || '') &&
+        e.currency === o.currency &&
+        Math.abs(Number(e.amount) - o.amount) < 0.01 &&
+        e.date >= from && e.date <= o.date)
+  );
+}
+
 const runMpCheck = () =>
-  // Si ya lo avisó la notificación del celular, se marca como visto sin repetir.
-  checkNewOutflows(async (o) =>
-    (await wasNotifiedLogged(o.amount, new Date(o.createdAt).getTime())) ? null : notifyMpOutflow(o)
-  ).catch((err) => {
+  // Si ya lo avisó la notificación del celular (o ya está guardado), se marca
+  // como visto sin repetir.
+  checkNewOutflows(async (o) => {
+    const times = [o.createdAt, o.madeAt].filter(Boolean).map((t) => new Date(t).getTime());
+    for (const t of times) if (await wasNotifiedLogged(o.amount, t)) return null;
+    if (await mpAlreadySaved(o)) return null;
+    return notifyMpOutflow(o);
+  }).catch((err) => {
     console.error('mp-check:', err.message);
     return { error: err.message };
   });

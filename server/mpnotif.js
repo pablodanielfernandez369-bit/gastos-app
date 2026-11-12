@@ -97,7 +97,9 @@ async function alreadyInApi(amount, at) {
   if (!mpConfigured) return false;
   const outflows = await fetchRecentOutflows();
   return outflows.some(
-    (o) => Math.abs(o.amount - amount) < 0.01 && Math.abs(new Date(o.createdAt).getTime() - at) < MATCH_WINDOW_MS
+    (o) =>
+      Math.abs(o.amount - amount) < 0.01 &&
+      [o.createdAt, o.madeAt].some((t) => t && Math.abs(new Date(t).getTime() - at) < MATCH_WINDOW_MS)
   );
 }
 
